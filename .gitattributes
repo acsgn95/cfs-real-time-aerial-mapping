@@ -1,0 +1,69 @@
+# Normalize text files and use LF line endings.
+* text=auto eol=lf
+
+# Source code
+*.c       text eol=lf
+*.cc      text eol=lf
+*.cpp     text eol=lf
+*.cxx     text eol=lf
+*.h       text eol=lf
+*.hh      text eol=lf
+*.hpp     text eol=lf
+*.hxx     text eol=lf
+
+# Build and configuration files
+*.cmake   text eol=lf
+*.yml     text eol=lf
+*.yaml    text eol=lf
+*.json    text eol=lf
+*.toml    text eol=lf
+*.ini     text eol=lf
+*.cfg     text eol=lf
+*.conf    text eol=lf
+
+CMakeLists.txt text eol=lf
+Makefile       text eol=lf
+
+# Documentation and scripts
+*.md      text eol=lf
+*.rst     text eol=lf
+*.txt     text eol=lf
+*.sh      text eol=lf
+*.py      text eol=lf
+
+# Windows-specific scripts
+*.bat     text eol=crlf
+*.cmd     text eol=crlf
+*.ps1     text eol=crlf
+
+# Images
+*.png     binary
+*.jpg     binary
+*.jpeg    binary
+*.gif     binary
+*.webp    binary
+*.ico     binary
+
+# Documents and archives
+*.pdf     binary
+*.zip     binary
+*.tar     binary
+*.gz      binary
+*.tgz     binary
+*.7z      binary
+
+# Geospatial and 3D data
+*.tif     binary
+*.tiff    binary
+*.las     binary
+*.laz     binary
+*.pcd     binary
+*.db      binary
+
+# Mark external code as vendored for GitHub language statistics.
+third_party/** linguist-vendored
+external/**    linguist-vendored
+vendor/**      linguist-vendored
+
+# Mark sample data as generated content.
+sample_data/** linguist-generated
