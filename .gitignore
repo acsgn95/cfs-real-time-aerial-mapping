@@ -1,68 +1,172 @@
-# Prerequisites
-*.d
+# =============================================================================
+# Build outputs - CMake / cFS
+# =============================================================================
+/build/
+/build-*/
+/cmake-build-*/
+/out/
+/exe/
+/install/
 
-# Compiled Object files
-*.slo
-*.lo
-*.o
-*.obj
-
-# Precompiled Headers
-*.gch
-*.pch
-
-# Linker files
-*.ilk
-
-# Debugger Files
-*.pdb
-
-# Compiled Dynamic libraries
-*.so
-*.dylib
-*.dll
-*.so.*
-
-# Fortran module files
-*.mod
-*.smod
-
-# Compiled Static libraries
-*.lai
-*.la
-*.a
-*.lib
-
-# Executables
-*.exe
-*.out
-*.app
-
-# Build directories
-build/
-Build/
-build-*/
-
-# CMake generated files
-CMakeFiles/
 CMakeCache.txt
+CMakeFiles/
 cmake_install.cmake
+CTestTestfile.cmake
 Makefile
-install_manifest.txt
 compile_commands.json
 
-# Temporary files
-*.tmp
+# =============================================================================
+# Compiled files
+# =============================================================================
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.so.*
+*.dylib
+*.dll
+*.exe
+*.out
+
+# =============================================================================
+# cFS runtime artifacts
+# =============================================================================
+/core.*
+*.tbl
+*.bin
+*.dat
 *.log
-*.bak
+
+/runtime/
+/ram/
+/cf/
+/logs/
+
+# =============================================================================
+# COLMAP workspaces and generated databases
+# =============================================================================
+/colmap_workspace/
+/dense/
+/sparse/
+
+database.db
+*.db-wal
+*.db-shm
+
+# =============================================================================
+# Datasets and generated map products
+# =============================================================================
+/data/raw/**
+/data/interim/**
+/data/processed/**
+/datasets/**
+/outputs/**
+/results/raw/**
+/artifacts/**
+
+# Keep directory documentation/placeholders
+!/data/raw/.gitkeep
+!/data/raw/README.md
+!/data/interim/.gitkeep
+!/data/interim/README.md
+!/data/processed/.gitkeep
+!/data/processed/README.md
+!/datasets/.gitkeep
+!/datasets/README.md
+!/outputs/.gitkeep
+!/outputs/README.md
+
+# =============================================================================
+# Generated geospatial and 3D products
+# =============================================================================
+*.ply
+*.pcd
+*.las
+*.laz
+*.tif
+*.tiff
+*.vrt
+*.dem
+*.dsm
+*.kml
+*.kmz
+
+# =============================================================================
+# Temporary image-processing products
+# =============================================================================
+*.tmp
+*.temp
+*.cache
+
+/cache/
+/tmp/
+/temp/
+
+# =============================================================================
+# Test and coverage outputs
+# =============================================================================
+/Testing/
+/test-results/
+/coverage/
+
+*.gcda
+*.gcno
+*.gcov
+*.profraw
+*.profdata
+
+# =============================================================================
+# Python utilities
+# =============================================================================
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+.venv/
+venv/
+env/
+
+# =============================================================================
+# IDEs and editors
+# =============================================================================
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+
+.idea/
 *.swp
+*.swo
+*~
+.vs/
 
-# vcpkg
-vcpkg_installed/
+# =============================================================================
+# Operating-system files
+# =============================================================================
+.DS_Store
+Thumbs.db
 
-# debug information files
-*.dwo
+# =============================================================================
+# Secrets and local configuration
+# =============================================================================
+.env
+.env.*
+!.env.example
 
-# test output & cache
-Testing/
-.cache/
+*.pem
+*.key
+credentials.json
+secrets.json
+
+# =============================================================================
+# Archives
+# =============================================================================
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.7z
