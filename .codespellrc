@@ -1,0 +1,8 @@
+[codespell]
+check-filenames =
+check-hidden =
+quiet-level = 2
+
+skip = .git,build,build-*,cmake-build-*,third_party,external,vendor,data,datasets,outputs,artifacts,*.lock,*.svg
+
+ignore-words-list = cfs,cfe,osal,psp,enu,ecef,wgs84,colmap,gdal,orthomosaic,orthomosaics,georeferencing
