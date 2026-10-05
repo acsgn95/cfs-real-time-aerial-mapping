@@ -1,0 +1,28 @@
+cff-version: 1.2.0
+message: "If you use this software in your research, please cite it using the metadata provided in this file."
+
+title: "cFS Real-Time Aerial Mapping"
+type: software
+
+authors:
+  - family-names: "Coşgun"
+    given-names: "Ahmet"
+
+abstract: >-
+  An open-source cFS-based framework for real-time photogrammetric
+  mapping from simulated UAV imagery, generating georeferenced dense
+  point clouds, digital surface models, and incremental orthomosaics.
+
+keywords:
+  - cFS
+  - aerial mapping
+  - photogrammetry
+  - multi-view stereo
+  - dense reconstruction
+  - digital surface model
+  - orthomosaic
+  - georeferencing
+  - UAV simulation
+  - real-time mapping
+
+license: Apache-2.0
