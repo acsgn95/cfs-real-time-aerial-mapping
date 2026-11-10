@@ -4,6 +4,7 @@
 * Date: 2026-11-11
 * Decided by: Ahmet Coşgun
 * Backlog item: D11
+* Revised: 2026-11-11 (reusable components for other cFS missions)
 * Evidence: thesis proposal (FB_YL-01) sections 2 and 4.1; ADR-003 to
   ADR-011; OSAL name limits (20 characters including terminator for API and
   file names)
@@ -38,8 +39,20 @@ RECORDER_APP <-- status, timing and health messages of all applications
 | `MAPPROD_APP` | fuses points into the DSM, renders the orthomosaic, manages the tile lifecycle and publication | `map_products`, `imaging`, `geo` |
 | `RECORDER_APP` | records status, timing and health messages to files for the evaluation; does not record raw images (ADR-001) | — |
 
-The cFS lab applications (`SCH_LAB`, `CI_LAB`, `TO_LAB`) stay in the mission
-during development.
+The cFS lab applications (`SCH_LAB`, `CI_LAB`, `TO_LAB`) stay in the reference
+mission during development. The OrthoStream applications do not depend on
+them (ADR-015).
+
+### 1a. `INGEST_APP` is a source adapter
+
+* `INGEST_APP` adapts one data source, the injector link of ADR-003, to the
+  OrthoStream messages `TelemetrySample`, `ImageArrived` and
+  `SessionCalibration` (ADR-016).
+* From `ALIGN_APP` onwards, every application works only with these messages
+  and does not know the source.
+* Other sources, for example MAVLink telemetry from an autopilot or a camera
+  SDK, are added as further adapter applications that publish the same
+  messages. The rest of the pipeline stays unchanged.
 
 ### 2. Georeferencing is a separate application
 

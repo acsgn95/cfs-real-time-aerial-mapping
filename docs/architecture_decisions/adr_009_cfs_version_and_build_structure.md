@@ -4,6 +4,7 @@
 * Date: 2026-11-10
 * Decided by: Ahmet Coşgun
 * Backlog item: D09
+* Revised: 2026-11-11 (reusable components for other cFS missions)
 * Evidence: tags of `nasa/cFS` on 2026-11-10 (latest release `v7.0.1`,
   later only `v7.0.2-rc1`); a cFS `v7.0.1` mission built on the target
   machine with GCC 15.2 and CMake 4.2 (NavionCore, built with `-std=c99`);
@@ -43,6 +44,14 @@ cFS `v7.0.1`, the latest release. Release candidates are not used.
 | `vendor/` | third-party sources as submodules |
 | `build/` | build output, not committed |
 
+The repository has two parts:
+
+* **Reusable components:** `apps/`, `libs/` and `interfaces/`. Another cFS
+  mission can use them without the rest of the repository.
+* **Reference mission:** `mission/orthostream_defs/` and `mission/build.sh`.
+  It is the mission used for the thesis, and an example of how a host mission
+  integrates the components.
+
 ### 4. Build
 
 * The build is configured from `vendor/cfs/cfe` with `MISSION_DEFS`
@@ -50,6 +59,14 @@ cFS `v7.0.1`, the latest release. Release candidates are not used.
   to `vendor/cfs/apps` when lab applications are needed).
 * One target, `cpu1`: Linux with the POSIX OSAL and the `pc-linux` PSP,
   built natively (`SIMULATION=native`).
+* A host mission integrates OrthoStream by adding `apps/` to its
+  `CFS_APP_PATH`, listing the applications in its `targets.cmake`, and
+  overriding the default configuration headers in its own `*_defs` directory
+  where needed (ADR-016).
+* CI builds the applications in a second mission (the cFS sample mission) as
+  proof that they do not depend on the reference mission.
+* The cFS lab applications are for development only. A host mission uses its
+  own scheduler, command ingest and telemetry output.
 * The default build type is `debug`. All measurements for the thesis use a
   `release` build. This is added to the measurement conditions of ADR-002.
 

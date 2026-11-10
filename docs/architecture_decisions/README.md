@@ -26,8 +26,27 @@ Every record starts with:
 * Evidence: <documents, experiments, measurements or commits that support it>
 ```
 
-An accepted record is not rewritten. When a decision changes, a new record
-supersedes it and only the status line of the old record is updated.
+An accepted record may be extended in place when the change does not reverse
+its decision, for example a clarification or an added constraint. Such a
+change adds a `Revised: <date> (<reason>)` line to the header. When a
+decision is reversed or replaced, a new record supersedes or amends it, and
+the status line of the old record says so.
+
+## Product Orientation
+
+OrthoStream is designed as a set of reusable cFS components, not only as a
+thesis prototype:
+
+* the applications follow the cFS v7 component layout, with default
+  configuration headers that a host mission can override (ADR-016);
+* the algorithm libraries do not depend on cFE and can be used outside cFS
+  (ADR-011);
+* dependencies are pinned and built by the project (ADR-010);
+* memory is bounded and preallocated (ADR-001, ADR-013);
+* no component assumes a given data source or pose quality (ADR-012, D18).
+
+The reference mission under `mission/` is the thesis configuration and an
+integration example.
 
 ## Relationship with the Thesis Proposal
 
@@ -128,3 +147,15 @@ telemetry.
 | Item | Decision | Depends on | ADR | Status |
 | --- | --- | --- | --- | --- |
 | D18 | Optional pose refinement between `SELECT_APP` and `DENSE_APP` (for example `REFINE_APP`): feature matching and a small bundle adjustment per keyframe batch, with position and attitude tied to the telemetry as priors weighted by its reported accuracy. Must work with PPK/RTK positions (tight priors, mainly attitude corrected) and with standard GNSS receivers such as u-blox modules (loose priors, position also corrected). Absolute accuracy stays limited by the GNSS accuracy. Preferred library: GTSAM 4.3.0 (vcpkg port; BSD-3-Clause, MIT and MPL-2.0), using an incremental or fixed-lag smoother with projection factors and GNSS priors, and open to IMU preintegration factors later. Off by default. Extends the proposal's scope and needs the supervisor's agreement | D05, D06, D11, D14 | — | Open |
+
+### F. Product Readiness
+
+These items are not needed for the thesis. They are decided before a
+production use.
+
+| Item | Decision | Depends on | ADR | Status |
+| --- | --- | --- | --- | --- |
+| D19 | Unit tests of the cFS applications with UT-Assert and stubs, and functional tests of the mission | D15 | — | Open |
+| D20 | Security of the data link and of command ingest (authentication, replacing `CI_LAB`) | D03, D15 | — | Open |
+| D21 | Electronic Data Sheets (EDS) for interoperability with ground systems | D15 | — | Open |
+| D22 | Component versioning, packaging and deployment to a production target | D09, D10 | — | Open |

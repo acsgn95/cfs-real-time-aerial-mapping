@@ -159,6 +159,8 @@ cd build/exe/cpu1 && ./core-cpu1
 
 At this stage the mission runs the cFS lab applications only (SCH_LAB, CI_LAB, TO_LAB). The OrthoStream applications are added as the architecture decisions are implemented.
 
+The OrthoStream applications and libraries are reusable cFS components. Another cFS mission can include them by adding `apps/` to its `CFS_APP_PATH`, listing the applications in its `targets.cmake`, and overriding their default configuration headers where needed. The mission under `mission/` is the reference configuration used for the thesis.
+
 ## Repository Status
 
 The repository currently represents ongoing research and development. Architecture decisions are recorded in `docs/architecture_decisions/`.

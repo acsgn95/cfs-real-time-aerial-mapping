@@ -4,6 +4,7 @@
 * Date: 2026-11-11
 * Decided by: Ahmet Coşgun
 * Backlog item: D10
+* Revised: 2026-11-11 (reusable components for other cFS missions)
 * Evidence: ADR-005 section 7 (COLMAP only in an algorithm library);
   ADR-009 (C99 applications, C++17 libraries, `OST_` prefix); ADR-010
   (dependencies); the library pattern of a cFS mission on the same machine
@@ -85,6 +86,9 @@ and tile. Merging and thinning happen offline. This amends ADR-007.
 ### 7. Running without cFS
 
 * Every library builds outside cFS, with its own GoogleTest tests.
+* Every library installs and exports a CMake package configuration, so that
+  other projects (host tools, other missions, ground software) can use it
+  with `find_package`.
 * Small C++ tools under `tools/` run the libraries directly for the ADR-005
   benchmark and for experiments.
 * The evaluation tools are Python. They read the written products with the

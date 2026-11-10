@@ -4,6 +4,7 @@
 * Date: 2026-11-11
 * Decided by: Ahmet Coşgun
 * Backlog item: D14
+* Revised: 2026-11-11 (reusable components for other cFS missions)
 * Evidence: ADR-001 (R1–R3), ADR-005 (one GPU job in flight, delayed mode),
   ADR-007 (publication period), ADR-011 (synchronous library calls),
   ADR-012 (applications), ADR-013 (quotas and failed allocations), ADR-014
@@ -24,8 +25,10 @@ and leaves the reaction to this record.
 
 * Applications on the data path are event-driven: they wake when a message
   arrives.
-* Periodic work is triggered by the 1 Hz wake-up of the scheduler (`SCH_LAB`
-  during development). This covers housekeeping, the waiting limits of
+* Periodic work is triggered by a 1 Hz wake-up message from the mission's
+  scheduler (`SCH_LAB` in the reference mission). The message identifiers of
+  the wake-up and of the housekeeping request are configuration values of
+  each application, so a host mission can connect its own scheduler. This covers housekeeping, the waiting limits of
   `ALIGN_APP` (ADR-014) and the publication period of `MAPPROD_APP`
   (ADR-007).
 * The main loop of every application waits for messages with a short

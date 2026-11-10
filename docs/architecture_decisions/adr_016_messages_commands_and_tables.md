@@ -4,6 +4,7 @@
 * Date: 2026-11-11
 * Decided by: Ahmet Coşgun
 * Backlog item: D15
+* Revised: 2026-11-11 (reusable components for other cFS missions)
 * Evidence: ADR-003 (link channels), ADR-004 (frames and conventions),
   ADR-011 (table structures shared with libraries), ADR-012 (applications),
   ADR-013 (object references; `datastore` is a cFS library module),
@@ -25,9 +26,15 @@ applications are implemented, and they must follow this record.
 * Message structures are C headers under `interfaces/messages/`.
 * cFS Electronic Data Sheets (EDS) are not used. The mission is built with
   EDS disabled. Adopting EDS later would be a decision of its own.
-* Message identifiers are defined in one mission header. Each application
-  gets a block of 16 topic identifiers, with separate ranges for commands and
-  telemetry. The ranges used by cFE and the lab applications are avoided.
+* Every application follows the cFS v7 component layout, as the cFS sample
+  application does. It ships its own default configuration headers under
+  `config/` (`default_<app>_topicid_values.h`, `default_<app>_msgids.h`,
+  `default_<app>_mission_cfg.h`, `default_<app>_platform_cfg.h` and the table
+  definitions). A host mission overrides any of them by placing a file with
+  the same name without the `default_` prefix in its `*_defs` directory.
+* The default topic identifiers give each application a block of 16, with
+  separate ranges for commands and telemetry, and avoid the ranges of cFE and
+  the lab applications. A host mission with other ranges overrides them.
 
 ### 2. Common elements
 
@@ -78,7 +85,9 @@ All messages stay well below the 32 KB Software Bus limit.
   of the earlier records become table values.
 * Table structures live under `interfaces/`. Their validation functions live
   in the libraries that use them (ADR-011).
-* Default values are C table sources under `mission/orthostream_defs/tables/`.
+* Each application ships default table sources under its own `fsw/tables/`.
+  A mission may replace them; the reference mission keeps its tables under
+  `mission/orthostream_defs/tables/`.
 * When experiments start, a tool generates table images from YAML files.
   Each experiment configuration is then stored as a file and can be
   repeated.
@@ -89,7 +98,9 @@ All messages stay well below the 32 KB Software Bus limit.
 
 `datastore` is a cFS library module, and cFE tables belong to applications.
 The arena size and the quotas per type are therefore platform configuration
-values set at build time, as cFE does for its own memory pools.
+values set at build time, as cFE does for its own memory pools. They follow
+the same pattern: a default platform configuration header in the library,
+overridable by the mission.
 
 ### 7. Link wire format
 
@@ -137,9 +148,9 @@ Defined under `interfaces/link/` and shared with the Python injector:
 
 ## Impact
 
-* **Implementation:** `interfaces/messages/`, `interfaces/link/`, the mission
-  topic identifier header and `mission/orthostream_defs/tables/` are created
-  with the first applications.
+* **Implementation:** `interfaces/messages/`, `interfaces/link/`, the
+  configuration headers of each application and its default tables are
+  created with the first applications.
 * **Injector:** implements the link format of section 7.
 * **`TO_LAB`:** its subscription table is extended with the housekeeping and
   status messages for development.
