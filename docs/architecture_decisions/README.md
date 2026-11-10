@@ -73,6 +73,7 @@ Evidence.
 | [ADR-015](adr_015_execution_model.md) | Execution model | D14 | Accepted |
 | [ADR-016](adr_016_messages_commands_and_tables.md) | Messages, commands and tables | D15 | Accepted |
 | [ADR-017](adr_017_observability.md) | Observability and performance measurement | D16 | Accepted |
+| [ADR-018](adr_018_experiment_design.md) | Experiment design | D17 | Accepted |
 
 ## Decision Backlog
 
@@ -115,7 +116,7 @@ item; the ADR column links the resulting records.
 
 | Item | Decision | Depends on | ADR | Status |
 | --- | --- | --- | --- | --- |
-| D17 | Experiment design: scenario matrix, reference surface extraction, metric computation tools | A, B | — | Open |
+| D17 | Experiment design: scenario matrix, reference surface extraction, metric computation tools | A, B | [ADR-018](adr_018_experiment_design.md) | Accepted |
 
 ### E. Optional Extensions
 
