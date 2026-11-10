@@ -1,6 +1,6 @@
 # ADR-001: Flight Envelope, Real-Time Definition and Bounded Memory
 
-* Status: Accepted
+* Status: Accepted; amended by [ADR-003](adr_003_data_source_and_injector.md) (no 60 min continuous-operation test)
 * Date: 2026-11-10
 * Decided by: Ahmet Coşgun
 * Backlog item: D01
