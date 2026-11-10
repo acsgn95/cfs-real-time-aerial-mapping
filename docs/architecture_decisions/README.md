@@ -113,3 +113,14 @@ item; the ADR column links the resulting records.
 | Item | Decision | Depends on | ADR | Status |
 | --- | --- | --- | --- | --- |
 | D17 | Experiment design: scenario matrix, reference surface extraction, metric computation tools | A, B | — | Open |
+
+### E. Optional Extensions
+
+Extensions are decided after the core pipeline works with `optimized` poses.
+The core architecture keeps room for them: no component assumes a given pose
+quality, and pose accuracy is always taken from the accuracy fields of the
+telemetry.
+
+| Item | Decision | Depends on | ADR | Status |
+| --- | --- | --- | --- | --- |
+| D18 | Optional pose refinement between `SELECT_APP` and `DENSE_APP` (for example `REFINE_APP`): feature matching and a small bundle adjustment per keyframe batch, with position and attitude tied to the telemetry as priors weighted by its reported accuracy. Must work with PPK/RTK positions (tight priors, mainly attitude corrected) and with standard GNSS receivers such as u-blox modules (loose priors, position also corrected). Absolute accuracy stays limited by the GNSS accuracy. Off by default. Extends the proposal's scope and needs the supervisor's agreement | D05, D06, D11, D14 | — | Open |
