@@ -57,7 +57,7 @@ Evidence.
 | ID | Title | Backlog item | Status |
 | --- | --- | --- | --- |
 | [ADR-001](adr_001_requirements_and_real_time.md) | Flight envelope, real-time definition and bounded memory | D01 | Accepted, amended by ADR-003 |
-| [ADR-002](adr_002_target_hardware_and_runtime.md) | Target hardware and runtime environment | D02 | Accepted |
+| [ADR-002](adr_002_target_hardware_and_runtime.md) | Target hardware and runtime environment | D02 | Accepted, amended by ADR-009 and ADR-014 |
 | [ADR-003](adr_003_data_source_and_injector.md) | Data source and injector interface | D03 | Accepted |
 | [ADR-004](adr_004_coordinate_frames_and_conventions.md) | Coordinate frames and conventions | D04 | Accepted, completed by ADR-008 |
 | [ADR-005](adr_005_dense_reconstruction_method.md) | Dense reconstruction method | D05 | Accepted; parameters provisional |
@@ -69,6 +69,7 @@ Evidence.
 | [ADR-011](adr_011_library_and_application_boundary.md) | Boundary between algorithm libraries and cFS applications | D10 | Accepted, amended by ADR-012 and ADR-013 |
 | [ADR-012](adr_012_application_boundaries.md) | Application boundaries | D11 | Accepted |
 | [ADR-013](adr_013_shared_data_store.md) | Shared data store for bulk data | D12 | Accepted |
+| [ADR-014](adr_014_time_model.md) | Time model | D13 | Accepted |
 
 ## Decision Backlog
 
@@ -102,7 +103,7 @@ item; the ADR column links the resulting records.
 | D10 | Boundary between algorithm libraries and cFS application shells, so that algorithms and experiments run without cFS | D09 | [ADR-011](adr_011_library_and_application_boundary.md) | Accepted |
 | D11 | Final application boundaries: separate or combined DSM and orthomosaic applications, separate depth fusion application | D05, D07, D10 | [ADR-012](adr_012_application_boundaries.md) | Accepted |
 | D12 | Large data transport: shared memory buffer pool, file references or another mechanism for images, depth maps and point clouds | D01, D03, D09 | [ADR-013](adr_013_shared_data_store.md) | Accepted |
-| D13 | Time model: simulator time versus cFE time, meaning of message timestamps | D03, D09 | — | Open |
+| D13 | Time model: simulator time versus cFE time, meaning of message timestamps | D03, D09 | [ADR-014](adr_014_time_model.md) | Accepted |
 | D14 | Execution model: scheduler-driven or event-driven applications, child tasks for long-running work, queue limits, backpressure and frame dropping policy | D05, D11, D12 | — | Open |
 | D15 | Messages, commands and tables: message IDs, payload fields, versioning, configuration through cFE Table Services | D09–D14 | — | Open |
 | D16 | Observability: housekeeping, events and per-stage timing used for the latency and throughput metrics | D14, D15 | — | Open |

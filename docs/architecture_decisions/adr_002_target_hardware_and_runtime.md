@@ -1,6 +1,6 @@
 # ADR-002: Target Hardware and Runtime Environment
 
-* Status: Accepted
+* Status: Accepted; amended by [ADR-009](adr_009_cfs_version_and_build_structure.md) (measurements use a release build) and [ADR-014](adr_014_time_model.md) (no clock steps during measurements)
 * Date: 2026-11-10
 * Decided by: Ahmet Coşgun
 * Backlog item: D02
