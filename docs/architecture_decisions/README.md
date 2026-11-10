@@ -71,6 +71,7 @@ Evidence.
 | [ADR-013](adr_013_shared_data_store.md) | Shared data store for bulk data | D12 | Accepted |
 | [ADR-014](adr_014_time_model.md) | Time model | D13 | Accepted |
 | [ADR-015](adr_015_execution_model.md) | Execution model | D14 | Accepted |
+| [ADR-016](adr_016_messages_commands_and_tables.md) | Messages, commands and tables | D15 | Accepted |
 
 ## Decision Backlog
 
@@ -106,7 +107,7 @@ item; the ADR column links the resulting records.
 | D12 | Large data transport: shared memory buffer pool, file references or another mechanism for images, depth maps and point clouds | D01, D03, D09 | [ADR-013](adr_013_shared_data_store.md) | Accepted |
 | D13 | Time model: simulator time versus cFE time, meaning of message timestamps | D03, D09 | [ADR-014](adr_014_time_model.md) | Accepted |
 | D14 | Execution model: scheduler-driven or event-driven applications, child tasks for long-running work, queue limits, backpressure and frame dropping policy | D05, D11, D12 | [ADR-015](adr_015_execution_model.md) | Accepted |
-| D15 | Messages, commands and tables: message IDs, payload fields, versioning, configuration through cFE Table Services | D09–D14 | — | Open |
+| D15 | Messages, commands and tables: message IDs, payload fields, versioning, configuration through cFE Table Services | D09–D14 | [ADR-016](adr_016_messages_commands_and_tables.md) | Accepted |
 | D16 | Observability: housekeeping, events and per-stage timing used for the latency and throughput metrics | D14, D15 | — | Open |
 
 ### D. Evaluation
