@@ -59,6 +59,7 @@ Evidence.
 | [ADR-001](adr_001_requirements_and_real_time.md) | Flight envelope, real-time definition and bounded memory | D01 | Accepted, amended by ADR-003 |
 | [ADR-002](adr_002_target_hardware_and_runtime.md) | Target hardware and runtime environment | D02 | Accepted |
 | [ADR-003](adr_003_data_source_and_injector.md) | Data source and injector interface | D03 | Accepted |
+| [ADR-004](adr_004_coordinate_frames_and_conventions.md) | Coordinate frames and conventions | D04 | Accepted |
 
 ## Decision Backlog
 
@@ -73,7 +74,7 @@ item; the ADR column links the resulting records.
 | D01 | Requirements and the meaning of "real time": flight envelope as ranges (altitude, speed, overlap) rather than a single scenario, resulting image rate, map update latency, image resolution, DSM and orthomosaic ground sampling distance; no upper limit on survey area, with memory use independent of the area covered | — | [ADR-001](adr_001_requirements_and_real_time.md) | Accepted |
 | D02 | Hardware and runtime environment: simulator and cFS on one or two machines, GPU sharing, operating system, CUDA version | D01 | [ADR-002](adr_002_target_hardware_and_runtime.md) | Accepted |
 | D03 | Simulator and data interface: which simulator, which data it provides (images, poses, intrinsics, reference surface, time), live streaming or real-time replay of recorded runs; emulated UAV-to-ground radio link (protocol, bandwidth, latency, loss); replay of the nominal Dorfberg dataset; how altitude and tilt are varied; how the 60 min continuous-operation test is fed | D01, D02 | [ADR-003](adr_003_data_source_and_injector.md) | Accepted |
-| D04 | Coordinate frames and conventions: axis definitions, pose representation (e.g. `T_W_C`, quaternion order), ENU origin and its re-anchoring policy for unbounded survey areas, output map projection (e.g. UTM) and zone boundary handling | D01, D03 | — | Open |
+| D04 | Coordinate frames and conventions: axis definitions, pose representation (e.g. `T_W_C`, quaternion order), ENU origin and its re-anchoring policy for unbounded survey areas, output map projection (e.g. UTM) and zone boundary handling | D01, D03 | [ADR-004](adr_004_coordinate_frames_and_conventions.md) | Accepted |
 
 ### B. Algorithms
 
