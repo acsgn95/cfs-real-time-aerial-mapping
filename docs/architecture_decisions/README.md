@@ -62,6 +62,7 @@ Evidence.
 | [ADR-004](adr_004_coordinate_frames_and_conventions.md) | Coordinate frames and conventions | D04 | Accepted |
 | [ADR-005](adr_005_dense_reconstruction_method.md) | Dense reconstruction method | D05 | Accepted; parameters provisional |
 | [ADR-006](adr_006_keyframe_and_source_view_selection.md) | Keyframe and source view selection | D06 | Accepted |
+| [ADR-007](adr_007_depth_fusion_and_map_products.md) | Depth fusion and incremental map products | D07 | Accepted |
 
 ## Decision Backlog
 
@@ -84,7 +85,7 @@ item; the ADR column links the resulting records.
 | --- | --- | --- | --- | --- |
 | D05 | Dense reconstruction method: COLMAP PatchMatch Stereo (CUDA) as a library with known poses, a two-view SGBM baseline, or both; number of source views per depth map | D01, D02, D03 | [ADR-005](adr_005_dense_reconstruction_method.md) | Accepted; benchmark after D09 |
 | D06 | Frame and source view selection: footprint overlap, baseline and viewing-angle criteria and thresholds | D04, D05 | [ADR-006](adr_006_keyframe_and_source_view_selection.md) | Accepted |
-| D07 | Depth fusion and incremental map products: tiled DSM and orthomosaic layout in a fixed projection, tile finalisation and eviction to keep memory bounded, cell update rule, orthomosaic pixel source selection and blending | D01, D04, D05 | — | Open |
+| D07 | Depth fusion and incremental map products: tiled DSM and orthomosaic layout in a fixed projection, tile finalisation and eviction to keep memory bounded, cell update rule, orthomosaic pixel source selection and blending | D01, D04, D05 | [ADR-007](adr_007_depth_fusion_and_map_products.md) | Accepted |
 | D08 | Offline COLMAP reference workflow: how COLMAP is run with known poses and which settings are used for the comparison | D05 | — | Open |
 
 ### C. cFS Software Architecture
