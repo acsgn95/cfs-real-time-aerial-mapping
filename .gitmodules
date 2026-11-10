@@ -1,0 +1,3 @@
+[submodule "vendor/cfs"]
+	path = vendor/cfs
+	url = https://github.com/nasa/cFS.git

@@ -144,9 +144,22 @@ The UAV simulator and final hardware configuration will be documented after the 
 - [ ] Compare results with offline COLMAP processing
 - [ ] Publish reproducible experiment configurations and results
 
+## Building
+
+OrthoStream is a cFS mission built against NASA cFS `v7.0.1`, which is included as a git submodule under `vendor/cfs` (see `docs/architecture_decisions/adr_009_cfs_version_and_build_structure.md`).
+
+```bash
+git submodule update --init --recursive
+mission/build.sh                                  # debug build
+ORTHOSTREAM_BUILD_TYPE=release mission/build.sh   # release build, used for all measurements
+cd build/exe/cpu1 && ./core-cpu1
+```
+
+At this stage the mission runs the cFS lab applications only (SCH_LAB, CI_LAB, TO_LAB). The OrthoStream applications are added as the architecture decisions are implemented.
+
 ## Repository Status
 
-The repository currently represents ongoing research and development. Build and execution instructions will be added after the initial architecture and application interfaces are stabilized.
+The repository currently represents ongoing research and development. Architecture decisions are recorded in `docs/architecture_decisions/`.
 
 Large datasets, raw imagery, generated point clouds, DSMs, and orthomosaics will not be stored directly in the Git repository. Download instructions and small reproducible test samples will be provided separately.
 
