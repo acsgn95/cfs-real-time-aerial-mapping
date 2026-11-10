@@ -162,3 +162,10 @@ cause errors far larger than the accuracy being measured.
 
 * What is the exact vertical CRS code of the reference DSM? To be confirmed
   when the complete DSM file is read.
+  * Resolved 2026-11-10: the complete DSM is in EPSG:2056 with no vertical
+    CRS in its metadata. Its heights are orthometric. At the five ground
+    control points they agree with the surveyed orthometric heights within
+    0.04–0.13 m, and they are about 50.2 m below the ellipsoidal heights. The
+    Metashape project names the Swiss Geoid 2004 (CHGeo2004). The evaluation
+    therefore treats the reference as EPSG:2056 with LHN95 heights
+    (EPSG:5729).
