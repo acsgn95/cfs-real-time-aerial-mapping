@@ -1,6 +1,6 @@
 # ADR-004: Coordinate Frames and Conventions
 
-* Status: Accepted
+* Status: Accepted; completed by [ADR-008](adr_008_offline_reference_and_camera_model.md) (camera model and pixel conventions)
 * Date: 2026-11-10
 * Decided by: Ahmet Coşgun
 * Backlog item: D04
