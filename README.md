@@ -1,6 +1,6 @@
-# cFS Real-Time Aerial Mapping
+# OrthoStream
 
-An open-source cFS-based framework for real-time photogrammetric mapping from simulated UAV imagery, generating georeferenced dense point clouds, digital surface models, and incremental orthomosaics.
+OrthoStream is an open-source cFS-based framework for real-time photogrammetric mapping from simulated UAV imagery, generating georeferenced dense point clouds, digital surface models, and incremental orthomosaics.
 
 > **Project status:** Early-stage master's thesis research. The software architecture, interfaces, and experimental methodology are currently under development and may change as the research progresses.
 
@@ -154,7 +154,9 @@ Large datasets, raw imagery, generated point clouds, DSMs, and orthomosaics will
 
 This repository supports the master's thesis:
 
-**Development and Evaluation of cFS-Based Real-Time Photogrammetric Mapping Using Simulated UAV Data**
+**Real-Time Aerial Map Generation from Simulation Data Using cFS**
+
+*(Turkish: cFS Kullanılarak Simülasyon Verilerinden Gerçek Zamanlı Harita Üretimi)*
 
 - **Author:** Ahmet Coşgun
 - **Department:** Geomatics Engineering
@@ -169,7 +171,7 @@ Each third-party component remains subject to its original license and copyright
 
 ## Citation
 
-Citation information will be provided through a `CITATION.cff` file after the first research release.
+Citation metadata is provided in `CITATION.cff`.
 
 ## License
 

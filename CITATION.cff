@@ -1,7 +1,7 @@
 cff-version: 1.2.0
 message: "If you use this software in your research, please cite it using the metadata provided in this file."
 
-title: "cFS Real-Time Aerial Mapping"
+title: "OrthoStream: cFS-Based Real-Time Aerial Mapping"
 type: software
 
 authors:

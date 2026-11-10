@@ -1,6 +1,6 @@
 # Contributing
 
-Thank you for your interest in contributing to cFS Real-Time Aerial Mapping.
+Thank you for your interest in contributing to OrthoStream.
 
 This repository supports ongoing master's thesis research on real-time photogrammetric mapping from simulated UAV data using NASA's Core Flight System. The architecture and interfaces are still evolving, so proposed changes should remain aligned with the documented research scope.
 
