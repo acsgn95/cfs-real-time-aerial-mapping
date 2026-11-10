@@ -1,6 +1,6 @@
 # ADR-011: Boundary between Algorithm Libraries and cFS Applications
 
-* Status: Accepted
+* Status: Accepted; amended by [ADR-012](adr_012_application_boundaries.md) (eighth library `imaging`)
 * Date: 2026-11-11
 * Decided by: Ahmet Coşgun
 * Backlog item: D10

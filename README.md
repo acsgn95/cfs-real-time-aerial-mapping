@@ -46,13 +46,15 @@ The mapping workflow is planned as a collection of independent cFS applications 
 
 | Application | Responsibility |
 |---|---|
-| Simulator Interface | Receives images, camera poses, timestamps, and calibration data |
-| Time Alignment | Associates each image with the corresponding camera state |
-| Frame Selection | Selects images using overlap and viewing geometry |
-| Dense Mapping | Computes depth maps and dense 3D geometry |
-| Georeferencing | Transforms reconstructed data into ENU, ECEF, and geodetic coordinates |
-| Map Products | Incrementally updates the DSM and orthomosaic |
-| Data Recorder | Stores telemetry, performance measurements, and experiment outputs |
+| `INGEST_APP` | Receives images, camera poses, timestamps, and calibration data from the data source |
+| `ALIGN_APP` | Associates each image with the corresponding camera state |
+| `SELECT_APP` | Selects keyframes and source views using overlap and viewing geometry |
+| `DENSE_APP` | Computes depth maps with multi-view stereo |
+| `GEOREF_APP` | Transforms depth maps into georeferenced points and writes the point cloud |
+| `MAPPROD_APP` | Incrementally updates the DSM and orthomosaic |
+| `RECORDER_APP` | Stores status, timing, and performance measurements |
+
+See `docs/architecture_decisions/adr_012_application_boundaries.md`.
 
 The Software Bus will primarily carry commands, metadata, status information, and references to large data objects. Images, depth maps, and point clouds will not necessarily be copied directly through Software Bus messages.
 

@@ -66,7 +66,8 @@ Evidence.
 | [ADR-008](adr_008_offline_reference_and_camera_model.md) | Offline reference products and camera model conventions | D08 | Accepted |
 | [ADR-009](adr_009_cfs_version_and_build_structure.md) | cFS version and build structure | D09 | Accepted, amended by ADR-010 |
 | [ADR-010](adr_010_third_party_dependency_management.md) | Third-party dependency management | D09 | Accepted |
-| [ADR-011](adr_011_library_and_application_boundary.md) | Boundary between algorithm libraries and cFS applications | D10 | Accepted |
+| [ADR-011](adr_011_library_and_application_boundary.md) | Boundary between algorithm libraries and cFS applications | D10 | Accepted, amended by ADR-012 |
+| [ADR-012](adr_012_application_boundaries.md) | Application boundaries | D11 | Accepted |
 
 ## Decision Backlog
 
@@ -98,7 +99,7 @@ item; the ADR column links the resulting records.
 | --- | --- | --- | --- | --- |
 | D09 | cFS version and build structure: how cFS enters the repository, mission and target definitions, linking C applications with C++ libraries; third-party dependencies | D02 | [ADR-009](adr_009_cfs_version_and_build_structure.md), [ADR-010](adr_010_third_party_dependency_management.md) | Accepted |
 | D10 | Boundary between algorithm libraries and cFS application shells, so that algorithms and experiments run without cFS | D09 | [ADR-011](adr_011_library_and_application_boundary.md) | Accepted |
-| D11 | Final application boundaries: separate or combined DSM and orthomosaic applications, separate depth fusion application | D05, D07, D10 | — | Open |
+| D11 | Final application boundaries: separate or combined DSM and orthomosaic applications, separate depth fusion application | D05, D07, D10 | [ADR-012](adr_012_application_boundaries.md) | Accepted |
 | D12 | Large data transport: shared memory buffer pool, file references or another mechanism for images, depth maps and point clouds | D01, D03, D09 | — | Open |
 | D13 | Time model: simulator time versus cFE time, meaning of message timestamps | D03, D09 | — | Open |
 | D14 | Execution model: scheduler-driven or event-driven applications, child tasks for long-running work, queue limits, backpressure and frame dropping policy | D05, D11, D12 | — | Open |
