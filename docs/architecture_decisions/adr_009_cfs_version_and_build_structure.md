@@ -1,6 +1,6 @@
 # ADR-009: cFS Version and Build Structure
 
-* Status: Accepted
+* Status: Accepted; amended by [ADR-010](adr_010_third_party_dependency_management.md) (third-party dependencies)
 * Date: 2026-11-10
 * Decided by: Ahmet Coşgun
 * Backlog item: D09

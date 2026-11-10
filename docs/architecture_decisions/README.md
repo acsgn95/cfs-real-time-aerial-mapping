@@ -62,9 +62,11 @@ Evidence.
 | [ADR-004](adr_004_coordinate_frames_and_conventions.md) | Coordinate frames and conventions | D04 | Accepted, completed by ADR-008 |
 | [ADR-005](adr_005_dense_reconstruction_method.md) | Dense reconstruction method | D05 | Accepted; parameters provisional |
 | [ADR-006](adr_006_keyframe_and_source_view_selection.md) | Keyframe and source view selection | D06 | Accepted |
-| [ADR-007](adr_007_depth_fusion_and_map_products.md) | Depth fusion and incremental map products | D07 | Accepted |
+| [ADR-007](adr_007_depth_fusion_and_map_products.md) | Depth fusion and incremental map products | D07 | Accepted, amended by ADR-011 |
 | [ADR-008](adr_008_offline_reference_and_camera_model.md) | Offline reference products and camera model conventions | D08 | Accepted |
-| [ADR-009](adr_009_cfs_version_and_build_structure.md) | cFS version and build structure | D09 | Accepted |
+| [ADR-009](adr_009_cfs_version_and_build_structure.md) | cFS version and build structure | D09 | Accepted, amended by ADR-010 |
+| [ADR-010](adr_010_third_party_dependency_management.md) | Third-party dependency management | D09 | Accepted |
+| [ADR-011](adr_011_library_and_application_boundary.md) | Boundary between algorithm libraries and cFS applications | D10 | Accepted |
 
 ## Decision Backlog
 
@@ -94,8 +96,8 @@ item; the ADR column links the resulting records.
 
 | Item | Decision | Depends on | ADR | Status |
 | --- | --- | --- | --- | --- |
-| D09 | cFS version and build structure: how cFS enters the repository, mission and target definitions, linking C applications with C++ libraries | D02 | [ADR-009](adr_009_cfs_version_and_build_structure.md) | Accepted |
-| D10 | Boundary between algorithm libraries and cFS application shells, so that algorithms and experiments run without cFS | D09 | — | Open |
+| D09 | cFS version and build structure: how cFS enters the repository, mission and target definitions, linking C applications with C++ libraries; third-party dependencies | D02 | [ADR-009](adr_009_cfs_version_and_build_structure.md), [ADR-010](adr_010_third_party_dependency_management.md) | Accepted |
+| D10 | Boundary between algorithm libraries and cFS application shells, so that algorithms and experiments run without cFS | D09 | [ADR-011](adr_011_library_and_application_boundary.md) | Accepted |
 | D11 | Final application boundaries: separate or combined DSM and orthomosaic applications, separate depth fusion application | D05, D07, D10 | — | Open |
 | D12 | Large data transport: shared memory buffer pool, file references or another mechanism for images, depth maps and point clouds | D01, D03, D09 | — | Open |
 | D13 | Time model: simulator time versus cFE time, meaning of message timestamps | D03, D09 | — | Open |

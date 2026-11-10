@@ -1,6 +1,6 @@
 # ADR-007: Depth Fusion and Incremental Map Products
 
-* Status: Accepted
+* Status: Accepted; amended by [ADR-011](adr_011_library_and_application_boundary.md) (one LAZ file per keyframe and tile)
 * Date: 2026-11-10
 * Decided by: Ahmet Coşgun
 * Backlog item: D07

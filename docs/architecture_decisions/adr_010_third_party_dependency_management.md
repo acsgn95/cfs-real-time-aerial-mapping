@@ -1,0 +1,139 @@
+# ADR-010: Third-Party Dependency Management
+
+* Status: Accepted
+* Date: 2026-11-11
+* Decided by: Ahmet Coşgun
+* Backlog item: D09 (revisited)
+* Evidence: ADR-009 section 7; vcpkg release `2026.10.16` and its ports
+  (GDAL 3.12.4, PROJ 9.9.0, LASzip 3.5.0, OpenCV 4.14.0, Eigen 5.0.1,
+  GoogleTest 1.18.0, libjpeg-turbo 3.2.1, COLMAP 3.12.6 with a `cuda`
+  feature), checked on 2026-11-11; PDAL is not packaged for Ubuntu 26.04
+
+## Context
+
+ADR-009 takes OpenCV, GDAL, PROJ, Eigen and the COLMAP build dependencies
+from Ubuntu packages. That ties the project to one distribution and release:
+
+* the versions differ or are missing on other systems, for example an
+  embedded target;
+* the versions change silently with system updates, which harms the
+  reproducibility of measurements;
+* a deployment depends on the package repositories of the target.
+
+OrthoStream may go to production later. Its dependencies must be pinned and
+built by the project itself, as cFS already is.
+
+## Decision
+
+### 1. vcpkg in manifest mode
+
+* vcpkg is a git submodule at `vendor/vcpkg`, pinned to the release tag
+  `2026.10.16`.
+* A manifest `vcpkg.json` at the repository root lists the dependencies and
+  their features. Its `builtin-baseline` is the commit of the vcpkg
+  submodule, so the whole dependency tree, including transitive
+  dependencies, is pinned by one commit.
+* Updating dependencies means moving the submodule and the baseline
+  together, in one reviewed change.
+
+### 2. Dependencies
+
+| Dependency | Use | Features |
+| --- | --- | --- |
+| GDAL | GeoTIFF, COG and VRT products; SRTM reading (SRTMHGT driver) | default features off; only what these drivers need |
+| PROJ | coordinate and vertical datum transformations | default features off; grids are provided as files (no network access) |
+| LASzip | LAZ point cloud files | — |
+| libjpeg-turbo | JPEG decoding with DCT scaling | — |
+| OpenCV | image processing, undistortion, SGBM baseline | only the modules needed (core, imgproc, calib3d, imgcodecs); no CUDA |
+| Eigen | linear algebra | — |
+| COLMAP | PatchMatch Stereo | `cuda`; no GUI, no CGAL |
+| GoogleTest | library tests | — |
+
+PDAL is not used. GDAL and LASzip cover the needs of the real-time system,
+and the evaluation tools use Python packages (ADR-011).
+
+If the COLMAP port does not build with the system CUDA toolkit, COLMAP is
+built from source as a submodule, against the vcpkg-built dependencies.
+
+### 3. Build and linkage
+
+* A project triplet (`cmake/triplets/`) builds release-only static libraries
+  with position-independent code. cFS applications are shared modules, so
+  the libraries linked into them must be position-independent. Static
+  linkage keeps the runtime free of library path issues.
+* The dependencies are installed into a project-local prefix inside the
+  build directory. The mission build finds them through their CMake package
+  configurations at that prefix.
+* Built packages are cached by vcpkg's binary cache, so a clean build does
+  not rebuild unchanged dependencies.
+
+### 4. System prerequisites
+
+Only these come from the system, because they cannot or should not be
+vendored:
+
+| Prerequisite | Reason |
+| --- | --- |
+| C and C++ compiler, CMake, git, Ninja | toolchain |
+| curl, zip, unzip, tar, pkg-config | needed by vcpkg itself |
+| NVIDIA driver and CUDA toolkit | must match the GPU and the driver |
+| Python 3 | injector and evaluation tools, each in its own virtual environment with pinned versions |
+
+Building OrthoStream itself needs no `sudo` beyond these prerequisites.
+
+### 5. Licenses
+
+Dependencies are built without optional components that carry licenses
+incompatible with Apache-2.0 (for example COLMAP without CGAL). The copyright
+files that vcpkg installs are the basis for third-party notices.
+
+### 6. Deployment
+
+How OrthoStream is packaged for a production target is decided later, for
+example as an install tree with its libraries or as a container image.
+Static linkage and pinned dependencies are the preconditions for both.
+
+## Rationale
+
+* One pinned manifest gives the same dependency versions on every machine and
+  over time, as the cFS submodule does for cFS.
+* vcpkg resolves transitive dependencies (GDAL needs PROJ, SQLite, libtiff,
+  libjpeg, zlib and more). Doing this by hand with submodules would be slow
+  and error-prone.
+* vcpkg supports other target architectures through triplets, which keeps
+  an embedded target possible.
+* Minimal features keep build time, binary size and the license surface
+  small.
+
+## Alternatives Considered
+
+* **Ubuntu packages (ADR-009 section 7).** Rejected: tied to one
+  distribution, versions not pinned.
+* **A git submodule and a build script per dependency.** Rejected: transitive
+  dependencies would have to be managed by hand.
+* **Conan.** Not chosen: comparable capabilities. vcpkg has ports for every
+  dependency here, including COLMAP with CUDA.
+* **PDAL.** Rejected: not needed next to GDAL and LASzip, pulls in GDAL and a
+  large pipeline framework, and is not packaged for Ubuntu 26.04.
+* **Shared libraries.** Not chosen: they need library paths at runtime on
+  the target.
+
+## Affected Areas
+
+* [x] vendor/cFS baseline
+* [x] algorithm libraries
+* [x] documentation
+
+## Impact
+
+* **ADR-009:** section 7 is replaced by this record. Setup step 2 becomes
+  "bootstrap vcpkg and build the dependencies" and no longer needs `sudo`.
+  Step 3 (COLMAP) is part of step 2 when the COLMAP port works.
+* **mission/build.sh:** runs `vcpkg install` before configuring the mission
+  and passes the install prefix to the build.
+* **CI:** the vcpkg binary cache must be kept between runs, or CI builds
+  without the dense module.
+
+## Open Questions
+
+* Does the COLMAP 3.12.6 port build with CUDA 13.1? Checked in setup step 2.
