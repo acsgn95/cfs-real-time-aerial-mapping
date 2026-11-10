@@ -4,6 +4,7 @@
 * Date: 2026-11-11
 * Decided by: Ahmet Coşgun
 * Backlog item: D09 (revisited)
+* Revised: 2026-11-11 (setup files: install location, optional COLMAP feature, CUDA architecture)
 * Evidence: ADR-009 section 7; vcpkg release `2026.10.16` and its ports
   (GDAL 3.12.4, PROJ 9.9.0, LASzip 3.5.0, OpenCV 4.14.0, Eigen 5.0.1,
   GoogleTest 1.18.0, libjpeg-turbo 3.2.1, COLMAP 3.12.6 with a `cuda`
@@ -61,9 +62,19 @@ built from source as a submodule, against the vcpkg-built dependencies.
   with position-independent code. cFS applications are shared modules, so
   the libraries linked into them must be position-independent. Static
   linkage keeps the runtime free of library path issues.
-* The dependencies are installed into a project-local prefix inside the
-  build directory. The mission build finds them through their CMake package
-  configurations at that prefix.
+* The dependencies are installed into a project-local prefix,
+  `build-deps/vcpkg_installed/<triplet>`. It is separate from `build/`, so a
+  clean mission build does not remove them. The mission build passes the
+  prefix as `CMAKE_PREFIX_PATH`, which cFS forwards to its architecture
+  builds.
+* COLMAP is an optional manifest feature (`colmap`), matching the build
+  option `ORTHOSTREAM_WITH_COLMAP` (ADR-011). A machine without a GPU builds
+  without it.
+* The project triplet builds CUDA code for one GPU architecture (86, the
+  Ampere GPU of ADR-002) to keep build time short. Another target gets its
+  own triplet.
+* `scripts/setup_dependencies.sh` checks the system prerequisites,
+  bootstraps vcpkg and installs the manifest.
 * Built packages are cached by vcpkg's binary cache, so a clean build does
   not rebuild unchanged dependencies.
 

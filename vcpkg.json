@@ -1,0 +1,52 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+  "name": "orthostream",
+  "version": "0.1.0",
+  "description": "Third-party dependencies of OrthoStream, pinned by the builtin baseline (ADR-010)",
+  "license": "Apache-2.0",
+  "builtin-baseline": "9eec002df1cd109f8f104cd966a763daf9751489",
+  "dependencies": [
+    {
+      "name": "gdal",
+      "default-features": false,
+      "features": [
+        "jpeg"
+      ]
+    },
+    {
+      "name": "proj",
+      "default-features": false,
+      "features": [
+        "tiff"
+      ]
+    },
+    "laszip",
+    "libjpeg-turbo",
+    {
+      "name": "opencv4",
+      "default-features": false,
+      "features": [
+        "calib3d",
+        "intrinsics",
+        "jpeg",
+        "thread"
+      ]
+    },
+    "eigen3",
+    "gtest"
+  ],
+  "features": {
+    "colmap": {
+      "description": "COLMAP PatchMatch Stereo with CUDA for the dense library (ORTHOSTREAM_WITH_COLMAP, ADR-005)",
+      "dependencies": [
+        {
+          "name": "colmap",
+          "default-features": false,
+          "features": [
+            "cuda"
+          ]
+        }
+      ]
+    }
+  }
+}

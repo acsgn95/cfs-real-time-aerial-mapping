@@ -24,6 +24,14 @@ fi
 
 APP_PATH="$REPO_ROOT/apps:$REPO_ROOT/vendor/cfs/apps"
 
+# Third-party dependencies built by scripts/setup_dependencies.sh (ADR-010).
+# cFS passes CMAKE_PREFIX_PATH on to its per-architecture builds.
+DEPS_PREFIX="$REPO_ROOT/build-deps/vcpkg_installed/x64-linux-orthostream"
+PREFIX_ARGS=()
+if [ -d "$DEPS_PREFIX" ]; then
+  PREFIX_ARGS+=(-DCMAKE_PREFIX_PATH="$DEPS_PREFIX")
+fi
+
 mkdir -p "$BUILD_DIR"
 
 CFS_APP_PATH="$APP_PATH" cmake \
@@ -36,7 +44,8 @@ CFS_APP_PATH="$APP_PATH" cmake \
   -DCFE_EDS_ENABLED=OFF \
   -DENABLE_UNIT_TESTS=FALSE \
   -DMISSIONCONFIG=orthostream \
-  -DMISSION_DEFS="$MISSION_DEFS"
+  -DMISSION_DEFS="$MISSION_DEFS" \
+  "${PREFIX_ARGS[@]}"
 
 make -C "$BUILD_DIR" DESTDIR="$BUILD_DIR" mission-install "$@"
 
