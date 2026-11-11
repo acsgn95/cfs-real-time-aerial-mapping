@@ -1,5 +1,9 @@
 minimum_pre_commit_version: "3.5.0"
 
+# Patches of overlay ports must stay byte-identical to upstream: their
+# context lines may end in whitespace.
+exclude: ^cmake/ports/.*\.patch$
+
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0

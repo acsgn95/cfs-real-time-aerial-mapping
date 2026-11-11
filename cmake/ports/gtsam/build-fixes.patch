@@ -5,7 +5,7 @@ index c9abd3a5e..e9eb4e653 100644
 @@ -35,6 +35,10 @@ if(@GTSAM_USE_SYSTEM_EIGEN@)
  find_dependency(Eigen3 REQUIRED)
  endif()
-
+ 
 +if(@GTSAM_USE_SYSTEM_METIS@)
 +find_dependency(metis REQUIRED)
 +endif()
