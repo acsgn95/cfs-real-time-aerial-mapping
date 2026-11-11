@@ -1,0 +1,12 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+find_dependency(OrthoStreamGeo)
+set(ORTHOSTREAM_DENSE_WITH_COLMAP @ORTHOSTREAM_WITH_COLMAP@)
+if(ORTHOSTREAM_DENSE_WITH_COLMAP)
+    # Private, but a static library still needs it at link time.
+    find_dependency(COLMAP CONFIG)
+endif()
+
+include("${CMAKE_CURRENT_LIST_DIR}/OrthoStreamDenseTargets.cmake")
+check_required_components(OrthoStreamDense)

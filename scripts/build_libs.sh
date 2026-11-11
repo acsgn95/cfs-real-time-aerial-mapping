@@ -5,6 +5,7 @@
 # Usage:
 #   scripts/build_libs.sh                    debug build and tests
 #   ORTHOSTREAM_BUILD_TYPE=release scripts/build_libs.sh
+#   ORTHOSTREAM_WITH_COLMAP=0 scripts/build_libs.sh   without PatchMatch (no GPU)
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -26,6 +27,7 @@ cmake -S "$REPO_ROOT/libs" -B "$BUILD_DIR" -G Ninja \
   -DVCPKG_INSTALLED_DIR="$REPO_ROOT/build-deps/vcpkg_installed" \
   -DVCPKG_TARGET_TRIPLET=x64-linux-orthostream \
   -DVCPKG_MANIFEST_MODE=OFF \
+  -DORTHOSTREAM_WITH_COLMAP="$( [ "${ORTHOSTREAM_WITH_COLMAP:-1}" = "1" ] && echo ON || echo OFF )" \
   -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 cmake --build "$BUILD_DIR"
 ctest --test-dir "$BUILD_DIR" --output-on-failure

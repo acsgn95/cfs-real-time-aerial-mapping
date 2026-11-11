@@ -39,3 +39,4 @@ endif()
 
 add_subdirectory(geo)
 add_subdirectory(imaging)
+add_subdirectory(dense)

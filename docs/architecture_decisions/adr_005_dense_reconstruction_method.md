@@ -189,3 +189,17 @@ method, for example by making SGBM the primary method.
 * Final parameter values: from the benchmark of section 6.
 * Causal or delayed mode as the default: from the benchmark.
 * Does COLMAP build with CUDA 13.1?
+  * Resolved 2026-11-11: yes, from the vcpkg port (ADR-010), so section 7's
+    out-of-repository build is not needed.
+* COLMAP ends the process with `exit()` on any CUDA error
+  (`CudaSafeCall`), for example when GPU memory runs out. Inside the cFS
+  mission this would stop every application. Options: keep a safety margin
+  below the GPU budget and check free memory before each job; patch
+  COLMAP through an overlay port to raise an exception instead; or run the
+  GPU work in a separate process. To be decided before `DENSE_APP` is
+  written (found 2026-11-11).
+* Geometric consistency needs depth and normal maps of every source view
+  and a first photometric pass of the reference view. Source views that are
+  not keyframes have no depth maps (ADR-006). Either geometric consistency
+  uses only keyframe sources, or it is dropped; to be decided with the
+  benchmark.
