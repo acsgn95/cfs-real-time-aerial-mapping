@@ -13,7 +13,8 @@ endif()
 add_library(orthostream_imaging
     src/imaging_c_api.cpp
     src/jpeg.cpp
-    src/undistort.cpp)
+    src/undistort.cpp
+    src/working_image.cpp)
 add_library(OrthoStream::imaging ALIAS orthostream_imaging)
 set_target_properties(orthostream_imaging PROPERTIES EXPORT_NAME imaging)
 
@@ -49,7 +50,8 @@ if(BUILD_TESTING)
         tests/c_api_usage.c
         tests/test_c_api.cpp
         tests/test_jpeg.cpp
-        tests/test_undistort.cpp)
+        tests/test_undistort.cpp
+        tests/test_working_image.cpp)
     target_include_directories(imaging_tests PRIVATE tests)
     target_link_libraries(imaging_tests PRIVATE
         orthostream_imaging ${ORTHOSTREAM_TURBOJPEG} GTest::gtest_main orthostream_warnings)

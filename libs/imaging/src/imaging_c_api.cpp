@@ -9,6 +9,7 @@
 
 #include "orthostream/imaging/jpeg.hpp"
 #include "orthostream/imaging/undistort.hpp"
+#include "orthostream/imaging/working_image.hpp"
 
 struct OST_Imaging_Decoder
 {
@@ -22,10 +23,31 @@ struct OST_Imaging_Undistorter
     std::string                                      last_error;
 };
 
+struct OST_Imaging_WorkingConverter
+{
+    std::optional<orthostream::imaging::WorkingImageConverter> converter;
+    std::string                                                last_error;
+};
+
 namespace
 {
 
 using orthostream::imaging::ImageView;
+
+void fromModel(const orthostream::geo::CameraModel &m, OST_Geo_Camera_t *camera)
+{
+    camera->width  = m.width;
+    camera->height = m.height;
+    camera->fx     = m.fx;
+    camera->fy     = m.fy;
+    camera->cx     = m.cx;
+    camera->cy     = m.cy;
+    camera->k1     = m.k1;
+    camera->k2     = m.k2;
+    camera->k3     = m.k3;
+    camera->p1     = m.p1;
+    camera->p2     = m.p2;
+}
 
 ImageView toView(const OST_Imaging_Image_t &image)
 {
@@ -249,18 +271,7 @@ OST_Imaging_Status_t OST_Imaging_UndistorterOutputCamera(const OST_Imaging_Undis
     {
         return OST_IMAGING_ERR_INVALID_ARGUMENT;
     }
-    const auto &m    = undistorter->undistorter->outputCamera();
-    camera->width    = m.width;
-    camera->height   = m.height;
-    camera->fx       = m.fx;
-    camera->fy       = m.fy;
-    camera->cx       = m.cx;
-    camera->cy       = m.cy;
-    camera->k1       = m.k1;
-    camera->k2       = m.k2;
-    camera->k3       = m.k3;
-    camera->p1       = m.p1;
-    camera->p2       = m.p2;
+    fromModel(undistorter->undistorter->outputCamera(), camera);
     return OST_IMAGING_SUCCESS;
 }
 
@@ -281,6 +292,76 @@ OST_Imaging_Status_t OST_Imaging_Undistort(OST_Imaging_Undistorter_t *undistorte
                 });
     // Undistortion fails only on mismatched buffers, which is a caller error.
     return status == OST_IMAGING_ERR_DECODE ? OST_IMAGING_ERR_INVALID_ARGUMENT : status;
+}
+
+OST_Imaging_Status_t OST_Imaging_WorkingConverterCreate(OST_Imaging_WorkingConverter_t **converter,
+                                                        const OST_Geo_Camera_t          *camera,
+                                                        int32_t                          working_width,
+                                                        int32_t                          channels)
+{
+    if (converter == nullptr || camera == nullptr || camera->width <= 0 || camera->height <= 0
+        || working_width <= 0 || working_width > camera->width || (channels != 1 && channels != 3))
+    {
+        return OST_IMAGING_ERR_INVALID_ARGUMENT;
+    }
+    *converter = nullptr;
+    OST_Imaging_WorkingConverter_t *created = new (std::nothrow) OST_Imaging_WorkingConverter_t();
+    if (created == nullptr)
+    {
+        return OST_IMAGING_ERR_OUT_OF_MEMORY;
+    }
+    const OST_Imaging_Status_t status = guarded(&created->last_error,
+                                                [&]
+                                                {
+                                                    created->converter.emplace(
+                                                        toModel(*camera), working_width, channels);
+                                                    return OST_IMAGING_SUCCESS;
+                                                });
+    if (status != OST_IMAGING_SUCCESS)
+    {
+        delete created;
+        return status == OST_IMAGING_ERR_DECODE ? OST_IMAGING_ERR_INVALID_ARGUMENT : status;
+    }
+    *converter = created;
+    return OST_IMAGING_SUCCESS;
+}
+
+void OST_Imaging_WorkingConverterDestroy(OST_Imaging_WorkingConverter_t *converter)
+{
+    delete converter;
+}
+
+const char *OST_Imaging_WorkingConverterLastError(const OST_Imaging_WorkingConverter_t *converter)
+{
+    return converter != nullptr ? converter->last_error.c_str() : "";
+}
+
+OST_Imaging_Status_t OST_Imaging_WorkingConverterCamera(const OST_Imaging_WorkingConverter_t *converter,
+                                                        OST_Geo_Camera_t                     *camera)
+{
+    if (converter == nullptr || camera == nullptr)
+    {
+        return OST_IMAGING_ERR_INVALID_ARGUMENT;
+    }
+    fromModel(converter->converter->workingCamera(), camera);
+    return OST_IMAGING_SUCCESS;
+}
+
+OST_Imaging_Status_t OST_Imaging_ConvertJpeg(OST_Imaging_WorkingConverter_t *converter,
+                                             const uint8_t                  *jpeg,
+                                             size_t                          size,
+                                             const OST_Imaging_Image_t      *out)
+{
+    if (converter == nullptr || jpeg == nullptr || size == 0 || out == nullptr || !toView(*out).valid())
+    {
+        return OST_IMAGING_ERR_INVALID_ARGUMENT;
+    }
+    return guarded(&converter->last_error,
+                   [&]
+                   {
+                       converter->converter->convert(jpeg, size, toView(*out));
+                       return OST_IMAGING_SUCCESS;
+                   });
 }
 
 }  // extern "C"

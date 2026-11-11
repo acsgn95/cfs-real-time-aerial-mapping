@@ -51,6 +51,7 @@ typedef struct
 
 typedef struct OST_Imaging_Decoder     OST_Imaging_Decoder_t;
 typedef struct OST_Imaging_Undistorter OST_Imaging_Undistorter_t;
+typedef struct OST_Imaging_WorkingConverter OST_Imaging_WorkingConverter_t;
 
 const char *OST_Imaging_StatusText(OST_Imaging_Status_t status);
 
@@ -97,6 +98,25 @@ OST_Imaging_Status_t OST_Imaging_UndistorterOutputCamera(const OST_Imaging_Undis
 OST_Imaging_Status_t OST_Imaging_Undistort(OST_Imaging_Undistorter_t *undistorter,
                                            const OST_Imaging_Image_t *input,
                                            const OST_Imaging_Image_t *out);
+
+/* From a camera's JPEG to an undistorted working image in one call: decodes
+ * at the smallest sufficient DCT scale, reduces and undistorts. The output
+ * height follows the camera's aspect ratio. */
+OST_Imaging_Status_t OST_Imaging_WorkingConverterCreate(OST_Imaging_WorkingConverter_t **converter,
+                                                        const OST_Geo_Camera_t          *camera,
+                                                        int32_t                          working_width,
+                                                        int32_t                          channels);
+void                 OST_Imaging_WorkingConverterDestroy(OST_Imaging_WorkingConverter_t *converter);
+const char          *OST_Imaging_WorkingConverterLastError(const OST_Imaging_WorkingConverter_t *converter);
+
+/* Camera model of the working images (no distortion). */
+OST_Imaging_Status_t OST_Imaging_WorkingConverterCamera(const OST_Imaging_WorkingConverter_t *converter,
+                                                        OST_Geo_Camera_t                     *camera);
+
+OST_Imaging_Status_t OST_Imaging_ConvertJpeg(OST_Imaging_WorkingConverter_t *converter,
+                                             const uint8_t                  *jpeg,
+                                             size_t                          size,
+                                             const OST_Imaging_Image_t      *out);
 
 #ifdef __cplusplus
 }
