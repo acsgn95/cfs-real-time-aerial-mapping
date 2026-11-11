@@ -42,6 +42,7 @@ add_subdirectory(geo)
 add_subdirectory(imaging)
 add_subdirectory(selection)
 add_subdirectory(dense)
+add_subdirectory(map_products)
 
 if(ORTHOSTREAM_BUILD_TOOLS)
     add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../tools ${CMAKE_CURRENT_BINARY_DIR}/tools)
