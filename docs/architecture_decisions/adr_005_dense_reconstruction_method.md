@@ -106,6 +106,8 @@ Dorfberg flight with `optimized` poses.
 
 Measured for each run: processing time per keyframe, peak GPU memory, and
 depth completeness and accuracy against the reference DSM.
+The tool is `tools/dense_benchmark`; `scripts/run_dense_benchmark.sh` runs
+the matrix.
 
 **Acceptance:** at the nominal point, the chosen configuration processes a
 keyframe in less than the keyframe interval (2.9 s) and stays within 5 GB of

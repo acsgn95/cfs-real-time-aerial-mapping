@@ -16,6 +16,7 @@ include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
 option(ORTHOSTREAM_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" ON)
+option(ORTHOSTREAM_BUILD_TOOLS "Build the C++ tools under tools/" ON)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -39,4 +40,9 @@ endif()
 
 add_subdirectory(geo)
 add_subdirectory(imaging)
+add_subdirectory(selection)
 add_subdirectory(dense)
+
+if(ORTHOSTREAM_BUILD_TOOLS)
+    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../tools ${CMAKE_CURRENT_BINARY_DIR}/tools)
+endif()
