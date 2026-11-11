@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "orthostream/map_products/dsm.hpp"
+#include "orthostream/map_products/ortho.hpp"
 #include "orthostream/map_products/product_frame.hpp"
 
 namespace orthostream::map_products
@@ -46,6 +47,32 @@ public:
     std::string writeIndex();
 
     /// File name of a tile, relative to <directory>/dsm/.
+    static std::string tileFileName(const TileId &id);
+
+private:
+    struct Impl;
+    std::unique_ptr<Impl> impl_;
+};
+
+struct OrthoWriterConfig
+{
+    std::string directory;      ///< tiles go to <directory>/ortho/
+    std::string projected_crs;  ///< CRS of P
+    std::string proj_data_dir;
+};
+
+/// Writes orthomosaic tiles as RGBA GeoTIFF (alpha 0 where empty),
+/// deflate-compressed, with the same temporary-name rule as DsmWriter.
+class OrthoWriter
+{
+public:
+    explicit OrthoWriter(const OrthoWriterConfig &config);
+    ~OrthoWriter();
+    OrthoWriter(const OrthoWriter &)            = delete;
+    OrthoWriter &operator=(const OrthoWriter &) = delete;
+
+    std::string        write(const OrthoTile &tile);
+    std::string        writeIndex();  ///< <directory>/ortho.vrt
     static std::string tileFileName(const TileId &id);
 
 private:

@@ -12,7 +12,8 @@ namespace
 {
 
 using test::dorfberg;
-using test::nadirCamera;
+using test::flatScene;
+using test::Scene;
 
 TEST(DsmTile, WeightedMeanAndVariance)
 {
@@ -48,51 +49,6 @@ TEST(DsmTile, RejectsOutliersAfterEnoughObservations)
     EXPECT_EQ(tile.add(0, 0, 1600.0, 1.0f, config), DsmTile::Update::rejected);
     EXPECT_EQ(tile.add(0, 0, 1515.0, 1.0f, config), DsmTile::Update::added);
     EXPECT_EQ(tile.observations(0, 0), 4);
-}
-
-// Depth (z) of the ellipsoidal-height surface h along a pixel ray.
-double depthToHeight(const geo::GeodeticConverter &conv, const Eigen::Isometry3d &T_E_C, const Eigen::Vector3d &ray_C,
-                     double h)
-{
-    const Eigen::Vector3d C   = T_E_C.translation();
-    const Eigen::Vector3d ray = T_E_C.linear() * ray_C;
-    double                t   = conv.ecefToGeodetic(C).height_m - h;
-    for (int i = 0; i < 6; ++i)
-    {
-        const double f  = conv.ecefToGeodetic(C + t * ray).height_m - h;
-        const double df = (conv.ecefToGeodetic(C + (t + 1.0) * ray).height_m - h) - f;
-        t -= f / df;
-    }
-    return t;  // ray_C has z = 1
-}
-
-struct Scene
-{
-    geo::CameraModel   camera;
-    Eigen::Isometry3d  T_E_C;
-    std::vector<float> depth, confidence;
-};
-
-// 80 x 60 nadir camera, f = 60 px, 250 m above a surface at 2000 m.
-Scene flatScene(const geo::GeodeticConverter &conv)
-{
-    Scene s;
-    s.camera.width  = 80;
-    s.camera.height = 60;
-    s.camera.fx = s.camera.fy = 60.0;
-    s.camera.cx               = 39.5;
-    s.camera.cy               = 29.5;
-    s.T_E_C                   = nadirCamera(conv, dorfberg(2250.0));
-    for (int v = 0; v < s.camera.height; ++v)
-    {
-        for (int u = 0; u < s.camera.width; ++u)
-        {
-            const Eigen::Vector3d ray((u - s.camera.cx) / s.camera.fx, (v - s.camera.cy) / s.camera.fy, 1.0);
-            s.depth.push_back(static_cast<float>(depthToHeight(conv, s.T_E_C, ray, 2000.0)));
-            s.confidence.push_back(0.75f);
-        }
-    }
-    return s;
 }
 
 TEST(DsmFusion, FlatSurfaceAcrossTiles)

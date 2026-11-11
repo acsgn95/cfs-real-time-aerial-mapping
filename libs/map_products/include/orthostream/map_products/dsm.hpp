@@ -104,6 +104,7 @@ struct FusionStats
     std::size_t          added    = 0;
     std::size_t          rejected = 0;  ///< outliers
     std::vector<TileId>  tiles;         ///< tiles touched, sorted
+    Eigen::AlignedBox2d  extent;        ///< easting and northing of the fused points
 };
 
 /// Fuses depth maps into DSM tiles of P. Tiles are created on first use;

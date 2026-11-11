@@ -167,6 +167,7 @@ FusionStats DsmFusion::addDepthMap(const DepthMapView &map, const geo::CameraMod
                 continue;
             }
             const Eigen::Vector3d p = to_P(point(u, v, map.depth[i]));
+            stats.extent.extend(p.head<2>());
             const TileId          id { static_cast<std::int64_t>(std::floor(p.x() / T)),
                               static_cast<std::int64_t>(std::floor(p.y() / T)) };
             if (tile == nullptr || !(tile->id() == id))
