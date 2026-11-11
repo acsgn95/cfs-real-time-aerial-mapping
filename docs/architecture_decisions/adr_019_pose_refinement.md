@@ -4,12 +4,14 @@
 * Date: 2026-11-11
 * Decided by: Ahmet Coşgun
 * Backlog item: D18
+* Revised: 2026-11-11 (latency limit of 120 s with refinement; refinement
+  waits for the next flight line)
 * Evidence: ADR-001 section 1b (recorded attitude about 1.5° from the
   adjusted attitude, about 195 px in the image); ADR-003 section 4 (pose
   sets); ADR-010 (GTSAM 4.3.0 as the optional vcpkg feature `refine`, built
-  on the development machine); ADR-012, ADR-015 and ADR-016 (applications,
-  execution model, tables loaded at startup); ADR-018 E4 (pose-error
-  experiment)
+  on the development machine); ADR-012, ADR-013, ADR-015 and ADR-016
+  (applications, data store quotas, execution model, tables loaded at
+  startup); ADR-018 E4 (pose-error experiment)
 
 ## Context
 
@@ -40,6 +42,8 @@ automatic decision during it.
 | `refine_pose` | `false` | `false`: the poses are trusted, and keyframe batches go directly to dense reconstruction. `true`: the poses of every batch are refined from the images first. |
 | `precise_position` | `false` | Only used when `refine_pose` is `true`. `true`: positions come from PPK or RTK and are kept fixed; only the attitude is estimated. `false`: positions and attitudes are both estimated, and positions are tied to the telemetry by its reported accuracy. |
 
+* `REFINE_APP` also has a latency limit, `refine_max_latency` (default
+  120 s, section 6). It does not change the routing.
 * Both values are set in the experiment or mission configuration before the
   flight and loaded with the tables at startup (ADR-016). They do not change
   during a run.
@@ -94,10 +98,15 @@ GNSS-aided visual SLAM without loop closure.
      attitude accuracy.
    * `precise_position = false`: positions and attitudes are variables, with
      priors weighted by the reported accuracy fields (ADR-016).
-4. **Window.** The window holds the last N keyframes with their source views
-   (default N = 8, a table value). An image that leaves the window keeps its
-   last refined pose. When it appears in a later batch, that pose is used as
-   a tight prior. Memory stays bounded (ADR-001 R4).
+4. **Waiting for later images.** A survey block is stiffest when images of
+   the neighbouring flight line tie into it. `REFINE_APP` therefore holds a
+   batch until the footprint of its keyframe is covered by images of the
+   following flight line, or until a waiting limit expires (section 6). Images
+   after the keyframe then also contribute tie points.
+5. **Window.** The window holds the keyframes and images received within
+   the latency limit, with their source views. An image that leaves the
+   window keeps its last refined pose. When it appears in a later batch,
+   that pose is used as a tight prior. Memory stays bounded (ADR-001 R4).
 
 GPU: features and optimisation run on the CPU. Refinement therefore does
 not compete with PatchMatch for GPU memory (ADR-002, ADR-005).
@@ -135,11 +144,21 @@ not compete with PatchMatch for GPU memory (ADR-002, ADR-005).
 * `REFINE_APP` does not drop batches. If it falls behind, the bounded wait
   of ADR-015 section 3 applies, and loss still happens only at the input of
   `DENSE_APP`.
-* Time budget: refinement adds to the latency of each keyframe. It runs on
-  the CPU at the same time as the dense work of the previous batch on the
-  GPU, so it limits the throughput only if it takes longer than the keyframe
-  interval (2.9 s at the nominal point). Provisional target: at most 1 s per
-  batch at the nominal point. The benchmark measures it.
+* Latency: with `refine_pose = true`, map update latency may be much longer
+  than the 5 s target of ADR-001 R2, because refinement waits for later
+  images. The latency limit is a table value, `refine_max_latency`, default
+  120 s; the 95th percentile of the map update latency must stay below it.
+  The waiting limit of section 3 is the latency limit minus the measured time
+  of refinement and dense reconstruction. With `refine_pose = false`, R2
+  stays at 5 s.
+* Throughput (ADR-001 R1) is unchanged: on average, refinement of a batch
+  must take less than the keyframe interval (2.9 s at the nominal point), or
+  the backlog grows. Refinement runs on the CPU while the GPU computes
+  earlier batches. The benchmark measures the time per batch.
+* Memory: during the latency limit, keyframe JPEGs wait in the data store
+  for the orthomosaic. At the nominal point, 120 s hold about 41 keyframes,
+  about 0.8 GB, within the default JPEG quota of 1 GB (ADR-013). Larger
+  cameras or longer limits need a larger quota.
 
 ### 7. Evaluation (amends ADR-018)
 
@@ -151,7 +170,10 @@ not compete with PatchMatch for GPU memory (ADR-002, ADR-005).
   because the errors of a standard GNSS receiver are correlated in time.
 * Additional metrics: position and attitude error of the refined poses
   against the Metashape adjusted poses (RMS and maximum), the share of
-  batches marked `refine_failed`, and the refinement time per batch.
+  batches marked `refine_failed`, the refinement time per batch, and the
+  map update latency with refinement.
+* The waiting of section 3 is compared with no waiting (causal refinement):
+  accuracy against latency.
 
 ## Rationale
 
@@ -169,6 +191,10 @@ not compete with PatchMatch for GPU memory (ADR-002, ADR-005).
   losses and priors. Its license (BSD-3-Clause) fits the product.
 * Keeping positions fixed in the PPK case uses their centimetre accuracy
   instead of letting tie points move them.
+* A map that is correct after two minutes is more useful than a map that is
+  wrong after five seconds. Accepting a longer latency lets refinement use
+  the neighbouring flight line, which constrains the attitude across the
+  track.
 
 ## Alternatives Considered
 
@@ -204,6 +230,8 @@ not compete with PatchMatch for GPU memory (ADR-002, ADR-005).
 
 ## Impact
 
+* **ADR-001:** with `refine_pose = true`, R2 uses `refine_max_latency`
+  (default 120 s) instead of 5 s.
 * **ADR-005:** dense reconstruction still uses no bundle adjustment of its
   own. Optional refinement before it comes from this record.
 * **ADR-011:** the library list gains `refine`.

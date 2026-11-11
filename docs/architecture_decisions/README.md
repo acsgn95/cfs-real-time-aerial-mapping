@@ -77,7 +77,7 @@ optionally be refined from the imagery.
 
 | ID | Title | Backlog item | Status |
 | --- | --- | --- | --- |
-| [ADR-001](adr_001_requirements_and_real_time.md) | Flight envelope, real-time definition and bounded memory | D01 | Accepted, amended by ADR-003 |
+| [ADR-001](adr_001_requirements_and_real_time.md) | Flight envelope, real-time definition and bounded memory | D01 | Accepted, amended by ADR-003 and ADR-019 |
 | [ADR-002](adr_002_target_hardware_and_runtime.md) | Target hardware and runtime environment | D02 | Accepted, amended by ADR-009 and ADR-014 |
 | [ADR-003](adr_003_data_source_and_injector.md) | Data source and injector interface | D03 | Accepted |
 | [ADR-004](adr_004_coordinate_frames_and_conventions.md) | Coordinate frames and conventions | D04 | Accepted, completed by ADR-008 |
@@ -149,7 +149,7 @@ fields of the telemetry.
 
 | Item | Decision | Depends on | ADR | Status |
 | --- | --- | --- | --- | --- |
-| D18 | Optional pose refinement before dense reconstruction, chosen before the flight with two configuration values: `refine_pose` (off: batches go directly to `DENSE_APP`; on: `REFINE_APP` refines the poses first) and `precise_position` (on: PPK or RTK positions are kept fixed and only the attitude is estimated; off: positions and attitudes are estimated with priors weighted by the reported accuracy). Sliding-window bundle adjustment with GTSAM 4.3.0 | D05, D06, D11, D14 | [ADR-019](adr_019_pose_refinement.md) | Accepted |
+| D18 | Optional pose refinement before dense reconstruction, chosen before the flight with two configuration values: `refine_pose` (off: batches go directly to `DENSE_APP`; on: `REFINE_APP` refines the poses first) and `precise_position` (on: PPK or RTK positions are kept fixed and only the attitude is estimated; off: positions and attitudes are estimated with priors weighted by the reported accuracy). Sliding-window bundle adjustment with GTSAM 4.3.0 that waits for the neighbouring flight line; latency limit `refine_max_latency`, default 120 s | D05, D06, D11, D14 | [ADR-019](adr_019_pose_refinement.md) | Accepted |
 
 ### F. Product Readiness
 
