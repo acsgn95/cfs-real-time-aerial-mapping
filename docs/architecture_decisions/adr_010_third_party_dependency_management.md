@@ -5,7 +5,8 @@
 * Decided by: Ahmet Coşgun
 * Backlog item: D09 (revisited)
 * Revised: 2026-11-11 (setup files: install location, optional COLMAP feature, CUDA architecture;
-  OpenGL and Fortran prerequisites found in setup step 2; CI)
+  OpenGL and Fortran prerequisites found in setup step 2; CI; GTSAM as an
+  optional feature)
 * Evidence: ADR-009 section 7; vcpkg release `2026.10.16` and its ports
   (GDAL 3.12.4, PROJ 9.9.0, LASzip 3.5.0, OpenCV 4.14.0, Eigen 5.0.1,
   GoogleTest 1.18.0, libjpeg-turbo 3.2.0, COLMAP 3.12.6 with a `cuda`
@@ -51,6 +52,7 @@ built by the project itself, as cFS already is.
 | Eigen | linear algebra | — |
 | COLMAP | PatchMatch Stereo | `cuda`; no GUI, no CGAL |
 | GoogleTest | library tests | — |
+| GTSAM 4.3.0 | optional pose refinement (D18) | no Boost, no TBB; optional manifest feature `refine`; built without `-march=native`; overlay port without `-Werror` (`cmake/ports/`) |
 
 PDAL is not used. GDAL and LASzip cover the needs of the real-time system,
 and the evaluation tools use Python packages (ADR-011).
@@ -72,9 +74,17 @@ built from source as a submodule, against the vcpkg-built dependencies.
 * COLMAP is an optional manifest feature (`colmap`), matching the build
   option `ORTHOSTREAM_WITH_COLMAP` (ADR-011). A machine without a GPU builds
   without it.
+* GTSAM is an optional manifest feature (`refine`), matching the build
+  option `ORTHOSTREAM_WITH_REFINE` for the pose refinement of D18. It needs
+  no GPU, so CI builds it.
 * The project triplet builds CUDA code for one GPU architecture (86, the
   Ampere GPU of ADR-002) to keep build time short. Another target gets its
   own triplet.
+* Ports that need a change are copied to `cmake/ports/` as overlay ports,
+  each with one commented change, and are compared with upstream whenever
+  `vendor/vcpkg` is updated. GTSAM is the first: GCC 15 reports a false
+  warning in its timing utilities that its `-Werror` turns into a build
+  failure.
 * `scripts/setup_dependencies.sh` checks the system prerequisites,
   bootstraps vcpkg and installs the manifest.
 * Built packages are cached by vcpkg's binary cache, so a clean build does
@@ -104,7 +114,9 @@ Building OrthoStream itself needs no `sudo` beyond these prerequisites.
 ### 5. Licenses
 
 Dependencies are built without optional components that carry licenses
-incompatible with Apache-2.0 (for example COLMAP without CGAL). The copyright
+incompatible with Apache-2.0 (for example COLMAP without CGAL). GTSAM
+contains files under MPL-2.0, a file-level copyleft license: linking is
+allowed, and changes to those files would have to be published. The copyright
 files that vcpkg installs are the basis for third-party notices.
 
 ### 6. Deployment

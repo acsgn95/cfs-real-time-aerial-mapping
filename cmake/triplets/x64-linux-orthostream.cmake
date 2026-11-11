@@ -24,3 +24,9 @@ set(VCPKG_ENV_PASSTHROUGH CUDA_PATH CUDA_HOME)
 # ADR-002. Building for one architecture keeps COLMAP's build time short.
 # Another target gets its own triplet with its own architecture list.
 set(VCPKG_CMAKE_CONFIGURE_OPTIONS "-DCMAKE_CUDA_ARCHITECTURES=86")
+
+# GTSAM: no -march=native. It would tie the binaries to the build machine and
+# can break Eigen's alignment assumptions between GTSAM and OrthoStream code.
+if(PORT STREQUAL "gtsam")
+  list(APPEND VCPKG_CMAKE_CONFIGURE_OPTIONS -DGTSAM_BUILD_WITH_MARCH_NATIVE=OFF)
+endif()

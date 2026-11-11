@@ -7,6 +7,8 @@
 #   scripts/setup_dependencies.sh            with COLMAP (CUDA)
 #   ORTHOSTREAM_WITH_COLMAP=0 scripts/setup_dependencies.sh
 #                                            without COLMAP (no GPU, e.g. CI)
+#   ORTHOSTREAM_WITH_REFINE=0 scripts/setup_dependencies.sh
+#                                            without GTSAM (pose refinement, D18)
 #
 # The first run builds every dependency from source and takes a long time
 # (GDAL, OpenCV and COLMAP in particular). Later runs reuse vcpkg's binary
@@ -18,6 +20,7 @@ VCPKG_ROOT="$REPO_ROOT/vendor/vcpkg"
 TRIPLET="x64-linux-orthostream"
 INSTALL_ROOT="$REPO_ROOT/build-deps/vcpkg_installed"
 WITH_COLMAP="${ORTHOSTREAM_WITH_COLMAP:-1}"
+WITH_REFINE="${ORTHOSTREAM_WITH_REFINE:-1}"
 
 # System prerequisites (ADR-010 section 4), listed in
 # scripts/system-packages-ubuntu.txt. Packages after the "# colmap:" marker
@@ -63,6 +66,9 @@ FEATURES=()
 if [ "$WITH_COLMAP" = "1" ]; then
   FEATURES+=(--x-feature=colmap)
   export CUDA_PATH="${CUDA_PATH:-$(dirname "$(dirname "$(command -v nvcc)")")}"
+fi
+if [ "$WITH_REFINE" = "1" ]; then
+  FEATURES+=(--x-feature=refine)
 fi
 
 "$VCPKG_ROOT/vcpkg" install \

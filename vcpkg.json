@@ -47,6 +47,15 @@
           ]
         }
       ]
+    },
+    "refine": {
+      "description": "GTSAM for the optional pose refinement (ORTHOSTREAM_WITH_REFINE, D18); CPU only, no Boost or TBB",
+      "dependencies": [
+        {
+          "name": "gtsam",
+          "default-features": false
+        }
+      ]
     }
   }
 }
