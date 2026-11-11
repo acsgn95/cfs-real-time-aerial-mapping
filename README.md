@@ -37,6 +37,7 @@ The primary objectives of this research are to:
 - Incrementally update DSM and orthomosaic products
 - Measure mapping accuracy, processing latency, throughput, and resource usage
 - Quantify the effects of camera position, orientation, and timing errors
+- Optionally refine camera poses from the imagery before dense reconstruction, for aircraft whose attitude or positions are not accurate enough
 - Evaluate the runtime overhead introduced by the cFS architecture
 - Compare real-time results with an offline COLMAP reference workflow
 
@@ -49,12 +50,13 @@ The mapping workflow is planned as a collection of independent cFS applications 
 | `INGEST_APP` | Receives images, camera poses, timestamps, and calibration data from the data source |
 | `ALIGN_APP` | Associates each image with the corresponding camera state |
 | `SELECT_APP` | Selects keyframes and source views using overlap and viewing geometry |
+| `REFINE_APP` | Optional: refines the camera poses of each keyframe batch from the imagery (`refine_pose`); with PPK or RTK positions only the attitude (`precise_position`) |
 | `DENSE_APP` | Computes depth maps with multi-view stereo |
 | `GEOREF_APP` | Transforms depth maps into georeferenced points and writes the point cloud |
 | `MAPPROD_APP` | Incrementally updates the DSM and orthomosaic |
 | `RECORDER_APP` | Stores status, timing, and performance measurements |
 
-See `docs/architecture_decisions/adr_012_application_boundaries.md`.
+See `docs/architecture_decisions/adr_012_application_boundaries.md` and, for `REFINE_APP`, `adr_019_pose_refinement.md`.
 
 The Software Bus will primarily carry commands, metadata, status information, and references to large data objects. Images, depth maps, and point clouds will not necessarily be copied directly through Software Bus messages.
 

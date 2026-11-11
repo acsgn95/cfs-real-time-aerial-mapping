@@ -1,7 +1,9 @@
 # ADR-005: Dense Reconstruction Method
 
 * Status: Accepted; parameter values provisional until the benchmark of
-  section 6
+  section 6; amended by
+  [ADR-019](adr_019_pose_refinement.md) (optional pose refinement before dense
+  reconstruction)
 * Date: 2026-11-10
 * Decided by: Ahmet Coşgun
 * Backlog item: D05
@@ -25,7 +27,8 @@ latency target and a dense working resolution of about 2048 px width (2.8 MP). A
 GPU memory to 5 GB on an RTX 3050 Laptop with CUDA 13.1.
 
 Poses are known (ADR-003), so neither structure from motion nor bundle
-adjustment is needed. Only the dense stage of COLMAP is relevant.
+adjustment is needed. Only the dense stage of COLMAP is relevant. Optional
+pose refinement before the dense stage is decided in ADR-019.
 
 ## Decision
 

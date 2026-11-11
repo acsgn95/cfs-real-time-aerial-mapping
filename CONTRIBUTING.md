@@ -137,9 +137,9 @@ Do not copy external source code into this repository unless its license is comp
 
 ## Research Scope
 
-This project focuses on modular real-time photogrammetric mapping using known camera poses supplied by a simulation environment.
+This project focuses on modular real-time photogrammetric mapping using camera poses supplied by the data source.
 
-Visual localization, SLAM-based trajectory estimation, operational flight control, and safety-critical navigation are outside the current research scope unless explicitly introduced through an approved design change.
+Optional pose refinement from the imagery (sliding-window bundle adjustment with GNSS priors, ADR-019) is in scope. Video-rate visual or visual-inertial SLAM, operational flight control, and safety-critical navigation are outside the current research scope unless explicitly introduced through an architecture decision.
 
 ## License
 

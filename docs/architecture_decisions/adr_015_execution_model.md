@@ -1,6 +1,6 @@
 # ADR-015: Execution Model
 
-* Status: Accepted
+* Status: Accepted; amended by [ADR-019](adr_019_pose_refinement.md) (`REFINE_APP`: one child task, priority level 3)
 * Date: 2026-11-11
 * Decided by: Ahmet Coşgun
 * Backlog item: D14

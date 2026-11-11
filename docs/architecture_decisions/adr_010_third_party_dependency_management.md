@@ -52,7 +52,7 @@ built by the project itself, as cFS already is.
 | Eigen | linear algebra | — |
 | COLMAP | PatchMatch Stereo | `cuda`; no GUI, no CGAL |
 | GoogleTest | library tests | — |
-| GTSAM 4.3.0 | optional pose refinement (D18) | no Boost, no TBB; optional manifest feature `refine`; built without `-march=native`; overlay port without `-Werror` (`cmake/ports/`) |
+| GTSAM 4.3.0 | optional pose refinement (ADR-019) | no Boost, no TBB; optional manifest feature `refine`; built without `-march=native`; overlay port without `-Werror` (`cmake/ports/`) |
 
 PDAL is not used. GDAL and LASzip cover the needs of the real-time system,
 and the evaluation tools use Python packages (ADR-011).
@@ -75,7 +75,7 @@ built from source as a submodule, against the vcpkg-built dependencies.
   option `ORTHOSTREAM_WITH_COLMAP` (ADR-011). A machine without a GPU builds
   without it.
 * GTSAM is an optional manifest feature (`refine`), matching the build
-  option `ORTHOSTREAM_WITH_REFINE` for the pose refinement of D18. It needs
+  option `ORTHOSTREAM_WITH_REFINE` for the pose refinement of ADR-019. It needs
   no GPU, so CI builds it.
 * The project triplet builds CUDA code for one GPU architecture (86, the
   Ampere GPU of ADR-002) to keep build time short. Another target gets its

@@ -43,7 +43,8 @@ thesis prototype:
   (ADR-011);
 * dependencies are pinned and built by the project (ADR-010);
 * memory is bounded and preallocated (ADR-001, ADR-013);
-* no component assumes a given data source or pose quality (ADR-012, D18).
+* no component assumes a given data source or pose quality (ADR-012,
+  ADR-019).
 
 The reference mission under `mission/` is the thesis configuration and an
 integration example.
@@ -67,9 +68,10 @@ scope of this project. Its commitments include:
 * results are compared with an offline COLMAP reconstruction and the
   simulator's reference surface, using the metrics listed in the proposal.
 
-A decision that narrows, changes or departs from one of these commitments says
-so in its Context section and records the supervisor's agreement under
-Evidence.
+The proposal is the starting point of the scope, not its limit. A decision
+that narrows, changes, extends or departs from one of these commitments says
+so in its Context section. ADR-019 is such an extension: the poses can
+optionally be refined from the imagery.
 
 ## Records
 
@@ -79,20 +81,21 @@ Evidence.
 | [ADR-002](adr_002_target_hardware_and_runtime.md) | Target hardware and runtime environment | D02 | Accepted, amended by ADR-009 and ADR-014 |
 | [ADR-003](adr_003_data_source_and_injector.md) | Data source and injector interface | D03 | Accepted |
 | [ADR-004](adr_004_coordinate_frames_and_conventions.md) | Coordinate frames and conventions | D04 | Accepted, completed by ADR-008 |
-| [ADR-005](adr_005_dense_reconstruction_method.md) | Dense reconstruction method | D05 | Accepted; parameters provisional |
+| [ADR-005](adr_005_dense_reconstruction_method.md) | Dense reconstruction method | D05 | Accepted; parameters provisional; amended by ADR-019 |
 | [ADR-006](adr_006_keyframe_and_source_view_selection.md) | Keyframe and source view selection | D06 | Accepted |
 | [ADR-007](adr_007_depth_fusion_and_map_products.md) | Depth fusion and incremental map products | D07 | Accepted, amended by ADR-011 |
 | [ADR-008](adr_008_offline_reference_and_camera_model.md) | Offline reference products and camera model conventions | D08 | Accepted |
 | [ADR-009](adr_009_cfs_version_and_build_structure.md) | cFS version and build structure | D09 | Accepted, amended by ADR-010 |
 | [ADR-010](adr_010_third_party_dependency_management.md) | Third-party dependency management | D09 | Accepted |
-| [ADR-011](adr_011_library_and_application_boundary.md) | Boundary between algorithm libraries and cFS applications | D10 | Accepted, amended by ADR-012 and ADR-013 |
-| [ADR-012](adr_012_application_boundaries.md) | Application boundaries | D11 | Accepted |
+| [ADR-011](adr_011_library_and_application_boundary.md) | Boundary between algorithm libraries and cFS applications | D10 | Accepted, amended by ADR-012, ADR-013 and ADR-019 |
+| [ADR-012](adr_012_application_boundaries.md) | Application boundaries | D11 | Accepted, amended by ADR-019 |
 | [ADR-013](adr_013_shared_data_store.md) | Shared data store for bulk data | D12 | Accepted |
 | [ADR-014](adr_014_time_model.md) | Time model | D13 | Accepted |
-| [ADR-015](adr_015_execution_model.md) | Execution model | D14 | Accepted |
-| [ADR-016](adr_016_messages_commands_and_tables.md) | Messages, commands and tables | D15 | Accepted |
+| [ADR-015](adr_015_execution_model.md) | Execution model | D14 | Accepted, amended by ADR-019 |
+| [ADR-016](adr_016_messages_commands_and_tables.md) | Messages, commands and tables | D15 | Accepted, amended by ADR-019 |
 | [ADR-017](adr_017_observability.md) | Observability and performance measurement | D16 | Accepted |
-| [ADR-018](adr_018_experiment_design.md) | Experiment design | D17 | Accepted |
+| [ADR-018](adr_018_experiment_design.md) | Experiment design | D17 | Accepted, amended by ADR-019 |
+| [ADR-019](adr_019_pose_refinement.md) | Optional pose refinement | D18 | Accepted |
 
 ## Decision Backlog
 
@@ -139,14 +142,14 @@ item; the ADR column links the resulting records.
 
 ### E. Optional Extensions
 
-Extensions are decided after the core pipeline works with `optimized` poses.
-The core architecture keeps room for them: no component assumes a given pose
-quality, and pose accuracy is always taken from the accuracy fields of the
-telemetry.
+Extensions are implemented after the core pipeline works with `optimized`
+poses. The core architecture keeps room for them: no component assumes a
+given pose quality, and pose accuracy is always taken from the accuracy
+fields of the telemetry.
 
 | Item | Decision | Depends on | ADR | Status |
 | --- | --- | --- | --- | --- |
-| D18 | Optional pose refinement between `SELECT_APP` and `DENSE_APP` (for example `REFINE_APP`): feature matching and a small bundle adjustment per keyframe batch, with position and attitude tied to the telemetry as priors weighted by its reported accuracy. Must work with PPK/RTK positions (tight priors, mainly attitude corrected) and with standard GNSS receivers such as u-blox modules (loose priors, position also corrected). Absolute accuracy stays limited by the GNSS accuracy. Preferred library: GTSAM 4.3.0 (vcpkg port; BSD-3-Clause, MIT and MPL-2.0), using an incremental or fixed-lag smoother with projection factors and GNSS priors, and open to IMU preintegration factors later. Off by default. Extends the proposal's scope and needs the supervisor's agreement. GTSAM approved as a dependency on 2026-11-11 and added as the optional vcpkg feature `refine` (ADR-010); the design remains open | D05, D06, D11, D14 | — | Open |
+| D18 | Optional pose refinement before dense reconstruction, chosen before the flight with two configuration values: `refine_pose` (off: batches go directly to `DENSE_APP`; on: `REFINE_APP` refines the poses first) and `precise_position` (on: PPK or RTK positions are kept fixed and only the attitude is estimated; off: positions and attitudes are estimated with priors weighted by the reported accuracy). Sliding-window bundle adjustment with GTSAM 4.3.0 | D05, D06, D11, D14 | [ADR-019](adr_019_pose_refinement.md) | Accepted |
 
 ### F. Product Readiness
 

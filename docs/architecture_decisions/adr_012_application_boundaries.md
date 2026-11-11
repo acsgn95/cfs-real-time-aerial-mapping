@@ -1,6 +1,6 @@
 # ADR-012: Application Boundaries
 
-* Status: Accepted
+* Status: Accepted; amended by [ADR-019](adr_019_pose_refinement.md) (optional `REFINE_APP` between `SELECT_APP` and `DENSE_APP`)
 * Date: 2026-11-11
 * Decided by: Ahmet Coşgun
 * Backlog item: D11

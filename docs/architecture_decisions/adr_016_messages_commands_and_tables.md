@@ -1,6 +1,6 @@
 # ADR-016: Messages, Commands and Tables
 
-* Status: Accepted
+* Status: Accepted; amended by [ADR-019](adr_019_pose_refinement.md) (`KeyframeBatch` routed as "batch selected" or "batch ready", pose source, table values `refine_pose` and `precise_position`)
 * Date: 2026-11-11
 * Decided by: Ahmet Coşgun
 * Backlog item: D15

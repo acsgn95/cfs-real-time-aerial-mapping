@@ -1,6 +1,6 @@
 # ADR-018: Experiment Design
 
-* Status: Accepted
+* Status: Accepted; amended by [ADR-019](adr_019_pose_refinement.md) (E4 with pose refinement off and on; pose accuracy metrics)
 * Date: 2026-11-11
 * Decided by: Ahmet Coşgun
 * Backlog item: D17
