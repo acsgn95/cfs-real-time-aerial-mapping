@@ -1,6 +1,7 @@
 name: Build
 
-# Builds the pinned dependencies and the cFS mission (ADR-009, ADR-010).
+# Builds the pinned dependencies, builds and tests the algorithm libraries,
+# and builds the cFS mission (ADR-009, ADR-010, ADR-011).
 # GitHub-hosted runners have no GPU, so COLMAP is left out
 # (ORTHOSTREAM_WITH_COLMAP=0). vcpkg's binary cache is kept between runs, so
 # only changed dependencies are rebuilt; the first run takes about 30 minutes.
@@ -27,7 +28,7 @@ env:
 
 jobs:
   build:
-    name: Build dependencies and mission
+    name: Build dependencies, libraries and mission
     runs-on: ubuntu-latest
     timeout-minutes: 120
 
@@ -62,9 +63,9 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
-          key: vcpkg-${{ runner.os }}-${{ steps.deps-key.outputs.vcpkg }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'cmake/triplets/**') }}-${{ github.run_id }}
+          key: vcpkg-${{ runner.os }}-${{ steps.deps-key.outputs.vcpkg }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'cmake/triplets/**', 'cmake/ports/**') }}-${{ github.run_id }}
           restore-keys: |
-            vcpkg-${{ runner.os }}-${{ steps.deps-key.outputs.vcpkg }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'cmake/triplets/**') }}-
+            vcpkg-${{ runner.os }}-${{ steps.deps-key.outputs.vcpkg }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'cmake/triplets/**', 'cmake/ports/**') }}-
             vcpkg-${{ runner.os }}-${{ steps.deps-key.outputs.vcpkg }}-
             vcpkg-${{ runner.os }}-
 
@@ -76,7 +77,10 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
-          key: vcpkg-${{ runner.os }}-${{ steps.deps-key.outputs.vcpkg }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'cmake/triplets/**') }}-${{ github.run_id }}
+          key: vcpkg-${{ runner.os }}-${{ steps.deps-key.outputs.vcpkg }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'cmake/triplets/**', 'cmake/ports/**') }}-${{ github.run_id }}
+
+      - name: Build and test libraries
+        run: scripts/build_libs.sh
 
       - name: Build mission
         run: mission/build.sh -j"$(nproc)"
