@@ -12,6 +12,7 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 #include <Eigen/Core>
 
@@ -38,10 +39,19 @@ class CrsTransformer
 {
 public:
     /// source and target are any CRS definitions PROJ accepts, for example
-    /// "EPSG:4978". proj_data_dir is the directory holding proj.db; PROJ's
-    /// built-in default directory is never used. Throws GeoError if the
-    /// directory has no proj.db or PROJ cannot create the transformation.
-    CrsTransformer(const std::string &source, const std::string &target, const std::string &proj_data_dir);
+    /// "EPSG:4978" or "EPSG:2056+5729". proj_data_dir is the directory
+    /// holding proj.db; PROJ's built-in default directory is never used.
+    /// grid_dirs are further directories with transformation grids.
+    ///
+    /// Only the best transformation is used: if it needs a grid that is not
+    /// available, forward() and inverse() fail instead of falling back to a
+    /// less accurate one (without the grid, a geoid correction of about 50 m
+    /// would silently be skipped). Throws GeoError if the directory has no
+    /// proj.db or PROJ cannot create the transformation.
+    CrsTransformer(const std::string              &source,
+                   const std::string              &target,
+                   const std::string              &proj_data_dir,
+                   const std::vector<std::string> &grid_dirs = {});
     ~CrsTransformer();
 
     CrsTransformer(const CrsTransformer &)            = delete;

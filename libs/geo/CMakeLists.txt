@@ -58,6 +58,13 @@ if(BUILD_TESTING)
     target_compile_definitions(geo_tests PRIVATE
         OST_GEO_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/data"
         OST_GEO_TEST_PROJ_DATA_DIR="${ORTHOSTREAM_PROJ_DATA_DIR}")
+    # Grids fetched by scripts/fetch_proj_grids.sh; tests that need them are
+    # skipped without them.
+    set(ORTHOSTREAM_PROJ_GRID_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../build-deps/proj-grids"
+        CACHE PATH "Directory with PROJ transformation grids")
+    if(EXISTS "${ORTHOSTREAM_PROJ_GRID_DIR}/ch_swisstopo_chgeo2004_ETRS89_LHN95.tif")
+        target_compile_definitions(geo_tests PRIVATE OST_GEO_TEST_GRID_DIR="${ORTHOSTREAM_PROJ_GRID_DIR}")
+    endif()
     target_link_libraries(geo_tests PRIVATE
         orthostream_geo PROJ::proj GTest::gtest_main orthostream_warnings)
     gtest_discover_tests(geo_tests)

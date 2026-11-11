@@ -49,6 +49,33 @@ TEST(Crs, EtrsEcefToLv95)
     EXPECT_LT((to_lv95.inverse(en) - kGcp1Ecef).norm(), 0.005);
 }
 
+// With the Swiss geoid grid, the ellipsoidal height of the surveyed ground
+// control point converts to its surveyed LHN95 height (1665.612 m).
+TEST(Crs, EtrsEcefToLv95WithLhn95Heights)
+{
+#ifdef OST_GEO_TEST_GRID_DIR
+    const CrsTransformer  to_lhn95("EPSG:4936", "EPSG:2056+5729", OST_GEO_TEST_PROJ_DATA_DIR, { OST_GEO_TEST_GRID_DIR });
+    const Eigen::Vector3d enh = to_lhn95.forward(kGcp1Ecef);
+    EXPECT_NEAR(enh.x(), kGcp1Easting, 0.02);
+    EXPECT_NEAR(enh.y(), kGcp1Northing, 0.02);
+    EXPECT_NEAR(enh.z(), 1665.612, 0.03);
+#else
+    GTEST_SKIP() << "Swiss geoid grid not available: run scripts/fetch_proj_grids.sh";
+#endif
+}
+
+// Without the grid, the best transformation is unavailable, and PROJ must not
+// fall back to one that skips the geoid (about 50 m here).
+TEST(Crs, MissingGeoidGridFailsInsteadOfFallingBack)
+{
+    EXPECT_THROW(
+        {
+            const CrsTransformer to_lhn95("EPSG:4936", "EPSG:2056+5729", OST_GEO_TEST_PROJ_DATA_DIR);
+            to_lhn95.forward(kGcp1Ecef);
+        },
+        GeoError);
+}
+
 TEST(Crs, UnknownCrsThrows)
 {
     EXPECT_THROW(CrsTransformer("EPSG:999999", "EPSG:4979", OST_GEO_TEST_PROJ_DATA_DIR), GeoError);

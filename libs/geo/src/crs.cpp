@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <filesystem>
+#include <vector>
 
 #include <proj.h>
 
@@ -54,7 +55,10 @@ struct CrsTransformer::Impl
     }
 };
 
-CrsTransformer::CrsTransformer(const std::string &source, const std::string &target, const std::string &proj_data_dir) :
+CrsTransformer::CrsTransformer(const std::string              &source,
+                               const std::string              &target,
+                               const std::string              &proj_data_dir,
+                               const std::vector<std::string> &grid_dirs) :
     impl_(std::make_unique<Impl>())
 {
     // PROJ falls back to the data directory it was built with when the given
@@ -72,10 +76,29 @@ CrsTransformer::CrsTransformer(const std::string &source, const std::string &tar
         throw GeoError("cannot create a PROJ context");
     }
     proj_context_set_enable_network(impl_->ctx, 0);
-    const char *paths[] = { proj_data_dir.c_str() };
-    proj_context_set_search_paths(impl_->ctx, 1, paths);
+    std::vector<const char *> paths { proj_data_dir.c_str() };
+    for (const std::string &dir : grid_dirs)
+    {
+        paths.push_back(dir.c_str());
+    }
+    proj_context_set_search_paths(impl_->ctx, static_cast<int>(paths.size()), paths.data());
 
-    PJ *raw = proj_create_crs_to_crs(impl_->ctx, source.c_str(), target.c_str(), nullptr);
+    PJ *src = proj_create(impl_->ctx, source.c_str());
+    PJ *dst = proj_create(impl_->ctx, target.c_str());
+    PJ *raw = nullptr;
+    if (src != nullptr && dst != nullptr)
+    {
+        const char *options[] = { "ONLY_BEST=YES", nullptr };
+        raw                   = proj_create_crs_to_crs_from_pj(impl_->ctx, src, dst, nullptr, options);
+    }
+    if (src != nullptr)
+    {
+        proj_destroy(src);
+    }
+    if (dst != nullptr)
+    {
+        proj_destroy(dst);
+    }
     if (raw == nullptr)
     {
         throw GeoError("cannot create transformation " + source + " -> " + target + ": " + contextError(impl_->ctx));

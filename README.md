@@ -159,6 +159,7 @@ sudo apt install $(grep -v '^#' scripts/system-packages-ubuntu.txt)
 ```bash
 git submodule update --init --recursive
 scripts/setup_dependencies.sh                     # once; long first build (ORTHOSTREAM_WITH_COLMAP=0 skips COLMAP, ORTHOSTREAM_WITH_REFINE=0 skips GTSAM)
+scripts/fetch_proj_grids.sh                       # once; PROJ grids with pinned checksums
 scripts/build_libs.sh                             # algorithm libraries and their tests, without cFS
 mission/build.sh                                  # debug build
 ORTHOSTREAM_BUILD_TYPE=release mission/build.sh   # release build, used for all measurements
