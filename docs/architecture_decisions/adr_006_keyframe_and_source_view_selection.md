@@ -4,6 +4,7 @@
 * Date: 2026-11-10
 * Decided by: Ahmet Coşgun
 * Backlog item: D06
+* Revised: 2026-11-11 (dense working resolution given as image width; 2048 × 1366 is 2.8 MP)
 * Evidence: ADR-001 (keyframe overlap assumption, tilt envelope, R4);
   ADR-004 (ellipsoidal heights, working frames); ADR-005 (causal processing,
   K = 5); SRTMGL1 product specification (LE90 vertical accuracy 9.73 m)
@@ -101,8 +102,10 @@ consecutive keyframes and about 0.35 to the neighbouring line.
 * The pool is indexed spatially by footprint. Entries whose footprints are
   farther than a configured distance from the current position are evicted,
   so memory stays bounded (ADR-001 R4).
-* Sizing: an image at 2 MP is about 6 MB, so 300 entries need about 1.8 GB,
-  within the 16 GB RAM budget of ADR-002.
+* Sizing: an RGB image at 2048 × 1366 is about 8.4 MB, so 300 entries need
+  about 2.5 GB, within the 16 GB RAM budget of ADR-002. The default quota of
+  ADR-013 (2 GB) holds about 240; the pool distance and the quota are tuned
+  together in the ADR-005 benchmark.
 
 ### 7. Configuration
 

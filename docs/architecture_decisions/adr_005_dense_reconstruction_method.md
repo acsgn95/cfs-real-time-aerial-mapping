@@ -5,6 +5,7 @@
 * Date: 2026-11-10
 * Decided by: Ahmet Coşgun
 * Backlog item: D05
+* Revised: 2026-11-11 (dense working resolution given as image width; 2048 × 1366 is 2.8 MP)
 * Evidence: thesis proposal (FB_YL-01) sections 2 and 4.2; ADR-001 (keyframe
   interval, latency target, working resolution); ADR-002 (GPU memory budget,
   CUDA 13.1); ADR-004 (working frames `L_k`); AerialMapper source analysis
@@ -20,7 +21,7 @@ the reference for incremental map products, computes depth with two-view
 OpenCV SGBM on rectified image pairs and does not fuse views.
 
 ADR-001 leaves about 2.9 s per keyframe at the nominal point, with a 5 s
-latency target and a dense working resolution of about 2–3 MP. ADR-002 limits
+latency target and a dense working resolution of about 2048 px width (2.8 MP). ADR-002 limits
 GPU memory to 5 GB on an RTX 3050 Laptop with CUDA 13.1.
 
 Poses are known (ADR-003), so neither structure from motion nor bundle
@@ -79,7 +80,7 @@ These values are starting points. Section 6 confirms or replaces them.
 
 | Parameter | Provisional value |
 | --- | --- |
-| Dense working resolution | about 2 MP (2048 × 1366 for Dorfberg) |
+| Dense working resolution | 2048 px width (2048 × 1366, 2.8 MP, for Dorfberg) |
 | Source views K | 5 |
 | PatchMatch iterations | 5 (COLMAP default) |
 | Geometric consistency | on |
@@ -93,7 +94,7 @@ Dorfberg flight with `optimized` poses.
 
 | Factor | Levels |
 | --- | --- |
-| Working resolution | 1, 2, 3 MP |
+| Working resolution (width) | 1536, 2048, 2560 px (1.6, 2.8, 4.4 MP for Dorfberg) |
 | Source views K | 4, 8 |
 | Geometric consistency | off, on |
 | PatchMatch iterations | 3, 5 |

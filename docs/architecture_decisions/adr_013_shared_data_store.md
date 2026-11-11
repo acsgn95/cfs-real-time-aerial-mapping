@@ -4,6 +4,7 @@
 * Date: 2026-11-11
 * Decided by: Ahmet Coşgun
 * Backlog item: D12
+* Revised: 2026-11-11 (image pool count corrected for 2048 × 1366 RGB images)
 * Evidence: ADR-001 (data sizes, R4), ADR-002 (16 GB RAM budget), ADR-006
   (image pool), ADR-011 (caller-owned buffers), ADR-012 (four applications
   share bulk data); the cFS native build runs all applications as threads of
@@ -78,7 +79,7 @@ On the target (ADR-002), all cFS applications run as threads of one process.
   | Object type | Default quota | Holds |
   | --- | --- | --- |
   | JPEG image | 1 GB | images waiting to be decoded and keyframe images waiting for orthomosaic rendering |
-  | Working-resolution image | 2 GB | the image pool, about 300 images |
+  | Working-resolution image | 2 GB | the image pool, about 240 RGB images at 2048 × 1366 |
   | Depth set (depth, normal, confidence) | 4 GB | keyframes of about two or three flight lines |
   | Point set | 1 GB | between `GEOREF_APP` and `MAPPROD_APP` |
 

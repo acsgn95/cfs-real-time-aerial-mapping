@@ -4,6 +4,7 @@
 * Date: 2026-11-10
 * Decided by: Ahmet Coşgun
 * Backlog item: D01
+* Revised: 2026-11-11 (dense working resolution given as image width; 2048 × 1366 is 2.8 MP)
 * Evidence: thesis proposal (FB_YL-01, 2026-10-05) sections 4.2 and 4.3;
   Dorfberg Flight 01 dataset (WingtraHub processing report, Agisoft Metashape
   processing report of 2020-11-10, geotags); footprint, GSD and image-rate
@@ -127,8 +128,9 @@ The keyframe overlap of 70 % is an assumption for sizing; D06 decides it.
   system (1–100 MP; 42.2 MP at the nominal point).
 * The **dense working resolution** is the resolution at which depth maps are
   computed. It is configurable and independent of the input resolution. Its
-  default is decided in D05 (about 2–3 MP is expected on the target GPU, for
-  example 2048 × 1366 at the nominal point, which gives about 13 cm GSD).
+  default is decided in D05. It is given as an image width; the height
+  follows from the aspect ratio. About 2048 px is expected on the target GPU:
+  2048 × 1366 (2.8 MP) at the nominal point, which gives about 13 cm GSD.
 * The orthomosaic may sample the input images at full resolution. The DSM is
   built from depth maps at the dense working resolution.
 * Note for D05: JPEG input can be decoded directly at 1/2, 1/4 or 1/8 scale

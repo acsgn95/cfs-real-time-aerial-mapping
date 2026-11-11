@@ -4,6 +4,7 @@
 * Date: 2026-11-11
 * Decided by: Ahmet Coşgun
 * Backlog item: D17
+* Revised: 2026-11-11 (dense working resolution given as image width; 2048 × 1366 is 2.8 MP)
 * Evidence: thesis proposal (FB_YL-01) section 4.3; ADR-001 (nominal point,
   R1–R4), ADR-003 (injector parameters; altitude and tilt not varied for
   now), ADR-005 (methods and benchmark), ADR-008 (reference products),
@@ -37,7 +38,7 @@ Metashape products and five ground control points the references.
 | E3 Overlap | image decimation | every image, every 2nd, every 3rd (about 85 %, 70 %, 55 %) | effect of overlap on accuracy |
 | E4 Pose errors | attitude error, position noise, pose set | 0.1°, 0.5°, 1°; 0.05 m, 0.5 m, 2 m (standard GNSS); `non-optimized` | the proposal's pose-error experiment |
 | E5 Timestamp offset | image timestamp offset | 10, 50, 100, 200 ms | the proposal's timestamp experiment |
-| E6 Method and resolution | dense method, working resolution | PatchMatch and SGBM; 1, 2, 3 MP | COLMAP approach against AerialMapper approach |
+| E6 Method and resolution | dense method, working resolution | PatchMatch and SGBM; 1536, 2048, 2560 px width | COLMAP approach against AerialMapper approach |
 | E7 Link | `netem` profile | ideal, Wi-Fi, cellular | effect of the link on latency |
 | E8 cFS overhead | runtime | the same libraries inside cFS and outside it (`tools/`) | runtime overhead of the cFS architecture |
 
