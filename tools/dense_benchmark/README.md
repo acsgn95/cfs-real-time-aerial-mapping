@@ -10,8 +10,12 @@ Benchmark of dense reconstruction on keyframe batches of a posed image set
   1 m) and the share of pixels with a depth.
 
 Keyframes and source views are chosen with the `selection` library
-(ADR-006). Footprints use the reference DSM instead of SRTM. One run is one
-configuration; `scripts/run_dense_benchmark.sh` runs the matrix.
+(ADR-006). Footprints use the terrain prior of the mission, the Copernicus
+DEM GLO-30 (`--terrain-dem`, fetched with `tools/dataset/fetch_dem.py`), or
+the reference DSM when no terrain prior is given. With a terrain prior the
+tool also reports its height differences from the reference DSM at the
+footprint centres. One run is one configuration;
+`scripts/run_dense_benchmark.sh` runs the matrix.
 
 ## Build
 
@@ -38,6 +42,7 @@ build-libs/release/tools/dense_benchmark/dense_benchmark \
 | --- | --- |
 | `--mode causal\|delayed` | source views only from images before the keyframe, or also up to the next keyframe (ADR-005 section 2) |
 | `--keyframe NAME` | benchmark given keyframes instead of `--count` keyframes spread over the flight |
+| `--terrain-dem FILE` | terrain prior for footprints (default CRS `EPSG:4326+3855`, Copernicus with EGM2008 heights; `--terrain-crs` for others) |
 | `--dry-run` | no PatchMatch: the depth map is rendered from the DSM; checks poses, frames, selection and evaluation without a GPU (median and NMAD should be a few centimetres) |
 | `--save-depth DIR` | write depth maps as PFM files |
 

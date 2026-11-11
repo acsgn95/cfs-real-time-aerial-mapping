@@ -79,9 +79,6 @@ jobs:
           path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
           key: vcpkg-${{ runner.os }}-${{ steps.deps-key.outputs.vcpkg }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'cmake/triplets/**', 'cmake/ports/**') }}-${{ github.run_id }}
 
-      - name: Fetch PROJ grids
-        run: scripts/fetch_proj_grids.sh
-
       - name: Build and test libraries
         run: scripts/build_libs.sh
 

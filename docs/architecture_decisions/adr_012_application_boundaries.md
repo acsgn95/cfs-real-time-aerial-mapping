@@ -33,7 +33,7 @@ RECORDER_APP <-- status, timing and health messages of all applications
 | --- | --- | --- |
 | `INGEST_APP` | receives UDP telemetry and TCP image frames from the injector; stores the JPEG data in the data store (D12); publishes telemetry samples, image arrivals and the session calibration | `link` |
 | `ALIGN_APP` | buffers telemetry and interpolates the pose at each image timestamp; rejects invalid associations (rules in D13); publishes the image pose | `time_align`, `geo` |
-| `SELECT_APP` | decodes every image to the dense working resolution; computes footprints with SRTM; selects keyframes and source views; owns the spatial index of the image pool; publishes keyframe batches | `selection`, `terrain`, `imaging`, `geo` |
+| `SELECT_APP` | decodes every image to the dense working resolution; computes footprints with the terrain prior (Copernicus DEM); selects keyframes and source views; owns the spatial index of the image pool; publishes keyframe batches | `selection`, `terrain`, `imaging`, `geo` |
 | `DENSE_APP` | computes depth, normal and confidence maps for each keyframe batch (PatchMatch or SGBM); runs the GPU work | `dense`, `geo` |
 | `GEOREF_APP` | converts depth maps to points and transforms them from `L_k` through ECEF to the product frame `P`; writes the point cloud product (LAZ); publishes georeferenced point sets | `geo`, `map_products` (LAZ writer) |
 | `MAPPROD_APP` | fuses points into the DSM, renders the orthomosaic, manages the tile lifecycle and publication | `map_products`, `imaging`, `geo` |

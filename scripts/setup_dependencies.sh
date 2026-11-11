@@ -78,6 +78,9 @@ fi
   --host-triplet="$TRIPLET" \
   "${FEATURES[@]}"
 
+# PROJ grids (geoid models) with pinned checksums; also runnable on its own.
+"$REPO_ROOT/scripts/fetch_proj_grids.sh"
+
 echo ""
 echo "Dependencies installed under:"
 echo "  $INSTALL_ROOT/$TRIPLET"

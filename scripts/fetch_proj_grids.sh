@@ -14,6 +14,7 @@ BASE_URL="https://cdn.proj.org"
 # file name, SHA-256, use
 GRIDS=(
   "ch_swisstopo_chgeo2004_ETRS89_LHN95.tif 459e317ba9bf1f744ad920b3fe0d6ee0b1bdfc960cad7d4ea428db7bb229280f Dorfberg evaluation: ETRS89 ellipsoidal to LHN95 heights (ADR-004, ADR-008)"
+  "us_nga_egm08_25.tif 4191d471eefebf24091b56dbc604353cb3b8cf8cc70e448bb9ae56a272bef17a terrain prior: Copernicus DEM heights (EGM2008) to ellipsoidal heights (ADR-006)"
 )
 
 mkdir -p "$GRID_DIR"

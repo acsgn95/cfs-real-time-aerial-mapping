@@ -4,7 +4,8 @@
 //
 // Per run, one configuration (working width, K, iterations, causal or
 // delayed mode). Keyframes and source views are chosen with the selection
-// library (ADR-006); footprints use the reference DSM instead of SRTM.
+// library (ADR-006); footprints use the Copernicus terrain prior of the
+// mission (--terrain-dem) or the reference DSM.
 // Results are written as one CSV row per keyframe.
 
 #include <algorithm>
@@ -50,6 +51,8 @@ struct Options
     std::string              proj_data = OST_BENCH_PROJ_DATA_DIR;
     std::string              grid_dir  = OST_BENCH_GRID_DIR;
     std::string              save_depth;
+    std::string              terrain_dem;
+    std::string              terrain_crs = "EPSG:4326+3855";  // Copernicus DEM: WGS 84 with EGM2008 heights
     std::vector<std::string> keyframes;
     int                      width        = 2048;
     int                      sources      = 5;
@@ -81,6 +84,10 @@ const char *kUsage = R"(usage: dense_benchmark --poses FILE --images DIR --dsm F
   --keyframe NAME       a given keyframe instead (repeatable)
   --target-overlap F    forward overlap between keyframes (default 0.7)
   --nominal-agl M       nominal height above ground for footprints (default 250)
+  --terrain-dem FILE    terrain prior for footprints, as in the mission (for example
+                        the Copernicus mosaic of tools/dataset/fetch_dem.py); default:
+                        the reference DSM. Reports the terrain prior against the DSM.
+  --terrain-crs CRS     CRS of the terrain prior with heights (default EPSG:4326+3855)
   --depth-margin M      margin of the depth range around the terrain (default 50)
   --eval-stride N       evaluate every N-th pixel in both directions (default 2)
   --gpu N               GPU index (default 0)
@@ -124,6 +131,8 @@ Options parseOptions(int argc, char **argv)
         else if (a == "--no-warmup") o.warmup = false;
         else if (a == "--dry-run") o.dry_run = true;
         else if (a == "--save-depth") o.save_depth = value();
+        else if (a == "--terrain-dem") o.terrain_dem = value();
+        else if (a == "--terrain-crs") o.terrain_crs = value();
         else if (a == "--proj-data") o.proj_data = value();
         else if (a == "--grid-dir") o.grid_dir = value();
         else if (a == "--mode")
@@ -248,6 +257,10 @@ public:
         mean /= static_cast<double>(data_.images.size());
         const geo::Geodetic g = geodetic_.ecefToGeodetic(mean);
         flight_frame_         = std::make_unique<geo::LocalFrame>(mean, g.latitude_rad, g.longitude_rad);
+        if (!o.terrain_dem.empty())
+        {
+            loadTerrainPrior();
+        }
         if (!o.dry_run)
         {
             dense::PatchMatchConfig config;
@@ -260,6 +273,10 @@ public:
     int run()
     {
         selectViews();
+        if (terrain_)
+        {
+            reportTerrainPrior();
+        }
         const std::vector<std::size_t> chosen = chooseKeyframes();
         std::cout << "images " << data_.images.size() << ", with footprint " << with_footprint_ << ", flight lines "
                   << num_lines_ << ", keyframes " << keyframes_.size() << ", benchmarked " << chosen.size()
@@ -298,22 +315,73 @@ public:
     }
 
 private:
-    std::optional<double> terrainInFlightFrame(double x, double y) const
+    // Terrain prior around the flight: camera positions plus 0.05 degrees.
+    void loadTerrainPrior()
+    {
+        to_terrain_ = std::make_unique<geo::CrsTransformer>("EPSG:4978", o_.terrain_crs, o_.proj_data,
+                                                            std::vector<std::string> { o_.grid_dir });
+        double x0 = 1e300, y0 = 1e300, x1 = -1e300, y1 = -1e300;
+        for (const bench::PosedImage &im : data_.images)
+        {
+            const Eigen::Vector3d p = to_terrain_->forward(im.T_E_C.translation());
+            x0 = std::min(x0, p.x()), y0 = std::min(y0, p.y());
+            x1 = std::max(x1, p.x()), y1 = std::max(y1, p.y());
+        }
+        const bench::Raster dem(o_.terrain_dem);
+        terrain_ = std::make_unique<RasterWindow>(dem.read(x0 - 0.05, y0 - 0.05, x1 + 0.05, y1 + 0.05, 1));
+    }
+
+    // Height (flight frame z) of a raster at a horizontal position of the
+    // flight frame; the raster CRS includes heights.
+    std::optional<double> heightInFlightFrame(const geo::CrsTransformer &to_raster, const RasterWindow &raster,
+                                              double x, double y) const
     {
         try
         {
-            const Eigen::Vector3d p = to_dsm_.forward(flight_frame_->toEcef({ x, y, -o_.nominal_agl }));
-            const std::optional<double> h = coarse_.sample(p.x(), p.y());
+            const Eigen::Vector3d p = to_raster.forward(flight_frame_->toEcef({ x, y, -o_.nominal_agl }));
+            const std::optional<double> h = raster.sample(p.x(), p.y());
             if (!h)
             {
                 return std::nullopt;
             }
-            return flight_frame_->toLocal(to_dsm_.inverse({ p.x(), p.y(), *h })).z();
+            return flight_frame_->toLocal(to_raster.inverse({ p.x(), p.y(), *h })).z();
         }
         catch (const geo::GeoError &)
         {
             return std::nullopt;
         }
+    }
+
+    std::optional<double> terrainInFlightFrame(double x, double y) const
+    {
+        return terrain_ ? heightInFlightFrame(*to_terrain_, *terrain_, x, y)
+                        : heightInFlightFrame(to_dsm_, coarse_, x, y);
+    }
+
+    // Terrain prior minus reference DSM at the footprint centres.
+    void reportTerrainPrior() const
+    {
+        std::vector<double> diff;
+        for (std::size_t i = 0; i < views_.size(); ++i)
+        {
+            if (!has_footprint_[i])
+            {
+                continue;
+            }
+            const Eigen::Vector3d       c   = views_[i].footprint.centre;
+            const std::optional<double> ref = heightInFlightFrame(to_dsm_, coarse_, c.x(), c.y());
+            if (ref)
+            {
+                diff.push_back(c.z() - *ref);
+            }
+        }
+        const bench::ErrorStats s = bench::errorStats(std::move(diff));
+        char line[200];
+        std::snprintf(line, sizeof(line),
+                      "terrain prior - reference DSM at %zu footprint centres: mean %+.2f m, median %+.2f m, "
+                      "NMAD %.2f m, 95%% |e| %.2f m\n",
+                      s.count, s.mean, s.median, s.nmad, s.p95_abs);
+        std::cout << line;
     }
 
     void selectViews()
@@ -633,6 +701,8 @@ private:
     const geo::CameraModel                       wcam_;
     bench::GpuMemorySampler                      gpu_;
     std::unique_ptr<geo::LocalFrame>             flight_frame_;
+    std::unique_ptr<geo::CrsTransformer>         to_terrain_;
+    std::unique_ptr<RasterWindow>                terrain_;
     std::unique_ptr<dense::PatchMatchEstimator>  estimator_;
     std::vector<selection::View>                 views_;
     std::vector<bool>                            has_footprint_;

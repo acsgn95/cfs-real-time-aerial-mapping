@@ -44,7 +44,7 @@ built by the project itself, as cFS already is.
 
 | Dependency | Use | Features |
 | --- | --- | --- |
-| GDAL | GeoTIFF, COG and VRT products; SRTM reading (SRTMHGT driver) | default features off; only what these drivers need |
+| GDAL | GeoTIFF, COG and VRT products; reading the terrain prior (GeoTIFF/VRT) | default features off; only what these drivers need |
 | PROJ | coordinate and vertical datum transformations | default features off; grids are provided as files (no network access) |
 | LASzip | LAZ point cloud files | — |
 | libjpeg-turbo | JPEG decoding with DCT scaling | — |
@@ -86,7 +86,9 @@ built from source as a submodule, against the vcpkg-built dependencies.
   warning in its timing utilities that its `-Werror` turns into a build
   failure.
 * `scripts/setup_dependencies.sh` checks the system prerequisites,
-  bootstraps vcpkg and installs the manifest.
+  bootstraps vcpkg, installs the manifest and fetches the PROJ grids with
+  pinned checksums (`scripts/fetch_proj_grids.sh`). Downloads happen only
+  in this setup step, never during a build.
 * Built packages are cached by vcpkg's binary cache, so a clean build does
   not rebuild unchanged dependencies.
 

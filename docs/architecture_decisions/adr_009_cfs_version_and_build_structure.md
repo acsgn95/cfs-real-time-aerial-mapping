@@ -106,7 +106,7 @@ Each step starts only after the user agrees to it.
    mission. No system-wide installation.
 2. Install the Ubuntu packages (command prepared, run by the user).
 3. Build COLMAP.
-4. Prepare SRTM tiles and the EGM96 grid (ADR-006).
+4. Prepare the Copernicus DEM of the mission area and the EGM2008 grid (ADR-006).
 5. Run the benchmark of ADR-005.
 
 ### 9. Continuous integration

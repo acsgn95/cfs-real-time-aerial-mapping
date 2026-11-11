@@ -160,12 +160,18 @@ sudo apt install $(grep -v '^#' scripts/system-packages-ubuntu.txt)
 
 ```bash
 git submodule update --init --recursive
-scripts/setup_dependencies.sh                     # once; long first build (ORTHOSTREAM_WITH_COLMAP=0 skips COLMAP, ORTHOSTREAM_WITH_REFINE=0 skips GTSAM)
-scripts/fetch_proj_grids.sh                       # once; PROJ grids with pinned checksums
+scripts/setup_dependencies.sh                     # once; long first build (ORTHOSTREAM_WITH_COLMAP=0 skips COLMAP, ORTHOSTREAM_WITH_REFINE=0 skips GTSAM); also fetches the PROJ grids
 scripts/build_libs.sh                             # algorithm libraries and their tests, without cFS
 mission/build.sh                                  # debug build
 ORTHOSTREAM_BUILD_TYPE=release mission/build.sh   # release build, used for all measurements
 cd build/exe/cpu1 && ./core-cpu1
+```
+
+Mission data are prepared once per survey area, outside the build:
+
+```bash
+tools/dataset/extract_metashape_poses.py chunk.zip data/processed/dorfberg_f01/poses_optimized.txt   # reference poses (ADR-008)
+tools/dataset/fetch_dem.py --poses data/processed/dorfberg_f01/poses_optimized.txt --name dorfberg     # terrain prior, Copernicus DEM GLO-30 (ADR-006)
 ```
 
 At this stage the mission runs the cFS lab applications only (SCH_LAB, CI_LAB, TO_LAB). The OrthoStream applications are added as the architecture decisions are implemented.
@@ -182,9 +188,12 @@ Large datasets, raw imagery, generated point clouds, DSMs, and orthomosaics will
 
 This repository supports the master's thesis:
 
-**Real-Time Aerial Map Generation from Simulation Data Using cFS**
+**Real-Time Aerial Map Generation from UAV Imagery Using cFS**
 
-*(Turkish: cFS Kullanılarak Simülasyon Verilerinden Gerçek Zamanlı Harita Üretimi)*
+*(Turkish: cFS Kullanılarak İHA Görüntülerinden Gerçek Zamanlı Hava Haritası Üretimi)*
+
+The title was changed from the proposal's "… from Simulation Data …",
+because recorded flight data replaced the simulator (ADR-003).
 
 - **Author:** Ahmet Coşgun
 - **Department:** Geomatics Engineering

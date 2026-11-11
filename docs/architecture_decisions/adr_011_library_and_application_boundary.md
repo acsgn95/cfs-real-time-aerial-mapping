@@ -63,7 +63,7 @@ applications.
 | Library | Content | Records |
 | --- | --- | --- |
 | `geo` | frames, quaternions, PROJ transformations, camera model, Metashape conversion | ADR-004, ADR-008 |
-| `terrain` | SRTM reading through GDAL, EGM96 to ellipsoidal heights | ADR-006 |
+| `terrain` | terrain prior (Copernicus DEM GLO-30 mosaic) through GDAL, geoid heights to ellipsoidal heights | ADR-006 |
 | `link` | decoding of the injector's UDP telemetry and TCP image frames; wire format documented under `interfaces/link/` and shared with the Python injector | ADR-003 |
 | `time_align` | interpolation of the telemetry stream at image timestamps | ADR-003, D13 |
 | `selection` | footprints, overlap, keyframe and source view selection, spatial index of the image pool | ADR-006 |
@@ -108,7 +108,7 @@ and tile. Merging and thinning happen offline. This amends ADR-007.
   experiments without starting the mission.
 * Caller-owned buffers and creation-time allocation keep data copies and
   memory use under the control of the execution model.
-* GDAL and LASzip cover raster products, SRTM and LAZ without the size and
+* GDAL and LASzip cover raster products, the terrain prior and LAZ without the size and
   packaging cost of PDAL.
 
 ## Alternatives Considered

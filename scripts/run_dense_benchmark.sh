@@ -18,6 +18,8 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BIN="$REPO_ROOT/build-libs/release/tools/dense_benchmark/dense_benchmark"
 DATA="${ORTHOSTREAM_DORFBERG_DIR:?set ORTHOSTREAM_DORFBERG_DIR to the Dorfberg directory}"
 POSES="$REPO_ROOT/data/processed/dorfberg_f01/poses_optimized.txt"
+# Terrain prior of the mission (ADR-006): tools/dataset/fetch_dem.py --poses "$POSES" --name dorfberg
+TERRAIN="$REPO_ROOT/data/raw/dem/cop30/dorfberg.vrt"
 OUT="${1:-$REPO_ROOT/results/raw/dense_benchmark/$(date +%Y%m%d_%H%M%S)}"
 COUNT="${ORTHOSTREAM_BENCH_COUNT:-20}"
 WIDTHS="${ORTHOSTREAM_BENCH_WIDTHS:-1536 2048 2560}"
@@ -27,6 +29,7 @@ MODES="${ORTHOSTREAM_BENCH_MODES:-causal delayed}"
 
 [ -x "$BIN" ] || { echo "missing $BIN: build with ORTHOSTREAM_BUILD_TYPE=release scripts/build_libs.sh" >&2; exit 1; }
 [ -f "$POSES" ] || { echo "missing $POSES: run tools/dataset/extract_metashape_poses.py" >&2; exit 1; }
+[ -f "$TERRAIN" ] || { echo "missing $TERRAIN: run tools/dataset/fetch_dem.py --poses $POSES --name dorfberg" >&2; exit 1; }
 mkdir -p "$OUT"
 
 {
@@ -43,7 +46,7 @@ for width in $WIDTHS; do
         name="w${width}_k${k}_it${it}_${mode}"
         echo "== $name"
         "$BIN" --poses "$POSES" --images "$DATA" \
-          --dsm "$DATA/DSM_Dorfberg_20201109_10cm.tif" \
+          --dsm "$DATA/DSM_Dorfberg_20201109_10cm.tif" --terrain-dem "$TERRAIN" \
           --out "$OUT/$name.csv" --width "$width" --sources "$k" \
           --iterations "$it" --mode "$mode" --count "$COUNT" \
           | tee "$OUT/$name.log"

@@ -5,9 +5,14 @@
 * Decided by: Ahmet Coşgun
 * Backlog item: D06
 * Revised: 2026-11-11 (dense working resolution given as image width; 2048 × 1366 is 2.8 MP)
+* Revised: 2026-11-11 (terrain prior: Copernicus DEM GLO-30 instead of SRTM)
 * Evidence: ADR-001 (keyframe overlap assumption, tilt envelope, R4);
   ADR-004 (ellipsoidal heights, working frames); ADR-005 (causal processing,
-  K = 5); SRTMGL1 product specification (LE90 vertical accuracy 9.73 m)
+  K = 5); Copernicus DEM GLO-30 on AWS Open Data (bucket readme: tiles,
+  surface model); comparison with the Dorfberg reference DSM at the 753
+  footprint centres (`tools/dense_benchmark --terrain-dem`): median
+  +0.37 m, NMAD 1.64 m, 95th percentile of |e| 5.97 m; −50 m without the
+  geoid conversion
 
 ## Context
 
@@ -42,19 +47,33 @@ centre point, the plane height, the spread `σ_h` of the five DEM heights, and
 the footprint's width and height in metres. `σ_h` indicates rough or steep
 terrain, where the footprint is less reliable.
 
-### 2. Terrain prior: SRTM
+### 2. Terrain prior: Copernicus DEM GLO-30
 
-* The DEM for footprints is SRTM 1 arc-second (SRTMGL1, about 30 m),
-  prepared for the mission area before the mission. Downloading needs a NASA
-  Earthdata account. The DEM is a pre-mission asset; its path is set in
-  configuration.
-* SRTM heights are orthometric (EGM96 geoid). They are converted to
-  ellipsoidal heights with the PROJ EGM96 grid when loaded, as ADR-004
-  requires. Without the conversion, the plane would be about 50 m wrong at
-  the Dorfberg site, and the footprint scale about 20 % wrong at 247 m above
-  ground.
-* Vertical accuracy (LE90 9.73 m, about 5.9 m at one sigma) is sufficient for
-  selection. The DEM is not used for map products.
+* The DEM for footprints is the Copernicus DEM GLO-30 (1 arc-second, about
+  30 m), a surface model including vegetation and buildings. It is a
+  pre-mission asset: `tools/dataset/fetch_dem.py` downloads the 1° × 1°
+  tiles of the mission area from the public AWS Open Data bucket
+  (`copernicus-dem-30m`, no account needed), records their SHA-256 sums in a
+  manifest and writes a VRT mosaic. The path of the mosaic and its CRS are
+  set in configuration.
+* Copernicus heights are orthometric heights above the EGM2008 geoid (CRS
+  `EPSG:4326+3855`). They are converted to ellipsoidal heights with the PROJ
+  grid `us_nga_egm08_25.tif`, as ADR-004 requires. The grid is fetched with
+  pinned checksum by the environment setup. Without the conversion the plane
+  is about 50 m wrong at the Dorfberg site, and the footprint scale about
+  20 % wrong at 247 m above ground.
+* Accuracy: at the Dorfberg site the converted heights differ from the
+  reference DSM by +0.37 m (median) with an NMAD of 1.64 m at the footprint
+  centres. This is sufficient for selection. The DEM is not used for map
+  products.
+* Other DEMs (for example SRTM with EGM96 heights, or a national model)
+  can be used by configuring their path and CRS; the matching geoid grid is
+  then added to `scripts/fetch_proj_grids.sh`.
+* Areas without a tile (oceans, a few countries not released to the public)
+  have no data; footprints there are rejected (section 1).
+* Products derived from the DEM must carry the Copernicus attribution
+  (manifest of `fetch_dem.py`). Footprints are not distributed, so the
+  mission products are not affected.
 
 ### 3. Overlap
 
@@ -118,8 +137,10 @@ ADR-005 benchmark.
 
 * Five rays and a DEM-refined plane give a footprint that follows the terrain
   at little cost, and `σ_h` makes its reliability visible.
-* SRTM covers almost any mission area, is available before the flight, and
-  is accurate enough to estimate overlaps.
+* Copernicus GLO-30 covers almost any mission area, is newer and more
+  accurate than SRTM in mountainous terrain, and can be downloaded without an
+  account; at Dorfberg it agrees with the reference DSM to about 1.6 m
+  (NMAD).
 * Overlap-based keyframe selection adapts to speed and altitude, unlike a
   fixed image interval.
 * Causal source selection with a spatial pool lets earlier flight lines
@@ -130,6 +151,13 @@ ADR-005 benchmark.
 
 * **Flat ground plane at a fixed height.** Rejected: wrong on steep terrain
   such as the nominal dataset.
+* **SRTM 1 arc-second (SRTMGL1) from NASA Earthdata.** Replaced: needs an
+  Earthdata account, is older (2000) and less accurate in mountains (LE90
+  9.73 m by specification). It remains usable through configuration.
+* **OpenTopography Global DEM API.** Not chosen as the default: needs a
+  personal API key, and integration into commercial software needs an
+  enterprise key. It also offers DEMs with ellipsoidal heights (for example
+  SRTMGL1_E), which would avoid the geoid conversion.
 * **The system's own DSM as the terrain prior.** Not chosen: it does not exist
   where the vehicle flies for the first time. It may be added later as a
   refinement.
@@ -151,8 +179,10 @@ ADR-005 benchmark.
 
 ## Impact
 
-* **Pre-mission data:** SRTM tiles and the PROJ EGM96 grid must be available
-  on the target. The download is part of the environment setup (D09).
+* **Pre-mission data:** the Copernicus mosaic of the mission area and the
+  PROJ EGM2008 grid must be available on the target. The grid is part of the
+  environment setup (D09); the DEM is fetched per mission area with
+  `tools/dataset/fetch_dem.py`.
 * **D07:** map product generation can use the same footprints to decide
   which tiles an image affects.
 * **D11:** frame selection and the image pool belong to the Frame Selection
