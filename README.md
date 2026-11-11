@@ -150,7 +150,11 @@ The UAV simulator and final hardware configuration will be documented after the 
 
 OrthoStream is a cFS mission built against NASA cFS `v7.0.1`, which is included as a git submodule under `vendor/cfs` (see `docs/architecture_decisions/adr_009_cfs_version_and_build_structure.md`).
 
-Third-party dependencies are pinned in `vcpkg.json` and built from source into `build-deps/`; nothing is installed system-wide (see `docs/architecture_decisions/adr_010_third_party_dependency_management.md`). System prerequisites: a C/C++ compiler, CMake, Ninja, git, curl, zip, unzip, tar, pkg-config, and for COLMAP the NVIDIA driver and CUDA toolkit.
+Third-party dependencies are pinned in `vcpkg.json` and built from source into `build-deps/`; nothing is installed system-wide (see `docs/architecture_decisions/adr_010_third_party_dependency_management.md`). System prerequisites are listed in `scripts/system-packages-ubuntu.txt`; COLMAP also needs the NVIDIA driver and the CUDA toolkit. On Ubuntu:
+
+```bash
+sudo apt install $(grep -v '^#' scripts/system-packages-ubuntu.txt)
+```
 
 ```bash
 git submodule update --init --recursive

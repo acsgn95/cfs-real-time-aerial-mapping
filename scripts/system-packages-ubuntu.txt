@@ -1,0 +1,29 @@
+# System packages needed to build OrthoStream on Ubuntu (ADR-010 section 4).
+# Everything else is pinned in vcpkg.json and built by
+# scripts/setup_dependencies.sh, which checks this list.
+#
+# Install:
+#   sudo apt install $(grep -v '^#' scripts/system-packages-ubuntu.txt)
+#
+# Not listed here: the NVIDIA driver and the CUDA toolkit, which must match
+# the GPU and are installed from NVIDIA's packages.
+
+# Toolchain
+build-essential
+cmake
+ninja-build
+git
+
+# Needed by vcpkg itself
+curl
+zip
+unzip
+tar
+pkg-config
+
+# colmap: packages below are needed only with ORTHOSTREAM_WITH_COLMAP=1
+# Fortran compiler: LAPACK for Ceres and SuiteSparse
+gfortran
+# OpenGL and GLU development files: GLEW, required by COLMAP's cuda feature
+libglvnd-dev
+libglu1-mesa-dev

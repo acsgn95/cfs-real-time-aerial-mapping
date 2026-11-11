@@ -4,7 +4,8 @@
 * Date: 2026-11-11
 * Decided by: Ahmet Coşgun
 * Backlog item: D09 (revisited)
-* Revised: 2026-11-11 (setup files: install location, optional COLMAP feature, CUDA architecture)
+* Revised: 2026-11-11 (setup files: install location, optional COLMAP feature, CUDA architecture;
+  OpenGL and Fortran prerequisites found in setup step 2)
 * Evidence: ADR-009 section 7; vcpkg release `2026.10.16` and its ports
   (GDAL 3.12.4, PROJ 9.9.0, LASzip 3.5.0, OpenCV 4.14.0, Eigen 5.0.1,
   GoogleTest 1.18.0, libjpeg-turbo 3.2.1, COLMAP 3.12.6 with a `cuda`
@@ -88,7 +89,14 @@ vendored:
 | C and C++ compiler, CMake, git, Ninja | toolchain |
 | curl, zip, unzip, tar, pkg-config | needed by vcpkg itself |
 | NVIDIA driver and CUDA toolkit | must match the GPU and the driver |
+| OpenGL and GLU development files (`libglvnd-dev`, `libglu1-mesa-dev`), COLMAP only | the OpenGL dispatch library belongs to the driver; GLEW (needed by COLMAP's `cuda` feature) links against it and lists GLU in its pkg-config file, and vcpkg provides GLU only on Windows |
+| Fortran compiler (`gfortran`), COLMAP only | LAPACK, used by Ceres and SuiteSparse, is built with the system Fortran compiler |
 | Python 3 | injector and evaluation tools, each in its own virtual environment with pinned versions |
+
+The Ubuntu package names are listed in `scripts/system-packages-ubuntu.txt`,
+which `scripts/setup_dependencies.sh` checks before building. The NVIDIA
+driver and the CUDA toolkit come from NVIDIA's packages and are checked
+through `nvcc`.
 
 Building OrthoStream itself needs no `sudo` beyond these prerequisites.
 
