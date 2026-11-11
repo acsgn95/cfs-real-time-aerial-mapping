@@ -63,6 +63,7 @@ database.db
 /datasets/**
 /outputs/**
 /results/raw/**
+/runs/
 /artifacts/**
 
 # Keep directory documentation/placeholders

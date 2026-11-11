@@ -1,6 +1,6 @@
-# cFS Real-Time Aerial Mapping
+# OrthoStream
 
-An open-source cFS-based framework for real-time photogrammetric mapping from simulated UAV imagery, generating georeferenced dense point clouds, digital surface models, and incremental orthomosaics.
+OrthoStream is an open-source cFS-based framework for real-time photogrammetric mapping from simulated UAV imagery, generating georeferenced dense point clouds, digital surface models, and incremental orthomosaics.
 
 > **Project status:** Early-stage master's thesis research. The software architecture, interfaces, and experimental methodology are currently under development and may change as the research progresses.
 
@@ -46,13 +46,15 @@ The mapping workflow is planned as a collection of independent cFS applications 
 
 | Application | Responsibility |
 |---|---|
-| Simulator Interface | Receives images, camera poses, timestamps, and calibration data |
-| Time Alignment | Associates each image with the corresponding camera state |
-| Frame Selection | Selects images using overlap and viewing geometry |
-| Dense Mapping | Computes depth maps and dense 3D geometry |
-| Georeferencing | Transforms reconstructed data into ENU, ECEF, and geodetic coordinates |
-| Map Products | Incrementally updates the DSM and orthomosaic |
-| Data Recorder | Stores telemetry, performance measurements, and experiment outputs |
+| `INGEST_APP` | Receives images, camera poses, timestamps, and calibration data from the data source |
+| `ALIGN_APP` | Associates each image with the corresponding camera state |
+| `SELECT_APP` | Selects keyframes and source views using overlap and viewing geometry |
+| `DENSE_APP` | Computes depth maps with multi-view stereo |
+| `GEOREF_APP` | Transforms depth maps into georeferenced points and writes the point cloud |
+| `MAPPROD_APP` | Incrementally updates the DSM and orthomosaic |
+| `RECORDER_APP` | Stores status, timing, and performance measurements |
+
+See `docs/architecture_decisions/adr_012_application_boundaries.md`.
 
 The Software Bus will primarily carry commands, metadata, status information, and references to large data objects. Images, depth maps, and point clouds will not necessarily be copied directly through Software Bus messages.
 
@@ -144,9 +146,31 @@ The UAV simulator and final hardware configuration will be documented after the 
 - [ ] Compare results with offline COLMAP processing
 - [ ] Publish reproducible experiment configurations and results
 
+## Building
+
+OrthoStream is a cFS mission built against NASA cFS `v7.0.1`, which is included as a git submodule under `vendor/cfs` (see `docs/architecture_decisions/adr_009_cfs_version_and_build_structure.md`).
+
+Third-party dependencies are pinned in `vcpkg.json` and built from source into `build-deps/`; nothing is installed system-wide (see `docs/architecture_decisions/adr_010_third_party_dependency_management.md`). System prerequisites are listed in `scripts/system-packages-ubuntu.txt`; COLMAP also needs the NVIDIA driver and the CUDA toolkit. On Ubuntu:
+
+```bash
+sudo apt install $(grep -v '^#' scripts/system-packages-ubuntu.txt)
+```
+
+```bash
+git submodule update --init --recursive
+scripts/setup_dependencies.sh                     # once; long first build (ORTHOSTREAM_WITH_COLMAP=0 skips COLMAP)
+mission/build.sh                                  # debug build
+ORTHOSTREAM_BUILD_TYPE=release mission/build.sh   # release build, used for all measurements
+cd build/exe/cpu1 && ./core-cpu1
+```
+
+At this stage the mission runs the cFS lab applications only (SCH_LAB, CI_LAB, TO_LAB). The OrthoStream applications are added as the architecture decisions are implemented.
+
+The OrthoStream applications and libraries are reusable cFS components. Another cFS mission can include them by adding `apps/` to its `CFS_APP_PATH`, listing the applications in its `targets.cmake`, and overriding their default configuration headers where needed. The mission under `mission/` is the reference configuration used for the thesis.
+
 ## Repository Status
 
-The repository currently represents ongoing research and development. Build and execution instructions will be added after the initial architecture and application interfaces are stabilized.
+The repository currently represents ongoing research and development. Architecture decisions are recorded in `docs/architecture_decisions/`.
 
 Large datasets, raw imagery, generated point clouds, DSMs, and orthomosaics will not be stored directly in the Git repository. Download instructions and small reproducible test samples will be provided separately.
 
@@ -154,7 +178,9 @@ Large datasets, raw imagery, generated point clouds, DSMs, and orthomosaics will
 
 This repository supports the master's thesis:
 
-**Development and Evaluation of cFS-Based Real-Time Photogrammetric Mapping Using Simulated UAV Data**
+**Real-Time Aerial Map Generation from Simulation Data Using cFS**
+
+*(Turkish: cFS Kullanılarak Simülasyon Verilerinden Gerçek Zamanlı Harita Üretimi)*
 
 - **Author:** Ahmet Coşgun
 - **Department:** Geomatics Engineering
@@ -169,7 +195,7 @@ Each third-party component remains subject to its original license and copyright
 
 ## Citation
 
-Citation information will be provided through a `CITATION.cff` file after the first research release.
+Citation metadata is provided in `CITATION.cff`.
 
 ## License
 

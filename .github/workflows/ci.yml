@@ -1,0 +1,91 @@
+name: Build
+
+# Builds the pinned dependencies and the cFS mission (ADR-009, ADR-010).
+# GitHub-hosted runners have no GPU, so COLMAP is left out
+# (ORTHOSTREAM_WITH_COLMAP=0). vcpkg's binary cache is kept between runs, so
+# only changed dependencies are rebuilt; the first run takes about 30 minutes.
+
+on:
+  push:
+    branches:
+      - main
+
+  pull_request:
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  ORTHOSTREAM_WITH_COLMAP: "0"
+  VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/.vcpkg-cache
+
+jobs:
+  build:
+    name: Build dependencies and mission
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      # cFS without history; vcpkg with full history, which manifest mode
+      # needs to resolve port versions from the builtin baseline.
+      - name: Check out submodules
+        run: |
+          git submodule update --init --recursive --depth 1 vendor/cfs
+          git submodule update --init vendor/vcpkg
+
+      - name: Install system packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends $(awk '
+            /^# colmap:/ { exit }
+            /^[[:space:]]*(#|$)/ { next }
+            { print $1 }' scripts/system-packages-ubuntu.txt)
+
+      - name: Compute dependency cache key
+        id: deps-key
+        run: |
+          echo "vcpkg=$(git -C vendor/vcpkg rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          mkdir -p "$VCPKG_DEFAULT_BINARY_CACHE"
+
+      # Restored by prefix and saved even after a failed build, so a long
+      # first build is not lost.
+      - name: Restore vcpkg binary cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
+          key: vcpkg-${{ runner.os }}-${{ steps.deps-key.outputs.vcpkg }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'cmake/triplets/**') }}-${{ github.run_id }}
+          restore-keys: |
+            vcpkg-${{ runner.os }}-${{ steps.deps-key.outputs.vcpkg }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'cmake/triplets/**') }}-
+            vcpkg-${{ runner.os }}-${{ steps.deps-key.outputs.vcpkg }}-
+            vcpkg-${{ runner.os }}-
+
+      - name: Build dependencies
+        run: scripts/setup_dependencies.sh
+
+      - name: Save vcpkg binary cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
+          key: vcpkg-${{ runner.os }}-${{ steps.deps-key.outputs.vcpkg }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'cmake/triplets/**') }}-${{ github.run_id }}
+
+      - name: Build mission
+        run: mission/build.sh -j"$(nproc)"
+
+      - name: Upload vcpkg logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vcpkg-logs
+          path: vendor/vcpkg/buildtrees/**/*.log
+          if-no-files-found: ignore
+          retention-days: 7
