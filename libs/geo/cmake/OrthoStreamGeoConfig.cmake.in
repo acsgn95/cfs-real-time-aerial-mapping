@@ -1,0 +1,9 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+find_dependency(Eigen3 CONFIG)
+# PROJ is private, but a static library still needs it at link time.
+find_dependency(PROJ CONFIG)
+
+include("${CMAKE_CURRENT_LIST_DIR}/OrthoStreamGeoTargets.cmake")
+check_required_components(OrthoStreamGeo)
