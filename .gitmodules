@@ -1,3 +1,6 @@
 [submodule "vendor/cfs"]
 	path = vendor/cfs
 	url = https://github.com/nasa/cFS.git
+[submodule "vendor/vcpkg"]
+	path = vendor/vcpkg
+	url = https://github.com/microsoft/vcpkg.git
