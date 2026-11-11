@@ -79,6 +79,35 @@ TEST(Camera, UndistortInvertsProjectionOverTheImage)
     }
 }
 
+// A point projects to the same place in a resampled image as its pixel in
+// the full image, mapped with edge-aligned scaling.
+TEST(Camera, ScaledCameraKeepsPixelEdgesAligned)
+{
+    const CameraModel full   = cameraFromMetashape(dorfbergCalibration());
+    const CameraModel scaled = scaledCamera(full, 2048, 1366);
+    const double      sx     = 2048.0 / 7952.0;
+    const double      sy     = 1366.0 / 5304.0;
+    for (const Eigen::Vector3d p_C : { Eigen::Vector3d(0.0, 0.0, 1.0),
+                                       Eigen::Vector3d(0.3, -0.2, 1.0),
+                                       Eigen::Vector3d(-0.5, 0.33, 1.0) })
+    {
+        const auto uv_full   = projectPoint(full, p_C);
+        const auto uv_scaled = projectPoint(scaled, p_C);
+        ASSERT_TRUE(uv_full && uv_scaled);
+        EXPECT_NEAR(uv_scaled->x(), sx * (uv_full->x() + 0.5) - 0.5, 1e-9);
+        EXPECT_NEAR(uv_scaled->y(), sy * (uv_full->y() + 0.5) - 0.5, 1e-9);
+    }
+}
+
+TEST(Camera, PinholeCameraHasNoDistortion)
+{
+    const CameraModel pinhole = pinholeCamera(cameraFromMetashape(dorfbergCalibration()));
+    const auto        uv      = projectPoint(pinhole, Eigen::Vector3d(0.4, -0.3, 2.0));
+    ASSERT_TRUE(uv.has_value());
+    EXPECT_NEAR(uv->x(), pinhole.fx * 0.2 + pinhole.cx, 1e-9);
+    EXPECT_NEAR(uv->y(), pinhole.fy * -0.15 + pinhole.cy, 1e-9);
+}
+
 TEST(Camera, UndistortRejectsInvalidCamera)
 {
     CameraModel c;

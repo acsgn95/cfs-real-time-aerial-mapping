@@ -43,6 +43,31 @@ std::array<double, 12> colmapFullOpenCvParams(const CameraModel &camera)
              0.0 };
 }
 
+CameraModel scaledCamera(const CameraModel &camera, int width, int height)
+{
+    const double sx = static_cast<double>(width) / camera.width;
+    const double sy = static_cast<double>(height) / camera.height;
+    CameraModel  scaled = camera;
+    scaled.width        = width;
+    scaled.height       = height;
+    scaled.fx           = sx * camera.fx;
+    scaled.fy           = sy * camera.fy;
+    scaled.cx           = sx * (camera.cx + 0.5) - 0.5;
+    scaled.cy           = sy * (camera.cy + 0.5) - 0.5;
+    return scaled;
+}
+
+CameraModel pinholeCamera(const CameraModel &camera)
+{
+    CameraModel pinhole = camera;
+    pinhole.k1          = 0.0;
+    pinhole.k2          = 0.0;
+    pinhole.k3          = 0.0;
+    pinhole.p1          = 0.0;
+    pinhole.p2          = 0.0;
+    return pinhole;
+}
+
 Eigen::Vector2d distortNormalized(const CameraModel &camera, const Eigen::Vector2d &undistorted)
 {
     const double x      = undistorted.x();

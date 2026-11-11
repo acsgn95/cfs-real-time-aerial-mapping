@@ -57,6 +57,16 @@ CameraModel cameraFromMetashape(const MetashapeCalibration &calibration);
 /// the top-left pixel at (0.5, 0.5).
 std::array<double, 12> colmapFullOpenCvParams(const CameraModel &camera);
 
+/// The same camera for an image resampled to width x height pixels. Pixel
+/// edges stay aligned: u' = sx * (u + 0.5) - 0.5 with sx = width / camera.width
+/// (and likewise for v), so cx and cy are not simply multiplied. Distortion
+/// coefficients act on normalised coordinates and do not change.
+CameraModel scaledCamera(const CameraModel &camera, int width, int height);
+
+/// The camera without distortion: the model of an undistorted image with the
+/// same intrinsics.
+CameraModel pinholeCamera(const CameraModel &camera);
+
 /// Applies the distortion to normalised image coordinates (x / z, y / z).
 Eigen::Vector2d distortNormalized(const CameraModel &camera, const Eigen::Vector2d &undistorted);
 
