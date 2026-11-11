@@ -8,8 +8,9 @@
   OpenGL and Fortran prerequisites found in setup step 2)
 * Evidence: ADR-009 section 7; vcpkg release `2026.10.16` and its ports
   (GDAL 3.12.4, PROJ 9.9.0, LASzip 3.5.0, OpenCV 4.14.0, Eigen 5.0.1,
-  GoogleTest 1.18.0, libjpeg-turbo 3.2.1, COLMAP 3.12.6 with a `cuda`
-  feature), checked on 2026-11-11; PDAL is not packaged for Ubuntu 26.04
+  GoogleTest 1.18.0, libjpeg-turbo 3.2.0, COLMAP 3.12.6 with a `cuda`
+  feature), checked on 2026-11-11; PDAL is not packaged for Ubuntu 26.04;
+  setup step 2 build on 2026-11-11 (below)
 
 ## Context
 
@@ -153,6 +154,16 @@ Static linkage and pinned dependencies are the preconditions for both.
 * **CI:** the vcpkg binary cache must be kept between runs, or CI builds
   without the dense module.
 
-## Open Questions
+## Setup Step 2 Result (2026-11-11)
 
-* Does the COLMAP 3.12.6 port build with CUDA 13.1? Checked in setup step 2.
+* The manifest with the `colmap` feature builds on the machine of ADR-002
+  (CUDA 13.1, GCC 15.2): 137 packages, about 25 minutes of build time.
+  The install prefix is 559 MB.
+* COLMAP 3.12.6 builds with CUDA 13.1 from the vcpkg port, so the fallback
+  of section 2 (COLMAP as a submodule) is not needed. `libcolmap_mvs_cuda`
+  contains code for `sm_86` only, as set by the triplet.
+* The static libraries contain no non-PIC relocations (`R_X86_64_32S`),
+  checked for GDAL and COLMAP.
+* COLMAP needed three system packages not foreseen in section 4: OpenGL and
+  GLU development files (for GLEW) and a Fortran compiler (for LAPACK). They
+  were added to section 4 and `scripts/system-packages-ubuntu.txt`.
