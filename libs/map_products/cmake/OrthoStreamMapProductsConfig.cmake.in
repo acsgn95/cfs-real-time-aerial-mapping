@@ -2,6 +2,8 @@
 
 include(CMakeFindDependencyMacro)
 find_dependency(OrthoStreamGeo)
+# Private, but a static library still needs it at link time.
+find_dependency(GDAL CONFIG)
 
 include("${CMAKE_CURRENT_LIST_DIR}/OrthoStreamMapProductsTargets.cmake")
 check_required_components(OrthoStreamMapProducts)

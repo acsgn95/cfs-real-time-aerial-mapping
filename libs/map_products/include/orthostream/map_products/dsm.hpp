@@ -55,6 +55,7 @@ public:
 
     const TileId &id() const { return id_; }
     int           cells() const { return cells_; }
+    double        cellSize() const { return cell_size_; }
     double        referenceHeight() const { return reference_height_; }
     /// Easting and northing of the outer corner of cell (0, 0), which is the
     /// north-west corner: rows run southwards as in a GeoTIFF.
@@ -79,6 +80,7 @@ public:
 private:
     TileId                     id_;
     int                        cells_;
+    double                     cell_size_;
     double                     reference_height_;
     double                     origin_e_;
     double                     origin_n_;

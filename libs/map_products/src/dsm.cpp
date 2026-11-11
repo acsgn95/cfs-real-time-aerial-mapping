@@ -26,7 +26,7 @@ void checkGrid(const TileGridConfig &g)
 }  // namespace
 
 DsmTile::DsmTile(const TileId &id, const TileGridConfig &grid, double reference_height)
-    : id_(id), cells_(grid.tile_cells), reference_height_(reference_height)
+    : id_(id), cells_(grid.tile_cells), cell_size_(grid.cell_size), reference_height_(reference_height)
 {
     checkGrid(grid);
     const double T = tileSize(grid);
