@@ -41,9 +41,6 @@ install(FILES
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/OrthoStreamGeo)
 
 if(BUILD_TESTING)
-    find_package(GTest CONFIG REQUIRED)
-    include(GoogleTest)
-
     # proj.db of the PROJ package in use; vcpkg installs it next to the
     # package configuration.
     find_file(ORTHOSTREAM_PROJ_DB proj.db

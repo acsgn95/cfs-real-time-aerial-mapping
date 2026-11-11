@@ -32,4 +32,10 @@ target_compile_options(orthostream_warnings INTERFACE
     -Wall -Wextra -Wpedantic -Wshadow -Wconversion -Wno-sign-conversion
     $<$<BOOL:${ORTHOSTREAM_WARNINGS_AS_ERRORS}>:-Werror>)
 
+if(BUILD_TESTING)
+    find_package(GTest CONFIG REQUIRED)
+    include(GoogleTest)
+endif()
+
 add_subdirectory(geo)
+add_subdirectory(imaging)
