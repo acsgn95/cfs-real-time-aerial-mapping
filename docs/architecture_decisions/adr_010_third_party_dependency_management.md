@@ -5,7 +5,7 @@
 * Decided by: Ahmet Coşgun
 * Backlog item: D09 (revisited)
 * Revised: 2026-11-11 (setup files: install location, optional COLMAP feature, CUDA architecture;
-  OpenGL and Fortran prerequisites found in setup step 2)
+  OpenGL and Fortran prerequisites found in setup step 2; CI)
 * Evidence: ADR-009 section 7; vcpkg release `2026.10.16` and its ports
   (GDAL 3.12.4, PROJ 9.9.0, LASzip 3.5.0, OpenCV 4.14.0, Eigen 5.0.1,
   GoogleTest 1.18.0, libjpeg-turbo 3.2.0, COLMAP 3.12.6 with a `cuda`
@@ -149,10 +149,11 @@ Static linkage and pinned dependencies are the preconditions for both.
 * **ADR-009:** section 7 is replaced by this record. Setup step 2 becomes
   "bootstrap vcpkg and build the dependencies" and no longer needs `sudo`.
   Step 3 (COLMAP) is part of step 2 when the COLMAP port works.
-* **mission/build.sh:** runs `vcpkg install` before configuring the mission
-  and passes the install prefix to the build.
-* **CI:** the vcpkg binary cache must be kept between runs, or CI builds
-  without the dense module.
+* **mission/build.sh:** passes the install prefix to the build; the
+  dependencies are installed beforehand by `scripts/setup_dependencies.sh`.
+* **CI:** `.github/workflows/ci.yml` builds the dependencies and the mission
+  on GitHub-hosted runners. They have no GPU, so CI builds without COLMAP.
+  vcpkg's binary cache is kept between runs.
 
 ## Setup Step 2 Result (2026-11-11)
 
