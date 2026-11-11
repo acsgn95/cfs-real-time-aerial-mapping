@@ -4,6 +4,8 @@
 * Date: 2026-11-10
 * Decided by: Ahmet Coşgun
 * Backlog item: D08
+* Revised: 2026-11-11 (verification criterion corrected; Metashape chunk frame is
+  CH1903+ geocentric; both found with the GCP prototype)
 * Evidence: thesis proposal (FB_YL-01) section 4.3; Dorfberg Flight 01
   Metashape processing report (2020-11-10) and project (`chunk.zip`); complete
   reference DSM checked against the five ground control points (ADR-004);
@@ -70,10 +72,35 @@ agreement:
   `cx` and `cy`, because COLMAP places the centre of the top-left pixel at
   (0.5, 0.5). The OpenCV model maps to COLMAP's `OPENCV` (k3 = 0) or
   `FULL_OPENCV` camera model.
-* **Verification:** the conversion is tested by projecting the five ground
-  control points into the images where Metashape reports their marker
-  positions. Reprojection residuals must stay at the level reported by
-  Metashape (about 0.5 px).
+* **Verification** (25 marker observations: five ground control points,
+  each marked in five images):
+  1. Projecting with the converted OpenCV model gives the same pixel
+     positions as the Metashape model (within 1e-6 px).
+  2. Each marker, triangulated from its observations, reprojects with the
+     per-marker error of the Metashape report (0.18–0.44 px) within 0.01 px.
+  3. The difference between the triangulated and the surveyed position
+     matches the per-point check point errors of the report within about
+     1.5 cm.
+  4. Projecting the surveyed positions directly gives about 2 px RMS. This
+     is reported, not used as a threshold: the five points were check points
+     (not used in the bundle adjustment) with 9.6 cm RMS error in the
+     Metashape model, and 1 px is 3.3 cm on the ground.
+
+  A prototype reproduced items 1–4 on 2026-11-11.
+
+### 3. Metashape project frame
+
+* The chunk transform of the Metashape project (`ECEF = s·R·X + t`) maps to
+  the geocentric frame of the project CRS's datum. For Dorfberg this is
+  CH1903+ (Bessel ellipsoid), not WGS 84. ETRS89 / WGS 84 ECEF follows by
+  adding the `TOWGS84` translation of the project CRS, (674.374, 15.056,
+  405.346) m. CH1903+ is defined from CHTRS95 by exactly this translation,
+  so the step is exact. Without it, all poses are off by about 705 m.
+* The injector applies this when it converts Metashape poses to the
+  telemetry channel (ADR-004 section 3).
+* In the ground control point file `20201109_Dorfberg.txt`, the latitude and
+  longitude columns do not match the site (46.49°, 9.50° instead of about
+  46.82°, 9.84°). The ECEF and LV95 columns are consistent and are used.
 
 ## Rationale
 

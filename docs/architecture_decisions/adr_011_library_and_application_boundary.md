@@ -4,7 +4,8 @@
 * Date: 2026-11-11
 * Decided by: Ahmet Coşgun
 * Backlog item: D10
-* Revised: 2026-11-11 (reusable components for other cFS missions)
+* Revised: 2026-11-11 (reusable components for other cFS missions; first test
+  follows the corrected criterion of ADR-008)
 * Evidence: ADR-005 section 7 (COLMAP only in an algorithm library);
   ADR-009 (C99 applications, C++17 libraries, `OST_` prefix); ADR-010
   (dependencies); the library pattern of a cFS mission on the same machine
@@ -95,9 +96,9 @@ and tile. Merging and thinning happen offline. This amends ADR-007.
   GDAL Python bindings and `laspy` with `lazrs`, in their own virtual
   environment. PDAL is not needed.
 * No Python bindings are written for the libraries for now.
-* The first test: projecting the five ground control points into the
-  Dorfberg images reproduces the Metashape marker positions within about
-  0.5 px (ADR-008).
+* The first test: the ground control point check of ADR-008 section 2
+  (camera model conversion, triangulated markers against the Metashape
+  report, and surveyed against estimated positions).
 
 ## Rationale
 
