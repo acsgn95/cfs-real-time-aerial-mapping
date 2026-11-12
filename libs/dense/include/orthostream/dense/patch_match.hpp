@@ -14,12 +14,15 @@ namespace orthostream::dense
 struct PatchMatchConfig
 {
     int    gpu_index                      = 0;
-    int    num_iterations                 = 5;
-    int    window_radius                  = 5;
+    // Defaults of ADR-005 section 5 (2.4 s per Dorfberg keyframe at 2048 px
+    // on the RTX 3050 Laptop); COLMAP's own defaults are 5 iterations,
+    // radius 5 and 15 samples.
+    int    num_iterations                 = 3;
+    int    window_radius                  = 3;
     /// NCC uses every n-th row and column of the window (1 or 2); 2 is
     /// about four times faster.
     int    window_step                    = 1;
-    int    num_samples                    = 15;
+    int    num_samples                    = 7;
     double ncc_sigma                      = 0.6;
     double min_triangulation_angle_deg    = 1.0;
     double incident_angle_sigma           = 0.9;

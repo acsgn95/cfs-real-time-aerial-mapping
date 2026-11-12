@@ -60,10 +60,13 @@ struct Options
     std::vector<std::string> keyframes;
     int                      width        = 2048;
     int                      sources      = 5;
-    int                      iterations   = 5;
-    int                      window_radius = 5;
+    int                      iterations   = 3;  // ADR-005 section 5
+    int                      window_radius = 3;
     int                      window_step   = 1;
-    int                      samples       = 15;
+    int                      samples       = 7;
+    double                   filter_min_ncc        = 0.1;
+    int                      filter_min_consistent = 2;
+    double                   filter_min_angle      = 3.0;
     int                      count        = 20;
     int                      eval_stride  = 2;
     int                      gpu          = 0;
@@ -84,10 +87,13 @@ const char *kUsage = R"(usage: dense_benchmark --poses FILE --images DIR --dsm F
   --dsm-crs CRS         CRS of the DSM including heights (default EPSG:2056+5729)
   --width N             dense working width in pixels (default 2048)
   --sources K           source views per keyframe (default 5)
-  --iterations N        PatchMatch iterations (default 5)
-  --window-radius N     PatchMatch NCC half window (default 5)
+  --iterations N        PatchMatch iterations (default 3)
+  --window-radius N     PatchMatch NCC half window (default 3)
   --window-step N       PatchMatch NCC window step, 1 or 2 (default 1)
-  --samples N           PatchMatch Monte Carlo samples for view selection (default 15)
+  --samples N           PatchMatch Monte Carlo samples for view selection (default 7)
+  --filter-min-ncc F    photometric filter: minimum NCC (default 0.1)
+  --filter-min-consistent N  photometric filter: minimum consistent sources (default 2)
+  --filter-min-angle D  photometric filter: minimum triangulation angle (default 3)
   --mode causal|delayed source views from images before the keyframe, or also
                         up to the next keyframe (default causal)
   --count N             keyframes, evenly spread over the flight (default 20)
@@ -136,6 +142,9 @@ Options parseOptions(int argc, char **argv)
         else if (a == "--window-radius") o.window_radius = std::stoi(value());
         else if (a == "--window-step") o.window_step = std::stoi(value());
         else if (a == "--samples") o.samples = std::stoi(value());
+        else if (a == "--filter-min-ncc") o.filter_min_ncc = std::stod(value());
+        else if (a == "--filter-min-consistent") o.filter_min_consistent = std::stoi(value());
+        else if (a == "--filter-min-angle") o.filter_min_angle = std::stod(value());
         else if (a == "--count") o.count = std::stoi(value());
         else if (a == "--keyframe") o.keyframes.push_back(value());
         else if (a == "--target-overlap") o.target_overlap = std::stod(value());
@@ -285,6 +294,9 @@ public:
             config.window_radius  = o.window_radius;
             config.window_step    = o.window_step;
             config.num_samples    = o.samples;
+            config.filter_min_ncc                 = o.filter_min_ncc;
+            config.filter_min_num_consistent      = o.filter_min_consistent;
+            config.filter_min_triangulation_angle = o.filter_min_angle;
             estimator_            = std::make_unique<dense::PatchMatchEstimator>(config);
         }
     }

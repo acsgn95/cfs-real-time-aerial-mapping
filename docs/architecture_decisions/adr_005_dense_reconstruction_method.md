@@ -77,17 +77,38 @@ approach.
   They can be swapped by configuration.
 * The baseline is used for comparison in the evaluation and as a fallback.
 
-### 5. Provisional parameters
+### 5. Parameters
 
-These values are starting points. Section 6 confirms or replaces them.
+The first values were starting points. The benchmark results of section 6a
+replaced them on 2026-11-12 (decision of the project owner); geometric
+consistency and the processing mode are still open.
 
-| Parameter | Provisional value |
-| --- | --- |
-| Dense working resolution | 2048 px width (2048 × 1366, 2.8 MP, for Dorfberg) |
-| Source views K | 5 |
-| PatchMatch iterations | 5 (COLMAP default) |
-| Geometric consistency | on |
-| Processing mode | causal |
+| Parameter | Value | First value |
+| --- | --- | --- |
+| Dense working resolution | 2048 px width (2048 × 1366, 2.8 MP, for Dorfberg) | same |
+| Source views K | 5 | same |
+| PatchMatch iterations | 3 | 5 (COLMAP default) |
+| NCC window radius | 3 (7 × 7 pixels) | 5 (COLMAP default) |
+| NCC window step | 1 | 1 |
+| View selection samples | 7 | 15 (COLMAP default) |
+| Terrain gate | 30 m (section 5a) | none |
+| Geometric consistency | open (see open questions) | on |
+| Processing mode | causal | causal |
+
+### 5a. Terrain gate
+
+* After PatchMatch, depth pixels whose point lies more than 30 m
+  (vertically, in the batch frame `L_k`) from the terrain prior of ADR-006
+  are set to invalid. The tolerance is a table value.
+* The terrain prior is passed to the dense stage as a height grid over the
+  keyframe's footprint in `L_k` (5 m spacing by default, filled by the
+  application from the terrain library); the gate interpolates it per
+  pixel. It costs about 20 ms per keyframe.
+* Rationale: the photometric filter keeps gross outliers that throw points
+  tens of metres away. On 40 Dorfberg keyframes the gate lowers the DSM RMSE
+  from 37.2 m to 3.4 m and loses 7 % of the area (section 6a). 30 m keeps
+  trees, buildings and the error of the terrain prior (NMAD 1.6 m, 95th
+  percentile 6 m at Dorfberg) inside the gate.
 
 ### 6. Benchmark plan
 

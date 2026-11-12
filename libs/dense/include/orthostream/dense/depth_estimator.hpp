@@ -87,6 +87,25 @@ public:
 /// DenseError otherwise.
 void validateBatch(const DepthBatch &batch, const DepthOutput &out);
 
+/// Terrain heights on a regular grid in the batch frame L_k (z up): node
+/// (i, j) lies at x = x0 + i * spacing, y = y0 + j * spacing; NaN where the
+/// terrain prior has no value. Row-major, j outer.
+struct HeightGrid
+{
+    double             x0      = 0.0;
+    double             y0      = 0.0;
+    double             spacing = 0.0;
+    int                nx      = 0;
+    int                ny      = 0;
+    std::vector<float> heights;
+};
+
+/// Terrain gate (ADR-005 section 5a): invalidates (depth and confidence 0)
+/// the pixels whose point, in L_k, lies more than tolerance metres above or
+/// below the bilinearly interpolated grid, or outside the grid. Returns the
+/// number of pixels invalidated.
+std::size_t applyTerrainGate(const DepthBatch &batch, const HeightGrid &grid, double tolerance, const DepthOutput &out);
+
 }  // namespace orthostream::dense
 
 #endif  // ORTHOSTREAM_DENSE_DEPTH_ESTIMATOR_HPP

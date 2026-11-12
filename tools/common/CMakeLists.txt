@@ -18,7 +18,7 @@ target_compile_definitions(orthostream_tool_support PUBLIC
     OST_TOOLS_PROJ_DATA_DIR="${OST_TOOLS_PROJ_DATA_DIR}"
     OST_TOOLS_GRID_DIR="${OST_TOOLS_GRID_DIR}")
 target_link_libraries(orthostream_tool_support
-    PUBLIC OrthoStream::geo OrthoStream::selection opencv_core
+    PUBLIC OrthoStream::geo OrthoStream::selection OrthoStream::dense opencv_core
     PRIVATE GDAL::GDAL opencv_imgproc opencv_imgcodecs orthostream_warnings)
 
 if(BUILD_TESTING)

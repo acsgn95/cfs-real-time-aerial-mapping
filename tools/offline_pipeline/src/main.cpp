@@ -61,6 +61,9 @@ struct Options
     int         window_radius = 3;
     int         window_step   = 1;
     int         samples       = 7;
+    double      filter_min_ncc        = 0.1;
+    int         filter_min_consistent = 2;
+    double      filter_min_angle      = 3.0;
     double      dsm_cell      = 0.26;
     int         tile_cells    = 512;
     double      ortho_pixel   = 0.066;
@@ -91,6 +94,9 @@ const char *kUsage = R"(usage: offline_pipeline --poses FILE --images DIR --terr
   --window-radius N       PatchMatch NCC half window (default 3)
   --window-step N         PatchMatch NCC window step, 1 or 2 (default 1)
   --samples N             PatchMatch view selection samples (default 7)
+  --filter-min-ncc F      photometric filter: minimum NCC (default 0.1)
+  --filter-min-consistent N  photometric filter: minimum consistent sources (default 2)
+  --filter-min-angle D    photometric filter: minimum triangulation angle (default 3)
   --dsm-cell M            DSM cell size (default 0.26)
   --tile-cells N          cells per tile side (default 512)
   --ortho-pixel M         orthomosaic pixel size (default 0.066)
@@ -134,6 +140,9 @@ Options parse(int argc, char **argv)
         else if (a == "--window-radius") o.window_radius = std::stoi(value());
         else if (a == "--window-step") o.window_step = std::stoi(value());
         else if (a == "--samples") o.samples = std::stoi(value());
+        else if (a == "--filter-min-ncc") o.filter_min_ncc = std::stod(value());
+        else if (a == "--filter-min-consistent") o.filter_min_consistent = std::stoi(value());
+        else if (a == "--filter-min-angle") o.filter_min_angle = std::stod(value());
         else if (a == "--dsm-cell") o.dsm_cell = std::stod(value());
         else if (a == "--tile-cells") o.tile_cells = std::stoi(value());
         else if (a == "--ortho-pixel") o.ortho_pixel = std::stod(value());
@@ -340,6 +349,9 @@ int run(const Options &o)
     pm.window_radius  = o.window_radius;
     pm.window_step    = o.window_step;
     pm.num_samples    = o.samples;
+    pm.filter_min_ncc                 = o.filter_min_ncc;
+    pm.filter_min_num_consistent      = o.filter_min_consistent;
+    pm.filter_min_triangulation_angle = o.filter_min_angle;
     dense::PatchMatchEstimator estimator(pm);
 
     // Map products.
@@ -432,7 +444,8 @@ int run(const Options &o)
         std::size_t gated    = 0;
         if (o.terrain_gate > 0.0)
         {
-            gated = flight.gateDepth(k, depth.data(), wcam, data.images[k].T_E_C, o.terrain_gate);
+            gated = dense::applyTerrainGate(batch, flight.heightGrid(k, L), o.terrain_gate,
+                                            { depth.data(), normals.data(), confidence.data() });
         }
         const double t_gate = since(t0);
         const double valid =

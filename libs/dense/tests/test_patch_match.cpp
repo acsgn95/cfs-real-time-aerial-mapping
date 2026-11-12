@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <limits>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -205,6 +206,45 @@ TEST(DepthBatch, RejectsInvalidBatches)
     EXPECT_THROW(validateBatch(bad_range, out), DenseError);
 
     EXPECT_THROW(validateBatch(batch, { d.data(), nullptr, c.data() }), DenseError);
+}
+
+TEST(TerrainGate, RemovesPointsFarFromTheTerrain)
+{
+    // Nadir camera 100 m above flat ground at z = 0; one block of pixels
+    // 50 m above the ground, one 20 m above (within a 30 m gate).
+    DepthBatch batch;
+    batch.camera          = testCamera();
+    batch.reference.T_L_C = nadirPose({ 0.0, 0.0, 100.0 });
+    const std::size_t  n  = 320 * 240;
+    std::vector<float> depth(n, 100.0f), confidence(n, 1.0f), normals(3 * n);
+    for (int v = 10; v < 20; ++v)
+    {
+        for (int u = 10; u < 20; ++u)
+        {
+            depth[static_cast<std::size_t>(v * 320 + u)] = 50.0f;  // 50 m above the ground
+            depth[static_cast<std::size_t>((v + 100) * 320 + u + 100)] = 80.0f;  // 20 m above
+        }
+    }
+    depth[0] = 0.0f;  // already invalid
+
+    HeightGrid grid;
+    grid.x0 = grid.y0 = -200.0;
+    grid.spacing      = 10.0;
+    grid.nx = grid.ny = 41;
+    grid.heights.assign(41 * 41, 0.0f);
+    const std::size_t removed = applyTerrainGate(batch, grid, 30.0, { depth.data(), normals.data(), confidence.data() });
+    EXPECT_EQ(removed, 100u);
+    EXPECT_EQ(depth[static_cast<std::size_t>(15 * 320 + 15)], 0.0f);
+    EXPECT_EQ(confidence[static_cast<std::size_t>(15 * 320 + 15)], 0.0f);
+    EXPECT_EQ(depth[static_cast<std::size_t>(115 * 320 + 115)], 80.0f);
+    EXPECT_EQ(depth[1], 100.0f);
+
+    // Outside the grid or where the terrain is unknown: removed.
+    grid.heights[static_cast<std::size_t>(20 * 41 + 20)] = std::numeric_limits<float>::quiet_NaN();
+    std::vector<float> d2(n, 100.0f);
+    EXPECT_GT(applyTerrainGate(batch, grid, 30.0, { d2.data(), normals.data(), confidence.data() }), 0u);
+    EXPECT_THROW(applyTerrainGate(batch, HeightGrid {}, 30.0, { d2.data(), normals.data(), confidence.data() }),
+                 DenseError);
 }
 
 TEST(PatchMatch, GeometricConsistencyIsNotImplementedYet)

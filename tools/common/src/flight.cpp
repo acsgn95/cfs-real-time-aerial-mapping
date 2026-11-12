@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <stdexcept>
 
 namespace orthostream::tools
@@ -144,63 +145,40 @@ std::pair<double, double> Flight::depthRange(const geo::CameraModel &cam, std::s
     return { std::max(1.0, (cz - hi - margin) / down_max), (cz - lo + margin) / down_min };
 }
 
-std::size_t Flight::gateDepth(std::size_t k, float *depth, const geo::CameraModel &camera,
-                              const Eigen::Isometry3d &T_E_C, double tolerance, double spacing) const
+dense::HeightGrid Flight::heightGrid(std::size_t k, const geo::LocalFrame &L, double spacing, double margin) const
 {
-    // Terrain grid over the footprint, widened by a margin.
-    double x0 = 1e300, y0 = 1e300, x1 = -1e300, y1 = -1e300;
+    const Eigen::Isometry3d T_L_F = L.ecefFromLocal().inverse() * frame_->ecefFromLocal();
+    const Eigen::Isometry3d T_F_L = T_L_F.inverse();
+    double                  x0 = 1e300, y0 = 1e300, x1 = -1e300, y1 = -1e300, z = 0.0;
     for (const Eigen::Vector3d &c : views_[k].footprint.corners)
     {
-        x0 = std::min(x0, c.x()), y0 = std::min(y0, c.y());
-        x1 = std::max(x1, c.x()), y1 = std::max(y1, c.y());
+        const Eigen::Vector3d p = T_L_F * c;
+        x0 = std::min(x0, p.x()), y0 = std::min(y0, p.y());
+        x1 = std::max(x1, p.x()), y1 = std::max(y1, p.y());
+        z += p.z() / 4.0;
     }
-    const double margin = 100.0;
-    x0 -= margin, y0 -= margin, x1 += margin, y1 += margin;
-    const int nx = static_cast<int>(std::ceil((x1 - x0) / spacing)) + 1;
-    const int ny = static_cast<int>(std::ceil((y1 - y0) / spacing)) + 1;
-    std::vector<double> grid(static_cast<std::size_t>(nx) * ny, std::nan(""));
-    for (int j = 0; j < ny; ++j)
+    dense::HeightGrid g;
+    g.spacing = spacing;
+    g.x0      = x0 - margin;
+    g.y0      = y0 - margin;
+    g.nx      = static_cast<int>(std::ceil((x1 - x0 + 2 * margin) / spacing)) + 1;
+    g.ny      = static_cast<int>(std::ceil((y1 - y0 + 2 * margin) / spacing)) + 1;
+    g.heights.assign(static_cast<std::size_t>(g.nx) * g.ny, std::numeric_limits<float>::quiet_NaN());
+    for (int j = 0; j < g.ny; ++j)
     {
-        for (int i = 0; i < nx; ++i)
+        for (int i = 0; i < g.nx; ++i)
         {
-            if (const std::optional<double> h = terrainHeight(x0 + i * spacing, y0 + j * spacing))
+            // Terrain height under the node, through the flight frame.
+            const Eigen::Vector3d       p_F = T_F_L * Eigen::Vector3d(g.x0 + i * spacing, g.y0 + j * spacing, z);
+            const std::optional<double> h   = terrainHeight(p_F.x(), p_F.y());
+            if (h)
             {
-                grid[static_cast<std::size_t>(j) * nx + i] = *h;
+                g.heights[static_cast<std::size_t>(j) * g.nx + i] =
+                    static_cast<float>((T_L_F * Eigen::Vector3d(p_F.x(), p_F.y(), *h)).z());
             }
         }
     }
-    const Eigen::Isometry3d T_F_C = frame_->ecefFromLocal().inverse() * T_E_C;
-    std::size_t             removed = 0;
-    for (int v = 0; v < camera.height; ++v)
-    {
-        for (int u = 0; u < camera.width; ++u)
-        {
-            float &d = depth[static_cast<std::size_t>(v) * camera.width + u];
-            if (!(d > 0.0f))
-            {
-                continue;
-            }
-            const Eigen::Vector3d p = T_F_C * Eigen::Vector3d(d * (u - camera.cx) / camera.fx,
-                                                              d * (v - camera.cy) / camera.fy, d);
-            const double fx = (p.x() - x0) / spacing, fy = (p.y() - y0) / spacing;
-            bool         keep = false;
-            if (fx >= 0.0 && fy >= 0.0 && fx < nx - 1 && fy < ny - 1)
-            {
-                const int    i = static_cast<int>(fx), j = static_cast<int>(fy);
-                const double tx = fx - i, ty = fy - j;
-                auto         g = [&](int a, int b) { return grid[static_cast<std::size_t>(b) * nx + a]; };
-                const double h = (1 - tx) * (1 - ty) * g(i, j) + tx * (1 - ty) * g(i + 1, j)
-                                 + (1 - tx) * ty * g(i, j + 1) + tx * ty * g(i + 1, j + 1);
-                keep = std::isfinite(h) && std::abs(p.z() - h) <= tolerance;
-            }
-            if (!keep)
-            {
-                d = 0.0f;
-                ++removed;
-            }
-        }
-    }
-    return removed;
+    return g;
 }
 
 }  // namespace orthostream::tools

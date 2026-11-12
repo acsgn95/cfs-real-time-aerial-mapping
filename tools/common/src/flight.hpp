@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "dataset.hpp"
+#include "orthostream/dense/depth_estimator.hpp"
 #include "orthostream/geo/crs.hpp"
 #include "orthostream/geo/frames.hpp"
 #include "orthostream/selection/views.hpp"
@@ -54,14 +55,11 @@ public:
     /// Terrain prior height (flight frame z) at a horizontal position.
     std::optional<double> terrainHeight(double x, double y) const;
 
-    /// Sets depth pixels to 0 whose point is farther than tolerance (metres,
-    /// vertically) from the terrain prior: a plausibility gate against
-    /// gross PatchMatch outliers. The terrain is sampled once on a grid
-    /// over the footprint of image k (plus a margin) and interpolated.
-    /// camera: pinhole depth camera; T_E_C its pose. Returns the number of
-    /// pixels removed.
-    std::size_t gateDepth(std::size_t k, float *depth, const geo::CameraModel &camera, const Eigen::Isometry3d &T_E_C,
-                          double tolerance, double spacing = 5.0) const;
+    /// Terrain prior on a grid in the batch frame L (for the terrain gate
+    /// of the dense stage, ADR-005 section 5a): over the footprint of image
+    /// k plus a margin, with the given spacing.
+    dense::HeightGrid heightGrid(std::size_t k, const geo::LocalFrame &L, double spacing = 5.0,
+                                 double margin = 100.0) const;
 
 private:
     const Dataset                       &data_;
