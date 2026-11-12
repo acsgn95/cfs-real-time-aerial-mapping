@@ -1,0 +1,10 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+find_dependency(OrthoStreamGeo)
+# Private, but a static library still needs them at link time.
+find_dependency(GTSAM CONFIG)
+find_dependency(OpenCV CONFIG COMPONENTS core imgproc calib3d features2d flann)
+
+include("${CMAKE_CURRENT_LIST_DIR}/OrthoStreamRefineTargets.cmake")
+check_required_components(OrthoStreamRefine)

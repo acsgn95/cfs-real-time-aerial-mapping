@@ -18,6 +18,7 @@ include(CMakePackageConfigHelpers)
 
 option(ORTHOSTREAM_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" ON)
 option(ORTHOSTREAM_BUILD_TOOLS "Build the C++ tools under tools/" ON)
+option(ORTHOSTREAM_WITH_REFINE "Build the pose refinement (GTSAM, ADR-019)" ON)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -44,6 +45,9 @@ add_subdirectory(imaging)
 add_subdirectory(selection)
 add_subdirectory(dense)
 add_subdirectory(map_products)
+if(ORTHOSTREAM_WITH_REFINE)
+    add_subdirectory(refine)
+endif()
 
 if(ORTHOSTREAM_BUILD_TOOLS)
     add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../tools ${CMAKE_CURRENT_BINARY_DIR}/tools)
