@@ -74,6 +74,7 @@ struct Options
     std::size_t max_tiles     = 64;
     double      finalise_distance = 600.0;
     bool        points        = false;
+    bool        delayed       = false;
     bool        evaluate_only = false;
 };
 
@@ -90,6 +91,8 @@ const char *kUsage = R"(usage: offline_pipeline --poses FILE --images DIR --terr
   --first N, --count N    keyframes to process (default 0, 20)
   --width N               dense working width (default 2048)
   --sources K             source views (default 5)
+  --mode causal|delayed   source views from images before the keyframe, or also up to the
+                          next keyframe (default causal; ADR-005 section 2)
   --iterations N          PatchMatch iterations (default 3)
   --window-radius N       PatchMatch NCC half window (default 3)
   --window-step N         PatchMatch NCC window step, 1 or 2 (default 1)
@@ -152,6 +155,15 @@ Options parse(int argc, char **argv)
         else if (a == "--max-tiles") o.max_tiles = static_cast<std::size_t>(std::stoul(value()));
         else if (a == "--finalise-distance") o.finalise_distance = std::stod(value());
         else if (a == "--points") o.points = true;
+        else if (a == "--mode")
+        {
+            const std::string m = value();
+            if (m != "causal" && m != "delayed")
+            {
+                throw std::runtime_error("--mode must be causal or delayed");
+            }
+            o.delayed = m == "delayed";
+        }
         else if (a == "--evaluate-only") o.evaluate_only = true;
         else if (a == "--proj-data") o.proj_data = value();
         else if (a == "--grid-dir") o.grid_dir = value();
@@ -334,6 +346,7 @@ int run(const Options &o)
     fc.terrain_dem   = o.terrain_dem;
     fc.terrain_crs   = o.terrain_crs;
     fc.sources       = o.sources;
+    fc.delayed       = o.delayed;
     const tools::Flight flight(data, fc);
     const auto         &kf = flight.keyframes();
     const std::size_t   first = std::min<std::size_t>(static_cast<std::size_t>(o.first), kf.size());
