@@ -655,11 +655,11 @@ private:
                 c = tools::colourize(reference.data(), w, h, lo, hi), d = tools::diverging(diff.data(), w, h, 2.0);
         char text[160];
         tools::caption(a, "keyframe " + name);
-        std::snprintf(text, sizeof(text), "PatchMatch depth %.0f-%.0f m, valid %.0f %%", lo, hi,
+        std::snprintf(text, sizeof(text), "%s depth %.0f-%.0f m, valid %.0f %%", o_.method.c_str(), lo, hi,
                       100.0 * result.valid_fraction);
         tools::caption(b, text);
         tools::caption(c, "depth from the reference DSM");
-        std::snprintf(text, sizeof(text), "PatchMatch - reference, +-2 m (red: farther), NMAD %.2f m",
+        std::snprintf(text, sizeof(text), "%s - reference, +-2 m (red: farther), NMAD %.2f m", o_.method.c_str(),
                       result.errors.nmad);
         tools::caption(d, text);
         const std::string stem = name.substr(0, name.find_last_of('.'));

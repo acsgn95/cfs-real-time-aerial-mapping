@@ -94,15 +94,22 @@ void SgbmEstimator::estimate(const DepthBatch &batch, const DepthOutput &out)
     cv::Mat       left, right;
     cv::remap(ref_img, left, map_rx, map_ry, cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar(0));
     cv::remap(src_img, right, map_sx, map_sy, cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar(0));
+    // Where the rectified source has no image, SGBM matches the black border
+    // with itself; a mask of the valid source area rejects those matches.
+    cv::Mat right_valid;
+    cv::remap(cv::Mat(size, CV_8UC1, cv::Scalar(255)), right_valid, map_sx, map_sy, cv::INTER_NEAREST,
+              cv::BORDER_CONSTANT, cv::Scalar(0));
     if (vertical)
     {
         cv::transpose(left, left);
         cv::transpose(right, right);
+        cv::transpose(right_valid, right_valid);
     }
     if (mirror)
     {
         cv::flip(left, left, 1);
         cv::flip(right, right, 1);
+        cv::flip(right_valid, right_valid, 1);
     }
 
     // Disparity range from the depth range: d = f B / Z.
@@ -153,6 +160,11 @@ void SgbmEstimator::estimate(const DepthBatch &batch, const DepthOutput &out)
             if (d16 < min_disp * 16 || d16 <= 0)
             {
                 continue;  // no match
+            }
+            const int jx = static_cast<int>(std::lround(xs - d16 / 16.0));  // matching column in the source
+            if (jx < 0 || jx >= dw || right_valid.at<std::uint8_t>(iy, jx) == 0)
+            {
+                continue;  // matched outside the source image
             }
             const double    z_r = f_r * baseline / (d16 / 16.0);
             const cv::Vec3d X_rect((xr - cx_r) * z_r / f_r, (yr - cy_r) * z_r / f_r, z_r);
