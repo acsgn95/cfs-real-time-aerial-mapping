@@ -12,7 +12,9 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <map>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -26,6 +28,9 @@
 #include "orthostream/map_products/lifecycle.hpp"
 #include "orthostream/map_products/point_cloud.hpp"
 #include "raster.hpp"
+#include "visual.hpp"
+
+#include <opencv2/imgproc.hpp>
 
 namespace
 {
@@ -62,9 +67,11 @@ struct Options
     int         ortho_width   = 0;     // decode width for the orthomosaic; 0: half the camera width
     double      depth_margin  = 50.0;
     double      min_confidence = 0.0;
+    double      terrain_gate   = 30.0;  // metres; 0 disables
     std::size_t max_tiles     = 64;
     double      finalise_distance = 600.0;
     bool        points        = false;
+    bool        evaluate_only = false;
 };
 
 const char *kUsage = R"(usage: offline_pipeline --poses FILE --images DIR --terrain-dem FILE --out DIR [options]
@@ -89,9 +96,11 @@ const char *kUsage = R"(usage: offline_pipeline --poses FILE --images DIR --terr
   --ortho-pixel M         orthomosaic pixel size (default 0.066)
   --ortho-width N         keyframe decode width for the orthomosaic (default: half)
   --min-confidence F      depth pixels below it are ignored (default 0)
+  --terrain-gate M        drop depth pixels farther than M from the terrain prior (default 30; 0: off)
   --max-tiles N           active tile budget (default 64)
   --finalise-distance M   finalise tiles farther from the vehicle (default 600)
   --points                also write the LAZ point cloud
+  --evaluate-only         only evaluate the products already in --out (needs --reference-dsm)
   --proj-data DIR, --grid-dir DIR
 )";
 
@@ -130,9 +139,11 @@ Options parse(int argc, char **argv)
         else if (a == "--ortho-pixel") o.ortho_pixel = std::stod(value());
         else if (a == "--ortho-width") o.ortho_width = std::stoi(value());
         else if (a == "--min-confidence") o.min_confidence = std::stod(value());
+        else if (a == "--terrain-gate") o.terrain_gate = std::stod(value());
         else if (a == "--max-tiles") o.max_tiles = static_cast<std::size_t>(std::stoul(value()));
         else if (a == "--finalise-distance") o.finalise_distance = std::stod(value());
         else if (a == "--points") o.points = true;
+        else if (a == "--evaluate-only") o.evaluate_only = true;
         else if (a == "--proj-data") o.proj_data = value();
         else if (a == "--grid-dir") o.grid_dir = value();
         else if (a == "--help" || a == "-h")
@@ -144,6 +155,14 @@ Options parse(int argc, char **argv)
         {
             throw std::runtime_error("unknown option " + a);
         }
+    }
+    if (o.evaluate_only)
+    {
+        if (o.out.empty() || o.reference_dsm.empty())
+        {
+            throw std::runtime_error("--evaluate-only needs --out and --reference-dsm");
+        }
+        return o;
     }
     if (o.poses.empty() || o.images.empty() || o.terrain_dem.empty() || o.out.empty())
     {
@@ -209,14 +228,96 @@ void evaluate(const Options &o, std::ostream &report)
     std::cout << line;
 }
 
+// Overview of the whole area: orthomosaic, our DSM, reference DSM and their
+// difference, plus the difference as a GeoTIFF for GIS viewers.
+void writeOverview(const Options &o)
+{
+    const fs::path      out = o.out;
+    const tools::Raster ours((out / "dsm.vrt").string());
+    const int           dec = std::max(1, (std::max(ours.width(), ours.height()) + 1599) / 1600);
+    const tools::RasterWindow dsm = ours.readAll(dec);
+    const double x0 = dsm.origin_x, y1 = dsm.origin_y;
+    const double x1 = x0 + dsm.width * dsm.pixel_x, y0 = y1 + dsm.height * dsm.pixel_y;
+
+    // Reference and difference on the overview grid.
+    const tools::Raster       reference(o.reference_dsm);
+    const tools::RasterWindow ref_win = reference.read(x0 - 1, y0 - 1, x1 + 1, y1 + 1, 1);
+    tools::RasterWindow       ref = dsm, diff = dsm;
+    for (int r = 0; r < dsm.height; ++r)
+    {
+        for (int c = 0; c < dsm.width; ++c)
+        {
+            const std::size_t           i = static_cast<std::size_t>(r) * dsm.width + c;
+            const std::optional<double> h = ref_win.sample(dsm.centreX(c), dsm.centreY(r));
+            ref.values[i]  = h ? static_cast<float>(*h) : std::numeric_limits<float>::quiet_NaN();
+            diff.values[i] = h && !std::isnan(dsm.values[i]) ? static_cast<float>(dsm.values[i] - *h)
+                                                             : std::numeric_limits<float>::quiet_NaN();
+        }
+    }
+    tools::writeGeoTiff((out / "dsm_difference.tif").string(), diff, ours.wkt());
+
+    // Orthomosaic on the same grid.
+    cv::Mat ortho(dsm.height, dsm.width, CV_8UC3, cv::Scalar(0, 0, 0));
+    if (fs::exists(out / "ortho.vrt"))
+    {
+        const tools::Raster o_r((out / "ortho.vrt").string());
+        const double        o_px = (x1 - x0) / o_r.width();
+        (void)o_px;
+        std::vector<tools::RasterWindow> band;
+        for (int b = 1; b <= 4; ++b)
+        {
+            band.push_back(o_r.read(x0, y0, x1, y1, std::max(1, o_r.width() / dsm.width), b));
+        }
+        cv::Mat bgr(band[0].height, band[0].width, CV_8UC3);
+        for (int r = 0; r < bgr.rows; ++r)
+        {
+            for (int c = 0; c < bgr.cols; ++c)
+            {
+                auto v = [&](int b) { return band[static_cast<std::size_t>(b)].at(c, r); };
+                const bool ok = v(3) > 0.0f;
+                bgr.at<cv::Vec3b>(r, c) = ok ? cv::Vec3b(cv::saturate_cast<std::uint8_t>(v(2)),
+                                                         cv::saturate_cast<std::uint8_t>(v(1)),
+                                                         cv::saturate_cast<std::uint8_t>(v(0)))
+                                             : cv::Vec3b(0, 0, 0);
+            }
+        }
+        cv::resize(bgr, ortho, cv::Size(dsm.width, dsm.height), 0, 0, cv::INTER_AREA);
+    }
+
+    const auto [lo, hi] = tools::robustRange(ref.values.data(), ref.values.size(), -1e9);
+    cv::Mat    a = ortho, b = tools::colourize(dsm.values.data(), dsm.width, dsm.height, lo, hi, -1e9),
+            c = tools::colourize(ref.values.data(), ref.width, ref.height, lo, hi, -1e9),
+            d = tools::diverging(diff.values.data(), diff.width, diff.height, 2.0);
+    char text[160];
+    tools::caption(a, "OrthoStream orthomosaic");
+    std::snprintf(text, sizeof(text), "OrthoStream DSM, %.0f-%.0f m (LHN95)", lo, hi);
+    tools::caption(b, text);
+    tools::caption(c, "reference DSM (Metashape)");
+    tools::caption(d, "OrthoStream - reference, +-2 m (red: higher)");
+    tools::writeJpeg((out / "compare_overview.jpg").string(), tools::grid({ a, b, c, d }, 2, 1.0));
+    std::cout << "comparison: " << (out / "compare_overview.jpg").string() << ", "
+              << (out / "dsm_difference.tif").string() << "\n";
+}
+
 int run(const Options &o)
 {
+    if (o.evaluate_only)
+    {
+        std::ofstream report(fs::path(o.out) / "evaluation.txt");
+        evaluate(o, report);
+        writeOverview(o);
+        return 0;
+    }
     if (fs::exists(o.out) && !fs::is_empty(o.out))
     {
         throw std::runtime_error("output directory is not empty: " + o.out);
     }
     fs::create_directories(o.out);
-    const tools::Dataset data = tools::loadPoses(o.poses);
+    tools::Dataset data = tools::loadPoses(o.poses);
+    for (const std::string &name : tools::dropMissingImages(data, o.images))
+    {
+        std::cout << "image missing, left out: " << name << "\n";
+    }
 
     tools::FlightConfig fc;
     fc.proj_data_dir = o.proj_data;
@@ -276,8 +377,8 @@ int run(const Options &o)
     const int            ortho_width = o.ortho_width > 0 ? o.ortho_width : data.camera.width / 2;
 
     std::ofstream csv(fs::path(o.out) / "timings.csv");
-    csv << "keyframe,image,sources,decode_s,dense_s,fusion_s,ortho_decode_s,ortho_s,points_s,lifecycle_s,total_s,"
-           "valid_fraction,fused,rejected,tiles,active_tiles\n";
+    csv << "keyframe,image,sources,decode_s,dense_s,gate_s,fusion_s,ortho_decode_s,ortho_s,points_s,lifecycle_s,total_s,"
+           "valid_fraction,gated,fused,rejected,tiles,active_tiles\n";
     std::map<std::size_t, std::vector<std::uint8_t>> cache;  // working images of the current batch
     const std::size_t                                n = static_cast<std::size_t>(wcam.width) * wcam.height;
     std::vector<float>                               depth(n), normals(3 * n), confidence(n);
@@ -327,6 +428,13 @@ int run(const Options &o)
         t0 = Clock::now();
         estimator.estimate(batch, { depth.data(), normals.data(), confidence.data() });
         const double t_dense = since(t0);
+        t0                   = Clock::now();
+        std::size_t gated    = 0;
+        if (o.terrain_gate > 0.0)
+        {
+            gated = flight.gateDepth(k, depth.data(), wcam, data.images[k].T_E_C, o.terrain_gate);
+        }
+        const double t_gate = since(t0);
         const double valid =
             static_cast<double>(std::count_if(depth.begin(), depth.end(), [](float d) { return d > 0.0f; }))
             / static_cast<double>(n);
@@ -346,8 +454,19 @@ int run(const Options &o)
         const mp::RgbImageView   view { rgb.data(), scale.width, scale.height, static_cast<std::size_t>(3 * scale.width) };
         const double             t_ortho_decode = since(t0);
 
+        // Render around the keyframe's footprint only: outliers can stretch
+        // the extent of the fused points far beyond it.
+        Eigen::AlignedBox2d footprint;
+        for (const Eigen::Vector3d &c : flight.view(k).footprint.corners)
+        {
+            footprint.extend(frame.fromEcef(flight.frame().toEcef(c)).head<2>());
+        }
+        footprint.min().array() -= 30.0;
+        footprint.max().array() += 30.0;
+        const Eigen::AlignedBox2d render_extent = footprint.intersection(fused.extent);
+
         t0 = Clock::now();
-        const mp::RenderStats drawn = ortho.render(view, icam, data.images[k].T_E_C, fused.extent);
+        const mp::RenderStats drawn = ortho.render(view, icam, data.images[k].T_E_C, render_extent);
         const double          t_ortho = since(t0);
 
         t0 = Clock::now();
@@ -366,8 +485,8 @@ int run(const Options &o)
         const double t_total = since(t_start);
 
         csv << q << ',' << data.images[k].name << ',' << sources.size() << ',' << t_decode << ',' << t_dense << ','
-            << t_fusion << ',' << t_ortho_decode << ',' << t_ortho << ',' << t_points << ',' << t_life << ','
-            << t_total << ',' << valid << ',' << fused.added << ',' << fused.rejected << ',' << fused.tiles.size()
+            << t_gate << ',' << t_fusion << ',' << t_ortho_decode << ',' << t_ortho << ',' << t_points << ',' << t_life << ','
+            << t_total << ',' << valid << ',' << gated << ',' << fused.added << ',' << fused.rejected << ',' << fused.tiles.size()
             << ',' << manager.activeTiles() << '\n';
         csv.flush();
         char line[256];
@@ -384,6 +503,7 @@ int run(const Options &o)
     {
         std::ofstream report(fs::path(o.out) / "evaluation.txt");
         evaluate(o, report);
+        writeOverview(o);
     }
     return 0;
 }

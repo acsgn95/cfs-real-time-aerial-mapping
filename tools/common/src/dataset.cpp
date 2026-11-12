@@ -1,6 +1,7 @@
 #include "dataset.hpp"
 
 #include <algorithm>
+#include <filesystem>
 #include <fstream>
 #include <sstream>
 #include <stdexcept>
@@ -61,6 +62,25 @@ Dataset loadPoses(const std::string &path)
     std::sort(data.images.begin(), data.images.end(),
               [](const PosedImage &a, const PosedImage &b) { return a.name < b.name; });
     return data;
+}
+
+std::vector<std::string> dropMissingImages(Dataset &data, const std::string &image_dir)
+{
+    std::vector<std::string> missing;
+    std::vector<PosedImage>  kept;
+    for (PosedImage &im : data.images)
+    {
+        if (std::filesystem::exists(std::filesystem::path(image_dir) / im.name))
+        {
+            kept.push_back(std::move(im));
+        }
+        else
+        {
+            missing.push_back(im.name);
+        }
+    }
+    data.images = std::move(kept);
+    return missing;
 }
 
 }  // namespace orthostream::tools

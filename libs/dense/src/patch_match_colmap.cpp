@@ -141,7 +141,13 @@ void PatchMatchEstimator::estimate(const DepthBatch &batch, const DepthOutput &o
     const float      *d     = depth.GetPtr();
     const float      *n     = normals.GetPtr();  // planar: x plane, y plane, z plane
     const float       n_src = static_cast<float>(batch.sources.size());
-    std::memcpy(out.depth, d, w * h * sizeof(float));
+    // COLMAP's perturbation step can leave depths outside the searched
+    // range; they are not supported by the batch and count as invalid.
+    const float lo = static_cast<float>(batch.depth_min), hi = static_cast<float>(batch.depth_max);
+    for (std::size_t i = 0; i < w * h; ++i)
+    {
+        out.depth[i] = (d[i] >= lo && d[i] <= hi) ? d[i] : 0.0f;
+    }
     for (std::size_t row = 0; row < h; ++row)
     {
         for (std::size_t col = 0; col < w; ++col)
@@ -154,7 +160,7 @@ void PatchMatchEstimator::estimate(const DepthBatch &batch, const DepthOutput &o
             int        num_consistent = 0;
             const int *consistent     = nullptr;
             graph.GetImageIdxs(static_cast<int>(row), static_cast<int>(col), &num_consistent, &consistent);
-            out.confidence[i] = d[i] > 0.0f ? static_cast<float>(num_consistent) / n_src : 0.0f;
+            out.confidence[i] = out.depth[i] > 0.0f ? static_cast<float>(num_consistent) / n_src : 0.0f;
         }
     }
 }

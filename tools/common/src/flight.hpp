@@ -54,6 +54,15 @@ public:
     /// Terrain prior height (flight frame z) at a horizontal position.
     std::optional<double> terrainHeight(double x, double y) const;
 
+    /// Sets depth pixels to 0 whose point is farther than tolerance (metres,
+    /// vertically) from the terrain prior: a plausibility gate against
+    /// gross PatchMatch outliers. The terrain is sampled once on a grid
+    /// over the footprint of image k (plus a margin) and interpolated.
+    /// camera: pinhole depth camera; T_E_C its pose. Returns the number of
+    /// pixels removed.
+    std::size_t gateDepth(std::size_t k, float *depth, const geo::CameraModel &camera, const Eigen::Isometry3d &T_E_C,
+                          double tolerance, double spacing = 5.0) const;
+
 private:
     const Dataset                       &data_;
     FlightConfig                         config_;

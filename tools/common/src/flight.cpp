@@ -1,6 +1,7 @@
 #include "flight.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <stdexcept>
 
 namespace orthostream::tools
@@ -141,6 +142,65 @@ std::pair<double, double> Flight::depthRange(const geo::CameraModel &cam, std::s
     }
     const double cz = views_[k].T_L_C.translation().z();
     return { std::max(1.0, (cz - hi - margin) / down_max), (cz - lo + margin) / down_min };
+}
+
+std::size_t Flight::gateDepth(std::size_t k, float *depth, const geo::CameraModel &camera,
+                              const Eigen::Isometry3d &T_E_C, double tolerance, double spacing) const
+{
+    // Terrain grid over the footprint, widened by a margin.
+    double x0 = 1e300, y0 = 1e300, x1 = -1e300, y1 = -1e300;
+    for (const Eigen::Vector3d &c : views_[k].footprint.corners)
+    {
+        x0 = std::min(x0, c.x()), y0 = std::min(y0, c.y());
+        x1 = std::max(x1, c.x()), y1 = std::max(y1, c.y());
+    }
+    const double margin = 100.0;
+    x0 -= margin, y0 -= margin, x1 += margin, y1 += margin;
+    const int nx = static_cast<int>(std::ceil((x1 - x0) / spacing)) + 1;
+    const int ny = static_cast<int>(std::ceil((y1 - y0) / spacing)) + 1;
+    std::vector<double> grid(static_cast<std::size_t>(nx) * ny, std::nan(""));
+    for (int j = 0; j < ny; ++j)
+    {
+        for (int i = 0; i < nx; ++i)
+        {
+            if (const std::optional<double> h = terrainHeight(x0 + i * spacing, y0 + j * spacing))
+            {
+                grid[static_cast<std::size_t>(j) * nx + i] = *h;
+            }
+        }
+    }
+    const Eigen::Isometry3d T_F_C = frame_->ecefFromLocal().inverse() * T_E_C;
+    std::size_t             removed = 0;
+    for (int v = 0; v < camera.height; ++v)
+    {
+        for (int u = 0; u < camera.width; ++u)
+        {
+            float &d = depth[static_cast<std::size_t>(v) * camera.width + u];
+            if (!(d > 0.0f))
+            {
+                continue;
+            }
+            const Eigen::Vector3d p = T_F_C * Eigen::Vector3d(d * (u - camera.cx) / camera.fx,
+                                                              d * (v - camera.cy) / camera.fy, d);
+            const double fx = (p.x() - x0) / spacing, fy = (p.y() - y0) / spacing;
+            bool         keep = false;
+            if (fx >= 0.0 && fy >= 0.0 && fx < nx - 1 && fy < ny - 1)
+            {
+                const int    i = static_cast<int>(fx), j = static_cast<int>(fy);
+                const double tx = fx - i, ty = fy - j;
+                auto         g = [&](int a, int b) { return grid[static_cast<std::size_t>(b) * nx + a]; };
+                const double h = (1 - tx) * (1 - ty) * g(i, j) + tx * (1 - ty) * g(i + 1, j)
+                                 + (1 - tx) * ty * g(i, j + 1) + tx * ty * g(i + 1, j + 1);
+                keep = std::isfinite(h) && std::abs(p.z() - h) <= tolerance;
+            }
+            if (!keep)
+            {
+                d = 0.0f;
+                ++removed;
+            }
+        }
+    }
+    return removed;
 }
 
 }  // namespace orthostream::tools

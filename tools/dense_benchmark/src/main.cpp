@@ -13,7 +13,9 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
+#include <filesystem>
 #include <fstream>
+#include <limits>
 #include <iostream>
 #include <map>
 #include <memory>
@@ -33,6 +35,7 @@
 #include "orthostream/selection/footprint.hpp"
 #include "orthostream/selection/views.hpp"
 #include "raster.hpp"
+#include "visual.hpp"
 
 namespace
 {
@@ -51,6 +54,7 @@ struct Options
     std::string              proj_data = OST_BENCH_PROJ_DATA_DIR;
     std::string              grid_dir  = OST_BENCH_GRID_DIR;
     std::string              save_depth;
+    std::string              compare;
     std::string              terrain_dem;
     std::string              terrain_crs = "EPSG:4326+3855";  // Copernicus DEM: WGS 84 with EGM2008 heights
     std::vector<std::string> keyframes;
@@ -101,6 +105,8 @@ const char *kUsage = R"(usage: dense_benchmark --poses FILE --images DIR --dsm F
   --dry-run             no PatchMatch: render depth from the DSM instead; checks
                         frames, selection and evaluation without a GPU
   --save-depth DIR      write depth maps as PFM files
+  --compare DIR         write comparison images: keyframe, PatchMatch depth, depth
+                        rendered from the reference DSM, and their difference
   --proj-data DIR       directory with proj.db (default: from the build)
   --grid-dir DIR        PROJ grid directory (default: build-deps/proj-grids)
 )";
@@ -140,6 +146,7 @@ Options parseOptions(int argc, char **argv)
         else if (a == "--no-warmup") o.warmup = false;
         else if (a == "--dry-run") o.dry_run = true;
         else if (a == "--save-depth") o.save_depth = value();
+        else if (a == "--compare") o.compare = value();
         else if (a == "--terrain-dem") o.terrain_dem = value();
         else if (a == "--terrain-crs") o.terrain_crs = value();
         else if (a == "--proj-data") o.proj_data = value();
@@ -599,6 +606,37 @@ private:
         result.errors = bench::errorStats(std::move(errors));
     }
 
+    // Keyframe, PatchMatch depth, reference depth and difference, 2 x 2.
+    void writeComparison(const std::string &name, const std::vector<float> &depth, const std::vector<float> &reference,
+                         const std::vector<std::uint8_t> &image, const BatchResult &result) const
+    {
+        const int          w = wcam_.width, h = wcam_.height;
+        const auto [lo, hi]  = tools::robustRange(reference.data(), reference.size());
+        std::vector<float> diff(depth.size(), std::numeric_limits<float>::quiet_NaN());
+        for (std::size_t i = 0; i < depth.size(); ++i)
+        {
+            if (depth[i] > 0.0f && reference[i] > 0.0f)
+            {
+                diff[i] = depth[i] - reference[i];
+            }
+        }
+        cv::Mat grey(h, w, CV_8UC1, const_cast<std::uint8_t *>(image.data()));
+        cv::Mat a = grey.clone(), b = tools::colourize(depth.data(), w, h, lo, hi),
+                c = tools::colourize(reference.data(), w, h, lo, hi), d = tools::diverging(diff.data(), w, h, 2.0);
+        char text[160];
+        tools::caption(a, "keyframe " + name);
+        std::snprintf(text, sizeof(text), "PatchMatch depth %.0f-%.0f m, valid %.0f %%", lo, hi,
+                      100.0 * result.valid_fraction);
+        tools::caption(b, text);
+        tools::caption(c, "depth from the reference DSM");
+        std::snprintf(text, sizeof(text), "PatchMatch - reference, +-2 m (red: farther), NMAD %.2f m",
+                      result.errors.nmad);
+        tools::caption(d, text);
+        const std::string stem = name.substr(0, name.find_last_of('.'));
+        std::filesystem::create_directories(o_.compare);
+        tools::writeJpeg(o_.compare + "/" + stem + "_compare.jpg", tools::grid({ a, b, c, d }, 2, 0.5));
+    }
+
     void runBatch(std::size_t k, bool warmup, std::ofstream &csv)
     {
         const bench::PosedImage                 &ref     = data_.images[k];
@@ -669,6 +707,10 @@ private:
                 result.gpu     = gpu_.stop();
             }
             evaluate(depth, ref.T_E_C, win, result);
+            if (!o_.compare.empty() && !warmup && !o_.dry_run)
+            {
+                writeComparison(ref.name, depth, renderDsmDepth(win, ref.T_E_C), cache_.at(k), result);
+            }
             if (!o_.save_depth.empty() && !warmup)
             {
                 const std::string stem = ref.name.substr(0, ref.name.find_last_of('.'));

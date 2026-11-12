@@ -115,6 +115,12 @@ RenderStats OrthoRenderer::render(const RgbImageView &image, const geo::CameraMo
     const double       b0 = std::floor(extent.min().y() / cs);
     const int          na = static_cast<int>(std::ceil(extent.max().x() / cs) - a0) + 1;
     const int          nb = static_cast<int>(std::ceil(extent.max().y() / cs) - b0) + 1;
+    // A keyframe covers a few hundred metres; a larger area indicates
+    // outliers in the extent and would exhaust memory.
+    if (static_cast<double>(na) * nb > 64.0e6)
+    {
+        throw MapProductsError("render extent too large");
+    }
 
     // Node heights: mean of the DSM cells around the corner.
     std::vector<double> height(static_cast<std::size_t>(na) * nb, std::nan(""));

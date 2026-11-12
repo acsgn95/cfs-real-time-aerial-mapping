@@ -30,6 +30,10 @@ struct Dataset
 /// std::runtime_error on malformed input.
 Dataset loadPoses(const std::string &path);
 
+/// Removes the images whose file is missing in the image directory and
+/// returns their names, so that tools can report them.
+std::vector<std::string> dropMissingImages(Dataset &data, const std::string &image_dir);
+
 }  // namespace orthostream::tools
 
 #endif  // OST_TOOLS_DATASET_HPP

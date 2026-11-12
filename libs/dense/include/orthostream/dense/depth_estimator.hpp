@@ -63,7 +63,8 @@ struct DepthBatch
 
 /// Output buffers owned by the caller, each for camera.width x camera.height
 /// pixels in row-major order. Depth is the z coordinate in the reference
-/// camera, 0 where no valid depth was found. Normals are unit vectors in the
+/// camera, 0 where no valid depth was found or the depth lies outside the
+/// batch's depth range. Normals are unit vectors in the
 /// reference camera frame, interleaved x, y, z. Confidence is in [0, 1].
 struct DepthOutput
 {

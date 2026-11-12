@@ -29,7 +29,7 @@ target_compile_definitions(dense_benchmark PRIVATE
     OST_BENCH_PROJ_DATA_DIR="${ORTHOSTREAM_BENCH_PROJ_DATA_DIR}"
     OST_BENCH_GRID_DIR="${ORTHOSTREAM_BENCH_GRID_DIR}")
 target_link_libraries(dense_benchmark PRIVATE
-    dense_benchmark_core
+    dense_benchmark_core orthostream_tool_support
     OrthoStream::geo OrthoStream::imaging OrthoStream::selection OrthoStream::dense
     orthostream_warnings)
 

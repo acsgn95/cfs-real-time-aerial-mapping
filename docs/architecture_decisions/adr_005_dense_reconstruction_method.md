@@ -166,6 +166,28 @@ Candidate for the default: 2048 px, K = 5, 3 iterations, window radius 3,
 window step 1, 7 samples: 2.4 s per keyframe, about 17 % below the budget.
 To be confirmed with the full matrix and the end-to-end run.
 
+End-to-end runs with `tools/offline_pipeline` on 40 consecutive keyframes
+(about 0.4 km², candidate settings, products in LV95 with LHN95 heights),
+DSM against the reference DSM:
+
+| Run | Mean | Median | NMAD | RMSE | 95 % of abs. error | Within 1 m | Area |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| photometric filter only | −7.53 m | −0.12 m | 0.33 m | 37.2 m | 91.4 m | 79.5 % | 0.42 km² |
+| plus terrain gate of 30 m | −0.11 m | −0.10 m | 0.29 m | 3.38 m | 2.97 m | 91.7 % | 0.39 km² |
+
+* The terrain gate drops depth pixels whose point lies more than 30 m
+  (vertically) from the terrain prior of ADR-006. It costs about 20 ms per
+  keyframe, removes the gross outliers that the photometric filter keeps,
+  and loses 7 % of the area. It is a candidate for the dense stage, since
+  the terrain prior is available there.
+* The comparison images (`dense_benchmark --compare`) show where the
+  remaining errors come from: in some keyframes a large part of the depth
+  map is noise that passes the photometric filter (`filter_min_ncc` 0.1,
+  two consistent sources) while lying within the gate. A stricter filter
+  or geometric consistency is needed; this is the next benchmark factor.
+* Keyframes at the start of a flight line have at most one causal source
+  view and produce no depth; the delayed mode addresses this.
+
 ### 7. Integration constraints
 
 * COLMAP is built from source with CUDA 13.1, outside this repository as a

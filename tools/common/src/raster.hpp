@@ -41,15 +41,23 @@ public:
     /// Reads the part of the raster that covers the given bounds, every
     /// decimation-th pixel (GDAL uses overviews where they exist). Throws
     /// std::runtime_error if the bounds do not intersect the raster.
-    RasterWindow read(double x_min, double y_min, double x_max, double y_max, int decimation = 1) const;
+    RasterWindow read(double x_min, double y_min, double x_max, double y_max, int decimation = 1, int band = 1) const;
 
     /// The whole raster, decimated.
-    RasterWindow readAll(int decimation) const;
+    RasterWindow readAll(int decimation, int band = 1) const;
+
+    int         width() const;
+    int         height() const;
+    int         bands() const;
+    std::string wkt() const;  ///< CRS of the raster
 
 private:
     struct Impl;
     std::unique_ptr<Impl> impl_;
 };
+
+/// Writes a window as a float32 GeoTIFF (NaN as no-data) in the given CRS.
+void writeGeoTiff(const std::string &path, const RasterWindow &window, const std::string &wkt);
 
 }  // namespace orthostream::tools
 

@@ -6,6 +6,7 @@
 #include <stdexcept>
 
 #include <cpl_error.h>
+#include <cpl_string.h>
 #include <gdal.h>
 
 namespace orthostream::tools
@@ -53,7 +54,7 @@ Raster::~Raster()
     }
 }
 
-RasterWindow Raster::read(double x_min, double y_min, double x_max, double y_max, int decimation) const
+RasterWindow Raster::read(double x_min, double y_min, double x_max, double y_max, int decimation, int band) const
 {
     const Impl &r = *impl_;
     if (decimation < 1)
@@ -76,7 +77,12 @@ RasterWindow Raster::read(double x_min, double y_min, double x_max, double y_max
     w.origin_x = r.gt[0] + col0 * r.gt[1];
     w.origin_y = r.gt[3] + row0 * r.gt[5];
     w.values.resize(static_cast<std::size_t>(w.width) * w.height);
-    if (GDALRasterIO(r.band, GF_Read, col0, row0, col1 - col0, row1 - row0, w.values.data(), w.width, w.height,
+    GDALRasterBandH b = GDALGetRasterBand(r.dataset, band);
+    if (b == nullptr)
+    {
+        throw std::runtime_error("no band " + std::to_string(band));
+    }
+    if (GDALRasterIO(b, GF_Read, col0, row0, col1 - col0, row1 - row0, w.values.data(), w.width, w.height,
                      GDT_Float32, 0, 0)
         != CE_None)
     {
@@ -96,10 +102,57 @@ RasterWindow Raster::read(double x_min, double y_min, double x_max, double y_max
     return w;
 }
 
-RasterWindow Raster::readAll(int decimation) const
+RasterWindow Raster::readAll(int decimation, int band) const
 {
     const Impl &r = *impl_;
-    return read(r.gt[0], r.gt[3] + r.height * r.gt[5], r.gt[0] + r.width * r.gt[1], r.gt[3], decimation);
+    return read(r.gt[0], r.gt[3] + r.height * r.gt[5], r.gt[0] + r.width * r.gt[1], r.gt[3], decimation, band);
+}
+
+int Raster::width() const
+{
+    return impl_->width;
+}
+
+int Raster::height() const
+{
+    return impl_->height;
+}
+
+int Raster::bands() const
+{
+    return GDALGetRasterCount(impl_->dataset);
+}
+
+std::string Raster::wkt() const
+{
+    const char *w = GDALGetProjectionRef(impl_->dataset);
+    return w != nullptr ? w : "";
+}
+
+void writeGeoTiff(const std::string &path, const RasterWindow &window, const std::string &wkt)
+{
+    GDALAllRegister();
+    char **opts       = CSLSetNameValue(nullptr, "COMPRESS", "DEFLATE");
+    GDALDatasetH ds   = GDALCreate(GDALGetDriverByName("GTiff"), path.c_str(), window.width, window.height, 1,
+                                   GDT_Float32, opts);
+    CSLDestroy(opts);
+    if (ds == nullptr)
+    {
+        throw std::runtime_error("cannot create " + path);
+    }
+    double gt[6] = { window.origin_x, window.pixel_x, 0.0, window.origin_y, 0.0, window.pixel_y };
+    GDALSetGeoTransform(ds, gt);
+    GDALSetProjection(ds, wkt.c_str());
+    GDALRasterBandH band = GDALGetRasterBand(ds, 1);
+    GDALSetRasterNoDataValue(band, std::numeric_limits<double>::quiet_NaN());
+    const CPLErr err = GDALRasterIO(band, GF_Write, 0, 0, window.width, window.height,
+                                    const_cast<float *>(window.values.data()), window.width, window.height,
+                                    GDT_Float32, 0, 0);
+    GDALClose(ds);
+    if (err != CE_None)
+    {
+        throw std::runtime_error("writing " + path + " failed");
+    }
 }
 
 std::optional<double> RasterWindow::sample(double x, double y) const
