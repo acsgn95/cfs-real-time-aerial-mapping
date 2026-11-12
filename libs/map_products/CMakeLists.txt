@@ -5,9 +5,11 @@ find_package(LASzip REQUIRED)
 
 add_library(orthostream_map_products
     src/dsm.cpp
+    src/lifecycle.cpp
     src/ortho.cpp
     src/point_cloud.cpp
     src/product_frame.cpp
+    src/tile_state.cpp
     src/vertical_datum.cpp
     src/writer.cpp)
 add_library(OrthoStream::map_products ALIAS orthostream_map_products)
@@ -44,7 +46,8 @@ if(BUILD_TESTING)
     # proj.db found by libs/geo (cache variable ORTHOSTREAM_PROJ_DB).
     get_filename_component(OST_MP_PROJ_DATA_DIR "${ORTHOSTREAM_PROJ_DB}" DIRECTORY)
     add_executable(map_products_tests tests/test_product_frame.cpp tests/test_dsm.cpp tests/test_writer.cpp
-        tests/test_ortho.cpp tests/test_point_cloud.cpp)
+        tests/test_ortho.cpp tests/test_point_cloud.cpp
+        tests/test_lifecycle.cpp)
     target_compile_definitions(map_products_tests PRIVATE OST_MP_TEST_PROJ_DATA_DIR="${OST_MP_PROJ_DATA_DIR}")
     if(EXISTS "${ORTHOSTREAM_PROJ_GRID_DIR}/ch_swisstopo_chgeo2004_ETRS89_LHN95.tif")
         target_compile_definitions(map_products_tests PRIVATE OST_MP_TEST_GRID_DIR="${ORTHOSTREAM_PROJ_GRID_DIR}")

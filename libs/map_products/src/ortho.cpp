@@ -66,9 +66,26 @@ OrthoTile &OrthoRenderer::tileFor(const TileId &id)
     auto it = tiles_.find(id);
     if (it == tiles_.end())
     {
-        it = tiles_.emplace(id, std::make_unique<OrthoTile>(id, tile_size_, tile_pixels_)).first;
+        std::unique_ptr<OrthoTile> t = loader_ ? loader_(id) : nullptr;
+        if (!t)
+        {
+            t = std::make_unique<OrthoTile>(id, tile_size_, tile_pixels_);
+        }
+        it = tiles_.emplace(id, std::move(t)).first;
     }
     return *it->second;
+}
+
+std::unique_ptr<OrthoTile> OrthoRenderer::release(const TileId &id)
+{
+    const auto it = tiles_.find(id);
+    if (it == tiles_.end())
+    {
+        return nullptr;
+    }
+    std::unique_ptr<OrthoTile> t = std::move(it->second);
+    tiles_.erase(it);
+    return t;
 }
 
 const OrthoTile *OrthoRenderer::tile(const TileId &id) const

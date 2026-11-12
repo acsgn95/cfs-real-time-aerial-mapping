@@ -4,6 +4,7 @@
 * Date: 2026-11-10
 * Decided by: Ahmet Coşgun
 * Backlog item: D07
+* Revised: 2026-11-12 (implementation notes, section 8)
 * Evidence: thesis proposal (FB_YL-01) sections 2, 4.2 and 4.3; ADR-001
   (R2, R4, R5, product resolutions); ADR-004 (product frame `P`, working
   frames `L_k`); ADR-005 (depth, normal and confidence maps; no
@@ -112,6 +113,43 @@ this record.
 | Orthomosaic tile | GeoTIFF, RGB with a mask, compressed |
 | Point cloud tile | LAZ |
 | Mosaic index | GDAL VRT over all DSM tiles and over all orthomosaic tiles, updated at publication |
+
+### 8. Implementation notes (`libs/map_products`)
+
+These notes record how the library realises sections 1 to 6. They do not
+change the decisions.
+
+* **ECEF to `P`:** the exact PROJ transformation is evaluated on a 9 × 9 × 9
+  grid over the extent of each depth map and interpolated trilinearly. Over
+  500 m the error is at most 0.15 mm; PROJ is called a few hundred times per
+  keyframe instead of once per point.
+* **Cell statistics:** each cell keeps the weight sum, the mean, the sum of
+  weighted squared deviations and the count, updated with the weighted form
+  of Welford's method. This is equivalent to the weighted sums of section 2
+  and stays accurate in single precision; heights are stored relative to a
+  reference height per tile. The k-sigma test uses a floor of the standard
+  deviation (default 0.25 m), so that cells with very consistent
+  observations do not reject every slightly different one.
+* **Vertical datum:** the offset from ellipsoidal heights to the output datum
+  is evaluated on a 9 × 9 grid per tile and interpolated; written heights
+  match the exact PROJ chain within 2 mm.
+* **Orthomosaic:** the projection into the keyframe (full camera model with
+  distortion) is evaluated at the DSM cell corners, whose heights are the
+  mean of the surrounding cells, and interpolated for the orthomosaic pixels
+  in between. A pixel needs heights at all four corners, so tiles at the edge
+  of the covered area may have DSM cells but no orthomosaic pixels. The
+  orthomosaic is written as RGBA (alpha as the mask).
+* **Point cloud:** LAS 1.2, point format 2, millimetre coordinates;
+  intensity holds the depth confidence and the point source ID the keyframe
+  number (modulo 65536). Until geometric consistency is available (ADR-005),
+  points are selected by a minimum confidence.
+* **Lifecycle:** a tile is finalised by its distance from the vehicle or by
+  the active-tile budget; the image pool criterion of section 5 is not used,
+  because the image pool lives in another application. Finalising writes the
+  products and a binary state file (DSM cell statistics, orthomosaic colours
+  and viewing angles); a tile that a later keyframe touches is reloaded from
+  it. Products alone could not be reloaded, because they lack the weights,
+  counts and viewing angles.
 
 ## Rationale
 

@@ -107,9 +107,26 @@ DsmTile &DsmFusion::tileFor(const TileId &id, double reference_height)
     auto it = tiles_.find(id);
     if (it == tiles_.end())
     {
-        it = tiles_.emplace(id, std::make_unique<DsmTile>(id, config_.grid, std::round(reference_height))).first;
+        std::unique_ptr<DsmTile> t = loader_ ? loader_(id) : nullptr;
+        if (!t)
+        {
+            t = std::make_unique<DsmTile>(id, config_.grid, std::round(reference_height));
+        }
+        it = tiles_.emplace(id, std::move(t)).first;
     }
     return *it->second;
+}
+
+std::unique_ptr<DsmTile> DsmFusion::release(const TileId &id)
+{
+    const auto it = tiles_.find(id);
+    if (it == tiles_.end())
+    {
+        return nullptr;
+    }
+    std::unique_ptr<DsmTile> t = std::move(it->second);
+    tiles_.erase(it);
+    return t;
 }
 
 const DsmTile *DsmFusion::tile(const TileId &id) const

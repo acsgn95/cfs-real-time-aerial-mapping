@@ -7,6 +7,8 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <functional>
+#include <string>
 #include <map>
 #include <memory>
 #include <vector>
@@ -51,7 +53,14 @@ public:
     bool set(int col, int row, const std::uint8_t rgb[3], std::uint16_t angle);
     std::size_t filledPixels() const;
 
+    /// Complete pixel state (colours and viewing angles) in a binary file,
+    /// for reloading an evicted tile. Not a map product.
+    void                              save(const std::string &path) const;
+    static std::unique_ptr<OrthoTile> load(const std::string &path);
+
 private:
+    OrthoTile() = default;
+
     TileId                     id_;
     int                        pixels_;
     double                     pixel_size_;
@@ -94,6 +103,10 @@ public:
     const std::map<TileId, std::unique_ptr<OrthoTile>> &tiles() const { return tiles_; }
     const OrthoTile                                    *tile(const TileId &id) const;
     int    tilePixels() const { return tile_pixels_; }
+
+    using TileLoader = std::function<std::unique_ptr<OrthoTile>(const TileId &)>;
+    void setTileLoader(TileLoader loader) { loader_ = std::move(loader); }
+    std::unique_ptr<OrthoTile> release(const TileId &id);
     double pixelSize() const { return tile_size_ / tile_pixels_; }
 
 private:
@@ -104,6 +117,7 @@ private:
     double                                        tile_size_;
     int                                           tile_pixels_;
     std::map<TileId, std::unique_ptr<OrthoTile>>  tiles_;
+    TileLoader                                    loader_;
 };
 
 }  // namespace orthostream::map_products

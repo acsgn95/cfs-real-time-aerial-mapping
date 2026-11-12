@@ -5,6 +5,8 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <functional>
+#include <string>
 #include <map>
 #include <memory>
 #include <optional>
@@ -77,7 +79,14 @@ public:
     float                      weight(int col, int row) const { return weight_[index(col, row)]; }
     std::size_t                filledCells() const;
 
+    /// Complete cell state in a binary file, for reloading a tile that was
+    /// evicted from memory (TileManager). Not a map product.
+    void                            save(const std::string &path) const;
+    static std::unique_ptr<DsmTile> load(const std::string &path);
+
 private:
+    DsmTile() = default;
+
     TileId                     id_;
     int                        cells_;
     double                     cell_size_;
@@ -124,12 +133,22 @@ public:
     /// Ellipsoidal height of the DSM at a point of P, nothing where empty.
     std::optional<double> heightAt(double easting, double northing) const;
 
+    /// Called for a tile that is not in memory before an empty one is
+    /// created; returns the tile or nothing (TileManager reloads evicted
+    /// tiles through it).
+    using TileLoader = std::function<std::unique_ptr<DsmTile>(const TileId &)>;
+    void setTileLoader(TileLoader loader) { loader_ = std::move(loader); }
+
+    /// Removes a tile from memory and returns it.
+    std::unique_ptr<DsmTile> release(const TileId &id);
+
 private:
     DsmTile &tileFor(const TileId &id, double reference_height);
 
     DsmFusionConfig                            config_;
     const ProductFrame                        &frame_;
     std::map<TileId, std::unique_ptr<DsmTile>> tiles_;
+    TileLoader                                 loader_;
 };
 
 }  // namespace orthostream::map_products
