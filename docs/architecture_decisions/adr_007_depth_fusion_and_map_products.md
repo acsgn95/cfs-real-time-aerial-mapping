@@ -139,6 +139,13 @@ change the decisions.
   in between. A pixel needs heights at all four corners, so tiles at the edge
   of the covered area may have DSM cells but no orthomosaic pixels. The
   orthomosaic is written as RGBA (alpha as the mask).
+* **Orthomosaic surface and source switching:** the DSM is median-filtered
+  (default radius 1 m, separable) before it serves as the orthomosaic
+  surface, and a pixel switches to a later keyframe only if that keyframe
+  sees it at least 2° closer to nadir. Without these, DSM noise and tall,
+  repetitive structures (avalanche barriers at Dorfberg) made straight
+  edges wavy and split objects into parts of different perspective. The
+  DSM product is unchanged; rendering takes about 60 ms more per keyframe.
 * **Point cloud:** LAS 1.2, point format 2, millimetre coordinates;
   intensity holds the depth confidence and the point source ID the keyframe
   number (modulo 65536). Until geometric consistency is available (ADR-005),

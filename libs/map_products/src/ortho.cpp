@@ -18,6 +18,49 @@ struct Node
     bool  valid = false;
 };
 
+// Separable median (rows, then columns) over finite values; cells without a
+// value stay without one, so holes are not filled.
+void medianFilter(std::vector<double> &v, int width, int height, int radius)
+{
+    std::vector<double> tmp(v.size());
+    std::vector<double> window;
+    auto pass = [&](const std::vector<double> &in, std::vector<double> &out, bool rows)
+    {
+        for (int y = 0; y < height; ++y)
+        {
+            for (int x = 0; x < width; ++x)
+            {
+                const std::size_t i = static_cast<std::size_t>(y) * width + x;
+                if (std::isnan(v[i]))
+                {
+                    out[i] = std::nan("");
+                    continue;
+                }
+                window.clear();
+                for (int d = -radius; d <= radius; ++d)
+                {
+                    const int xx = rows ? x + d : x, yy = rows ? y : y + d;
+                    if (xx >= 0 && yy >= 0 && xx < width && yy < height)
+                    {
+                        const double w = in[static_cast<std::size_t>(yy) * width + xx];
+                        if (!std::isnan(w))
+                        {
+                            window.push_back(w);
+                        }
+                    }
+                }
+                std::nth_element(window.begin(), window.begin() + static_cast<std::ptrdiff_t>(window.size() / 2),
+                                 window.end());
+                out[i] = window[window.size() / 2];
+            }
+        }
+    };
+    pass(v, tmp, true);
+    std::vector<double> out(v.size());
+    pass(tmp, out, false);
+    v.swap(out);
+}
+
 }  // namespace
 
 OrthoTile::OrthoTile(const TileId &id, double tile_size, int pixels)
@@ -59,6 +102,12 @@ OrthoRenderer::OrthoRenderer(const OrthoConfig &config, const DsmFusion &dsm, co
         throw MapProductsError("invalid orthomosaic pixel size");
     }
     tile_pixels_ = std::max(1, static_cast<int>(std::lround(tile_size_ / config.pixel_size)));
+    if (!(config.surface_smoothing >= 0.0) || !(config.switch_margin_deg >= 0.0))
+    {
+        throw MapProductsError("invalid orthomosaic configuration");
+    }
+    smoothing_ = config.surface_smoothing;
+    margin_    = static_cast<int>(std::lround(config.switch_margin_deg * 100.0));
 }
 
 OrthoTile &OrthoRenderer::tileFor(const TileId &id)
@@ -152,6 +201,11 @@ RenderStats OrthoRenderer::render(const RgbImageView &image, const geo::CameraMo
     if (h_lo > h_hi)
     {
         return stats;  // no DSM in the extent
+    }
+    const int radius = static_cast<int>(std::lround(smoothing_ / cs));
+    if (radius > 0)
+    {
+        medianFilter(height, na, nb, radius);
     }
 
     // P to ECEF, interpolated over the extent and its height range.
@@ -262,7 +316,8 @@ RenderStats OrthoRenderer::render(const RgbImageView &image, const geo::CameraMo
                     {
                         tile = &tileFor(id);
                     }
-                    if (a16 >= tile->angle(c, r))
+                    const std::uint16_t current = tile->angle(c, r);
+                    if (current != OrthoTile::kEmpty && static_cast<int>(a16) + margin_ >= current)
                     {
                         continue;
                     }

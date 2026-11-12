@@ -185,6 +185,98 @@ TEST(OrthoRenderer, NadirMostSourceWinsInAnyOrder)
     }
 }
 
+TEST(OrthoRenderer, SmoothedSurfaceIgnoresASpike)
+{
+    // A 20 m spike of a few DSM cells in flat ground, seen at about 24
+    // degrees from nadir: without smoothing the orthomosaic around it takes
+    // colours from image positions about 9 m away.
+    Fixture f;
+    Scene   s = flatScene(f.conv, 120, 90, 90.0);
+    const int u0 = 99, v0 = 44;
+    const Eigen::Vector3d ray((u0 + 0.5 - s.camera.cx) / 90.0, (v0 + 0.5 - s.camera.cy) / 90.0, 1.0);
+    const double          d0 = s.depth[static_cast<std::size_t>(v0 * 120 + u0)];
+    const Eigen::Vector3d spike = f.frame.fromEcef(s.T_E_C * (d0 * ray));
+    for (int v = v0; v < v0 + 2; ++v)
+    {
+        for (int u = u0; u < u0 + 2; ++u)
+        {
+            float &d = s.depth[static_cast<std::size_t>(v * 120 + u)];
+            d -= static_cast<float>(20.0 * d / 250.0);  // the point 20 m higher on the same ray
+        }
+    }
+    const FusionStats               fused = f.fuse(s);
+    const geo::CameraModel          cam   = distortedCamera();
+    const std::vector<std::uint8_t> img   = renderKeyframe(f.conv, f.frame, cam, s.T_E_C);
+    auto max_error_near_spike = [&](double smoothing)
+    {
+        OrthoConfig config;
+        config.pixel_size        = 0.5;
+        config.surface_smoothing = smoothing;
+        OrthoRenderer r(config, *f.dsm, f.frame);
+        r.render({ img.data(), cam.width, cam.height, static_cast<std::size_t>(3 * cam.width) }, cam, s.T_E_C,
+                 fused.extent);
+        double max_err = 0.0;
+        for (const auto &[id, tile] : r.tiles())
+        {
+            for (int row = 0; row < tile->pixels(); ++row)
+            {
+                for (int col = 0; col < tile->pixels(); ++col)
+                {
+                    const double e = tile->originEasting() + (col + 0.5) * tile->pixelSize();
+                    const double n = tile->originNorthing() - (row + 0.5) * tile->pixelSize();
+                    if (tile->angle(col, row) == OrthoTile::kEmpty || std::hypot(e - spike.x(), n - spike.y()) > 15.0)
+                    {
+                        continue;
+                    }
+                    const auto ref = groundColour(e, n);
+                    for (int ch = 0; ch < 3; ++ch)
+                    {
+                        max_err = std::max(max_err, std::abs(tile->rgb()[3 * tile->index(col, row) + static_cast<std::size_t>(ch)]
+                                                             - ref[static_cast<std::size_t>(ch)]));
+                    }
+                }
+            }
+        }
+        return max_err;
+    };
+    const double raw      = max_error_near_spike(0.0);
+    const double smoothed = max_error_near_spike(8.0);  // radius of 4 cells
+    RecordProperty("max_error_raw", std::to_string(raw));
+    RecordProperty("max_error_smoothed", std::to_string(smoothed));
+    EXPECT_GT(raw, 15.0);           // the spike shifts the colours
+    EXPECT_LT(smoothed, raw / 4.0);  // the smoothed surface ignores it
+}
+
+TEST(OrthoRenderer, KeepsTheSourceUnlessClearlyCloserToNadir)
+{
+    Fixture     f;
+    const Scene a = flatScene(f.conv, 80, 60, 60.0);
+    const Scene b = flatScene(f.conv, 80, 60, 60.0, 3.0, 0.0);  // 3 m east: angles differ by under 1 degree
+    const FusionStats fa = f.fuse(a);
+    // Inner part, seen by both cameras: only replaced pixels can count.
+    Eigen::AlignedBox2d inner = fa.extent;
+    inner.min().array() += 30.0;
+    inner.max().array() -= 30.0;
+    const std::vector<std::uint8_t> img_a(static_cast<std::size_t>(3 * 80 * 60), 50), img_b(img_a.size(), 200);
+    for (const double margin : { 2.0, 0.0 })
+    {
+        OrthoConfig config;
+        config.pixel_size        = 1.0;
+        config.switch_margin_deg = margin;
+        OrthoRenderer r(config, *f.dsm, f.frame);
+        r.render({ img_a.data(), 80, 60, 240 }, a.camera, a.T_E_C, inner);
+        const RenderStats second = r.render({ img_b.data(), 80, 60, 240 }, b.camera, b.T_E_C, inner);
+        if (margin > 0.0)
+        {
+            EXPECT_EQ(second.pixels, 0u);
+        }
+        else
+        {
+            EXPECT_GT(second.pixels, 1000u);  // the east half switches to b
+        }
+    }
+}
+
 TEST(OrthoRenderer, NothingWithoutDsm)
 {
     Fixture                         f;

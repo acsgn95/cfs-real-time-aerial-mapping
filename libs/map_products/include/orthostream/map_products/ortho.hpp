@@ -27,6 +27,16 @@ struct OrthoConfig
     /// a whole number of pixels, so the pixel size used may differ slightly
     /// (OrthoTile::pixelSize).
     double pixel_size = 0.066;
+    /// Radius in metres of the median filter applied to the DSM before it
+    /// is used as the orthomosaic surface; 0 uses the DSM as it is. Noise
+    /// and small, tall objects in the DSM otherwise make straight edges in
+    /// the orthomosaic wavy. The DSM product is not changed.
+    double surface_smoothing = 1.0;
+    /// A rendered pixel takes the colour of a later keyframe only if that
+    /// keyframe sees the point at least this many degrees closer to nadir.
+    /// Avoids switching between keyframes of nearly the same angle, which
+    /// splits tall objects into parts of different perspective.
+    double switch_margin_deg = 2.0;
 };
 
 class OrthoTile
@@ -116,6 +126,8 @@ private:
     const ProductFrame                           &frame_;
     double                                        tile_size_;
     int                                           tile_pixels_;
+    double                                        smoothing_;
+    int                                           margin_;  // 0.01 degrees
     std::map<TileId, std::unique_ptr<OrthoTile>>  tiles_;
     TileLoader                                    loader_;
 };
