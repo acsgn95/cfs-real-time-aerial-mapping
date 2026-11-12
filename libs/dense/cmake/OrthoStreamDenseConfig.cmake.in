@@ -2,6 +2,8 @@
 
 include(CMakeFindDependencyMacro)
 find_dependency(OrthoStreamGeo)
+# Private, but a static library still needs it at link time.
+find_dependency(OpenCV CONFIG COMPONENTS core imgproc calib3d)
 set(ORTHOSTREAM_DENSE_WITH_COLMAP @ORTHOSTREAM_WITH_COLMAP@)
 if(ORTHOSTREAM_DENSE_WITH_COLMAP)
     # Private, but a static library still needs it at link time.

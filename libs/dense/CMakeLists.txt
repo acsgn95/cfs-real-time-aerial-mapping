@@ -4,7 +4,9 @@
 
 option(ORTHOSTREAM_WITH_COLMAP "Build GPU PatchMatch with COLMAP and CUDA" ON)
 
-add_library(orthostream_dense src/depth_estimator.cpp)
+find_package(OpenCV CONFIG REQUIRED COMPONENTS core imgproc calib3d)
+
+add_library(orthostream_dense src/depth_estimator.cpp src/sgbm.cpp)
 add_library(OrthoStream::dense ALIAS orthostream_dense)
 set_target_properties(orthostream_dense PROPERTIES EXPORT_NAME dense)
 
@@ -14,7 +16,7 @@ target_include_directories(orthostream_dense PUBLIC
 target_compile_features(orthostream_dense PUBLIC cxx_std_17)
 target_link_libraries(orthostream_dense
     PUBLIC OrthoStream::geo
-    PRIVATE $<BUILD_INTERFACE:orthostream_warnings>)
+    PRIVATE opencv_core opencv_imgproc opencv_calib3d $<BUILD_INTERFACE:orthostream_warnings>)
 
 if(ORTHOSTREAM_WITH_COLMAP)
     find_package(COLMAP CONFIG REQUIRED)

@@ -29,6 +29,7 @@
 #include "error_stats.hpp"
 #include "gpu_memory.hpp"
 #include "orthostream/dense/patch_match.hpp"
+#include "orthostream/dense/sgbm.hpp"
 #include "orthostream/geo/crs.hpp"
 #include "orthostream/geo/frames.hpp"
 #include "orthostream/imaging/working_image.hpp"
@@ -55,6 +56,7 @@ struct Options
     std::string              grid_dir  = OST_BENCH_GRID_DIR;
     std::string              save_depth;
     std::string              compare;
+    std::string              method = "patchmatch";
     std::string              terrain_dem;
     std::string              terrain_crs = "EPSG:4326+3855";  // Copernicus DEM: WGS 84 with EGM2008 heights
     std::vector<std::string> keyframes;
@@ -106,6 +108,7 @@ const char *kUsage = R"(usage: dense_benchmark --poses FILE --images DIR --dsm F
   --terrain-crs CRS     CRS of the terrain prior with heights (default EPSG:4326+3855)
   --depth-margin M      margin of the depth range around the terrain (default 50)
   --eval-stride N       evaluate every N-th pixel in both directions (default 2)
+  --method M            patchmatch (GPU) or sgbm (CPU, two views) (default patchmatch)
   --gpu N               GPU index (default 0)
   --no-warmup           do not run the first batch once before measuring
   --dry-run             no PatchMatch: render depth from the DSM instead; checks
@@ -156,6 +159,14 @@ Options parseOptions(int argc, char **argv)
         else if (a == "--dry-run") o.dry_run = true;
         else if (a == "--save-depth") o.save_depth = value();
         else if (a == "--compare") o.compare = value();
+        else if (a == "--method")
+        {
+            o.method = value();
+            if (o.method != "patchmatch" && o.method != "sgbm")
+            {
+                throw std::runtime_error("--method must be patchmatch or sgbm");
+            }
+        }
         else if (a == "--terrain-dem") o.terrain_dem = value();
         else if (a == "--terrain-crs") o.terrain_crs = value();
         else if (a == "--proj-data") o.proj_data = value();
@@ -297,7 +308,14 @@ public:
             config.filter_min_ncc                 = o.filter_min_ncc;
             config.filter_min_num_consistent      = o.filter_min_consistent;
             config.filter_min_triangulation_angle = o.filter_min_angle;
-            estimator_            = std::make_unique<dense::PatchMatchEstimator>(config);
+            if (o.method == "sgbm")
+            {
+                estimator_ = std::make_unique<dense::SgbmEstimator>();
+            }
+            else
+            {
+                estimator_ = std::make_unique<dense::PatchMatchEstimator>(config);
+            }
         }
     }
 
@@ -738,7 +756,7 @@ private:
 
         const bench::ErrorStats &s = result.errors;
         csv << ref.name << ',' << k << ',' << views_[k].flight_line << ',' << (o_.delayed ? "delayed" : "causal") << ','
-            << (o_.dry_run ? "dsm_render" : "patchmatch") << ',' << wcam_.width << ',' << wcam_.height << ','
+            << (o_.dry_run ? std::string("dsm_render") : o_.method) << ',' << wcam_.width << ',' << wcam_.height << ','
             << o_.iterations << ',' << o_.window_radius << ',' << o_.window_step << ',' << o_.samples << ','
             << sources.size() << ',' << other_line << ',' << source_names << ','
             << range.first << ',' << range.second << ',' << (decoded > 0 ? decode_ms / decoded : 0.0) << ','
@@ -770,7 +788,7 @@ private:
     std::unique_ptr<geo::LocalFrame>             flight_frame_;
     std::unique_ptr<geo::CrsTransformer>         to_terrain_;
     std::unique_ptr<RasterWindow>                terrain_;
-    std::unique_ptr<dense::PatchMatchEstimator>  estimator_;
+    std::unique_ptr<dense::DepthEstimator>       estimator_;
     std::vector<selection::View>                 views_;
     std::vector<bool>                            has_footprint_;
     std::vector<std::size_t>                     keyframes_;

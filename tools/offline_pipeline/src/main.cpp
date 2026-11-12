@@ -22,6 +22,7 @@
 #include "error_stats.hpp"
 #include "flight.hpp"
 #include "orthostream/dense/patch_match.hpp"
+#include "orthostream/dense/sgbm.hpp"
 #include "orthostream/geo/camera.hpp"
 #include "orthostream/imaging/jpeg.hpp"
 #include "orthostream/imaging/working_image.hpp"
@@ -75,6 +76,7 @@ struct Options
     double      finalise_distance = 600.0;
     bool        points        = false;
     bool        delayed       = true;   // ADR-005 section 2
+    std::string method        = "patchmatch";
     bool        evaluate_only = false;
 };
 
@@ -89,6 +91,7 @@ const char *kUsage = R"(usage: offline_pipeline --poses FILE --images DIR --terr
   --product-crs CRS       projected CRS of the products (default EPSG:2056)
   --vertical-crs CRS      vertical CRS of the products, empty for ellipsoidal (default EPSG:5729)
   --first N, --count N    keyframes to process (default 0, 20)
+  --method M              patchmatch (GPU) or sgbm (CPU, two views; ADR-005 section 4)
   --width N               dense working width (default 2048)
   --sources K             source views (default 5)
   --mode causal|delayed   source views from images before the keyframe, or also up to the
@@ -155,6 +158,14 @@ Options parse(int argc, char **argv)
         else if (a == "--max-tiles") o.max_tiles = static_cast<std::size_t>(std::stoul(value()));
         else if (a == "--finalise-distance") o.finalise_distance = std::stod(value());
         else if (a == "--points") o.points = true;
+        else if (a == "--method")
+        {
+            o.method = value();
+            if (o.method != "patchmatch" && o.method != "sgbm")
+            {
+                throw std::runtime_error("--method must be patchmatch or sgbm");
+            }
+        }
         else if (a == "--mode")
         {
             const std::string m = value();
@@ -365,7 +376,15 @@ int run(const Options &o)
     pm.filter_min_ncc                 = o.filter_min_ncc;
     pm.filter_min_num_consistent      = o.filter_min_consistent;
     pm.filter_min_triangulation_angle = o.filter_min_angle;
-    dense::PatchMatchEstimator estimator(pm);
+    std::unique_ptr<dense::DepthEstimator> estimator;
+    if (o.method == "sgbm")
+    {
+        estimator = std::make_unique<dense::SgbmEstimator>();
+    }
+    else
+    {
+        estimator = std::make_unique<dense::PatchMatchEstimator>(pm);
+    }
 
     // Map products.
     const std::vector<std::string> grids { o.grid_dir };
@@ -451,7 +470,7 @@ int run(const Options &o)
         const double t_decode = since(t0);
 
         t0 = Clock::now();
-        estimator.estimate(batch, { depth.data(), normals.data(), confidence.data() });
+        estimator->estimate(batch, { depth.data(), normals.data(), confidence.data() });
         const double t_dense = since(t0);
         t0                   = Clock::now();
         std::size_t gated    = 0;

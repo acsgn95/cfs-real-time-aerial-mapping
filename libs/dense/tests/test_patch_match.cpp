@@ -10,6 +10,7 @@
 #include <gtest/gtest.h>
 
 #include "orthostream/dense/patch_match.hpp"
+#include "orthostream/dense/sgbm.hpp"
 
 #ifdef OST_DENSE_TEST_CUDA
 #include <cuda_runtime_api.h>
@@ -178,6 +179,91 @@ TEST(PatchMatch, RecoversASlopedPlane)
     EXPECT_GT(static_cast<double>(valid) / total, 0.8);
     EXPECT_LT(median, 0.005);  // 0.5 % of the depth, 0.5 m at 100 m
     (void)max_normal_angle;
+}
+
+// The sloped plane seen by the reference camera and one source camera.
+struct PlaneScene
+{
+    DepthBatch                             batch;
+    std::vector<std::vector<std::uint8_t>> images;
+};
+
+PlaneScene planeScene(const std::vector<Eigen::Vector3d> &source_centres)
+{
+    const geo::CameraModel cam = testCamera();
+    PlaneScene             s;
+    s.batch.camera          = cam;
+    s.batch.depth_min       = 50.0;
+    s.batch.depth_max       = 200.0;
+    s.batch.reference.T_L_C = nadirPose({ 0.0, 0.0, 100.0 });
+    s.images.push_back(render(cam, s.batch.reference.T_L_C));
+    for (const Eigen::Vector3d &c : source_centres)
+    {
+        BatchView v;
+        v.T_L_C = nadirPose(c);
+        s.images.push_back(render(cam, v.T_L_C));
+        s.batch.sources.push_back(v);
+    }
+    s.batch.reference.image = { s.images[0].data(), static_cast<std::size_t>(cam.width) };
+    for (std::size_t i = 0; i < s.batch.sources.size(); ++i)
+    {
+        s.batch.sources[i].image = { s.images[i + 1].data(), static_cast<std::size_t>(cam.width) };
+    }
+    return s;
+}
+
+// Valid fraction and median relative error in the central region.
+std::pair<double, double> centralError(const DepthBatch &batch, const std::vector<float> &depth)
+{
+    const geo::CameraModel &cam = batch.camera;
+    std::vector<double>     rel;
+    int                     total = 0;
+    for (int v = 40; v < cam.height - 40; ++v)
+    {
+        for (int u = 60; u < cam.width - 60; ++u)
+        {
+            ++total;
+            const float d = depth[static_cast<std::size_t>(v) * cam.width + u];
+            if (d > 0.0f)
+            {
+                const double expected = planeDepth(cam, batch.reference.T_L_C, u, v);
+                rel.push_back(std::abs(d - expected) / expected);
+            }
+        }
+    }
+    if (rel.empty())
+    {
+        return { 0.0, 1.0 };
+    }
+    std::nth_element(rel.begin(), rel.begin() + static_cast<std::ptrdiff_t>(rel.size() / 2), rel.end());
+    return { static_cast<double>(rel.size()) / total, rel[rel.size() / 2] };
+}
+
+TEST(Sgbm, RecoversASlopedPlaneInEveryBaselineDirection)
+{
+    // Horizontal and vertical epipolar lines, with the source on either side.
+    for (const Eigen::Vector3d c : { Eigen::Vector3d(20, 0, 100), Eigen::Vector3d(-20, 0, 100),
+                                     Eigen::Vector3d(0, 20, 100), Eigen::Vector3d(0, -20, 100) })
+    {
+        PlaneScene         s = planeScene({ c });
+        const std::size_t  n = 320 * 240;
+        std::vector<float> depth(n), normals(3 * n), confidence(n);
+        SgbmEstimator      sgbm;
+        sgbm.estimate(s.batch, { depth.data(), normals.data(), confidence.data() });
+        const auto [valid, median] = centralError(s.batch, depth);
+        EXPECT_GT(valid, 0.7) << c.transpose();
+        EXPECT_LT(median, 0.01) << c.transpose();  // 1 % of the depth, 1 m at 100 m
+    }
+}
+
+TEST(Sgbm, ChoosesTheSourceClosestToTheTargetBaseline)
+{
+    // Mid depth 125 m: baseline ratios 0.08, 0.24 and 0.48.
+    PlaneScene    s = planeScene({ Eigen::Vector3d(10, 0, 100), Eigen::Vector3d(0, 30, 100),
+                                   Eigen::Vector3d(60, 0, 100) });
+    SgbmEstimator sgbm;
+    EXPECT_EQ(sgbm.chooseSource(s.batch), 1u);
+    EXPECT_THROW(SgbmEstimator(SgbmConfig { 0.2, 4 }), DenseError);  // even block size
 }
 
 TEST(DepthBatch, RejectsInvalidBatches)
