@@ -1,5 +1,7 @@
 #include "orthostream/map_products/dsm.hpp"
 
+#include "depth_points.hpp"
+
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -119,56 +121,18 @@ const DsmTile *DsmFusion::tile(const TileId &id) const
 FusionStats DsmFusion::addDepthMap(const DepthMapView &map, const geo::CameraModel &camera,
                                    const Eigen::Isometry3d &T_E_C)
 {
-    if (map.depth == nullptr || map.confidence == nullptr || camera.width <= 0 || camera.height <= 0)
-    {
-        throw MapProductsError("invalid depth map");
-    }
-    const int    w = camera.width, h = camera.height;
-    const double fx = camera.fx, fy = camera.fy, cx = camera.cx, cy = camera.cy;
-    auto         valid = [&](std::size_t i)
-    { return map.depth[i] > 0.0f && map.confidence[i] > 0.0f && map.confidence[i] >= config_.min_confidence; };
-    auto point = [&](int u, int v, double d) -> Eigen::Vector3d
-    { return T_E_C * Eigen::Vector3d(d * (u - cx) / fx, d * (v - cy) / fy, d); };
-
-    // First pass: extent of the points, for the interpolation grid.
-    FusionStats      stats;
-    Eigen::AlignedBox3d box;
-    for (int v = 0; v < h; ++v)
-    {
-        for (int u = 0; u < w; ++u)
-        {
-            const std::size_t i = static_cast<std::size_t>(v) * w + u;
-            if (valid(i))
-            {
-                box.extend(point(u, v, map.depth[i]));
-                ++stats.points;
-            }
-        }
-    }
-    if (stats.points == 0)
-    {
-        return stats;
-    }
-    const InterpolatedTransform to_P([this](const Eigen::Vector3d &p) { return frame_.fromEcef(p); }, box);
-
-    // Second pass: fuse.
     const double     T    = tileSize(config_.grid);
     const double     cs   = config_.grid.cell_size;
     const int        n    = config_.grid.tile_cells;
     DsmTile         *tile = nullptr;
     std::set<TileId> touched;
-    for (int v = 0; v < h; ++v)
-    {
-        for (int u = 0; u < w; ++u)
+    FusionStats      stats;
+    stats.points = detail::forEachDepthPoint(
+        map, camera, T_E_C, frame_, config_.min_confidence,
+        [&](std::size_t i, const Eigen::Vector3d &, const Eigen::Vector3d &p)
         {
-            const std::size_t i = static_cast<std::size_t>(v) * w + u;
-            if (!valid(i))
-            {
-                continue;
-            }
-            const Eigen::Vector3d p = to_P(point(u, v, map.depth[i]));
             stats.extent.extend(p.head<2>());
-            const TileId          id { static_cast<std::int64_t>(std::floor(p.x() / T)),
+            const TileId id { static_cast<std::int64_t>(std::floor(p.x() / T)),
                               static_cast<std::int64_t>(std::floor(p.y() / T)) };
             if (tile == nullptr || !(tile->id() == id))
             {
@@ -185,8 +149,7 @@ FusionStats DsmFusion::addDepthMap(const DepthMapView &map, const geo::CameraMod
             {
                 ++stats.rejected;
             }
-        }
-    }
+        });
     stats.tiles.assign(touched.begin(), touched.end());
     return stats;
 }

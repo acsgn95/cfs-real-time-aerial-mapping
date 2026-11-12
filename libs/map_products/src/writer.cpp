@@ -11,27 +11,14 @@
 #include <gdal_utils.h>
 #include <ogr_srs_api.h>
 
+#include "vertical_datum.hpp"
+
 namespace orthostream::map_products
 {
 namespace
 {
 
 namespace fs = std::filesystem;
-
-constexpr int kOffsetNodes = 9;  // per tile side, for the vertical datum offset
-
-std::string compoundCrs(const std::string &projected, const std::string &vertical)
-{
-    if (vertical.empty())
-    {
-        return projected;
-    }
-    if (vertical.rfind("EPSG:", 0) != 0 || projected.rfind("EPSG:", 0) != 0)
-    {
-        throw MapProductsError("projected and vertical CRS must be given as EPSG:<code>");
-    }
-    return projected + "+" + vertical.substr(5);
-}
 
 // Registers GDAL, points its PROJ context at proj.db and returns the WKT
 // of a CRS.
@@ -155,22 +142,14 @@ std::string tileName(const char *prefix, const TileId &id)
 
 struct DsmWriter::Impl
 {
-    DsmWriterConfig                      config;
-    const ProductFrame                  &frame;
-    std::unique_ptr<geo::CrsTransformer> to_output;  // only with a vertical CRS
-    std::string                          wkt;
-    std::set<std::string>                written;
+    DsmWriterConfig       config;
+    detail::VerticalDatum datum;
+    std::string           wkt;
+    std::set<std::string> written;
 
-    Impl(const DsmWriterConfig &c, const ProductFrame &f) : config(c), frame(f) {}
-
-    // Output height minus ellipsoidal height at a point of P.
-    double verticalOffset(double e, double n, double h) const
+    Impl(const DsmWriterConfig &c, const ProductFrame &f)
+        : config(c), datum(f, c.projected_crs, c.vertical_crs, c.proj_data_dir, c.grid_dirs)
     {
-        if (!to_output)
-        {
-            return 0.0;
-        }
-        return to_output->forward(frame.toEcef({ e, n, h })).z() - h;
     }
 };
 
@@ -181,13 +160,7 @@ DsmWriter::DsmWriter(const DsmWriterConfig &config, const ProductFrame &frame)
     {
         throw MapProductsError("DSM writer needs a directory and a CRS");
     }
-    const std::string crs = compoundCrs(config.projected_crs, config.vertical_crs);
-    impl_->wkt            = prepareGdal(crs, config.proj_data_dir);
-    if (!config.vertical_crs.empty())
-    {
-        impl_->to_output =
-            std::make_unique<geo::CrsTransformer>("EPSG:4978", crs, config.proj_data_dir, config.grid_dirs);
-    }
+    impl_->wkt = prepareGdal(impl_->datum.crs(), config.proj_data_dir);
     fs::create_directories(fs::path(config.directory) / "dsm");
 }
 
@@ -206,25 +179,7 @@ std::string DsmWriter::write(const DsmTile &tile)
     const double n0 = tile.originNorthing();
     const double h0 = tile.referenceHeight();
 
-    // Vertical offset on a coarse grid of the tile; the geoid is smooth.
-    std::array<double, kOffsetNodes * kOffsetNodes> offset {};
-    const double                                    step = n * cs / (kOffsetNodes - 1);
-    for (int j = 0; j < kOffsetNodes; ++j)
-    {
-        for (int i = 0; i < kOffsetNodes; ++i)
-        {
-            offset[static_cast<std::size_t>(j * kOffsetNodes + i)] =
-                impl_->verticalOffset(e0 + i * step, n0 - j * step, h0);
-        }
-    }
-    auto offset_at = [&](double fi, double fj)
-    {
-        const int    i  = std::min(static_cast<int>(fi), kOffsetNodes - 2);
-        const int    j  = std::min(static_cast<int>(fj), kOffsetNodes - 2);
-        const double ti = fi - i, tj = fj - j;
-        auto         o  = [&](int a, int b) { return offset[static_cast<std::size_t>(b * kOffsetNodes + a)]; };
-        return (1 - tj) * ((1 - ti) * o(i, j) + ti * o(i + 1, j)) + tj * ((1 - ti) * o(i, j + 1) + ti * o(i + 1, j + 1));
-    };
+    const detail::OffsetGrid offset = impl_->datum.offsets(e0, n0, n * cs, h0);
 
     const std::size_t  cells = static_cast<std::size_t>(n) * n;
     std::vector<float> height(cells, kNoData), variance(cells, kNoData);
@@ -235,7 +190,7 @@ std::string DsmWriter::write(const DsmTile &tile)
             if (const std::optional<double> h = tile.height(c, r))
             {
                 const std::size_t k = tile.index(c, r);
-                height[k]   = static_cast<float>(*h + offset_at((c + 0.5) * cs / step, (r + 0.5) * cs / step));
+                height[k]   = static_cast<float>(*h + offset.at(e0 + (c + 0.5) * cs, n0 - (r + 0.5) * cs));
                 variance[k] = static_cast<float>(*tile.variance(c, r));
             }
         }

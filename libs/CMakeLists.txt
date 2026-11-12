@@ -12,6 +12,7 @@ project(OrthoStreamLibs
     LANGUAGES C CXX)
 
 include(CTest)
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
