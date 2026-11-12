@@ -5,7 +5,8 @@
 * Decided by: Ahmet Coşgun
 * Backlog item: D18
 * Revised: 2026-11-11 (latency limit of 120 s with refinement; refinement
-  waits for the next flight line)
+  waits for the next flight line); 2026-11-13 (shared boresight variable,
+  feature candidates, implementation notes and first results in section 8)
 * Evidence: ADR-001 section 1b (recorded attitude about 1.5° from the
   adjusted attitude, about 195 px in the image); ADR-003 section 4 (pose
   sets); ADR-010 (GTSAM 4.3.0 as the optional vcpkg feature `refine`, built
@@ -98,6 +99,11 @@ GNSS-aided visual SLAM without loop closure.
      attitude accuracy.
    * `precise_position = false`: positions and attitudes are variables, with
      priors weighted by the reported accuracy fields (ADR-016).
+   * A shared boresight rotation D, one variable for all images: the
+     camera of image i is C_i * D, with C_i its pose variable. D absorbs the
+     misalignment of the camera mounting, which is common to the flight and
+     not random per image (about 1.3° on Dorfberg). Its prior is identity
+     with a loose rotation sigma; its translation is held at zero.
 4. **Waiting for later images.** A survey block is stiffest when images of
    the neighbouring flight line tie into it. `REFINE_APP` therefore holds a
    batch until the footprint of its keyframe is covered by images of the
@@ -175,6 +181,38 @@ not compete with PatchMatch for GPU memory (ADR-002, ADR-005).
 * The waiting of section 3 is compared with no waiting (causal refinement):
   accuracy against latency.
 
+### 8. Implementation notes and first results (2026-11-13)
+
+* Library `libs/refine` (`ORTHOSTREAM_WITH_REFINE`): a feature extractor
+  interface with SIFT as the first implementation, pair matching (ratio
+  test 0.8, essential-matrix RANSAC on normalised coordinates), tracks by
+  union-find, and the adjustment with GTSAM expression factors, Huber loss
+  and Levenberg–Marquardt, solved twice (outliers above 4 px removed in
+  between). The checks of section 5 are implemented. The C interface and
+  the sliding window follow with `REFINE_APP`.
+* OpenCV's SIFT shifts keypoints by +0.25 px in x and y with its default
+  upscaling of the first octave. Images of opposite flight lines are turned
+  by 180°, so their tie points disagree by 0.5 px and the adjustment turns
+  the cameras by about 0.065° (found with a rendered test scene). The
+  extractor uses OpenCV's precise upscaling; the error drops to 0.002°.
+* `tools/refine_poses` runs block mode: all batches of a block of
+  keyframes in one adjustment. It is the upper bound of what the sliding
+  window can reach and writes a pose file for `offline_pipeline`.
+* First result, Dorfberg non-optimized poses, keyframes 0 to 40 (86 images,
+  400 pairs, 30 000 tie points, `precise_position = true`):
+
+  | Poses against Metashape | Attitude median | 95 % | Max | Reprojection RMS |
+  | --- | --- | --- | --- | --- |
+  | recorded (prior) | 1.51° | 2.47° | 3.32° | 73.8 px |
+  | refined | 0.014° | 0.026° | 0.032° | 0.24 px |
+
+  The boresight came out at 1.27°. The positions keep the antenna lever arm
+  (0.39 m vertical against Metashape), which refinement must not and does
+  not remove; it is a calibration value of the aircraft. Time: features
+  16 s, matching 2.4 s, adjustment 101 s on the CPU for the whole block,
+  too slow for the keyframe interval; the window and the number of points
+  must be bounded.
+
 ## Rationale
 
 * Two values match the two situations an operator actually has: poses that
@@ -247,5 +285,10 @@ not compete with PatchMatch for GPU memory (ADR-002, ADR-005).
 
 ## Open Questions
 
-* Which features to use (SIFT or ORB): decided by the benchmark.
+* Which features to use: decided by the benchmark. Candidates: SIFT
+  (implemented), ORB, and the learned XFeat (Potje et al., CVPR 2024), which
+  is reported faster and more robust than SIFT; XFeat needs a neural network
+  runtime (for example ONNX Runtime), a new dependency to be approved.
+* Run time of the adjustment (section 8): the sliding window must fit the
+  keyframe interval on average.
 * The values of the failure checks of section 5: set from the benchmark.
