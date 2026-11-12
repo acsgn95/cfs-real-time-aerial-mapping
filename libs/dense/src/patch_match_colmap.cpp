@@ -32,6 +32,7 @@ colmap::mvs::PatchMatchOptions toColmap(const PatchMatchConfig &c, const DepthBa
     o.depth_min                      = batch.depth_min;
     o.depth_max                      = batch.depth_max;
     o.window_radius                  = c.window_radius;
+    o.window_step                    = c.window_step;
     o.num_samples                    = c.num_samples;
     o.ncc_sigma                      = c.ncc_sigma;
     o.min_triangulation_angle        = c.min_triangulation_angle_deg;
@@ -87,7 +88,8 @@ PatchMatchEstimator::PatchMatchEstimator(const PatchMatchConfig &config) : confi
     {
         throw DenseError("geometric consistency is not implemented yet");
     }
-    if (config.gpu_index < 0 || config.num_iterations <= 0 || config.window_radius <= 0 || config.num_samples <= 0)
+    if (config.gpu_index < 0 || config.num_iterations <= 0 || config.window_radius <= 0 || config.num_samples <= 0
+        || (config.window_step != 1 && config.window_step != 2))
     {
         throw DenseError("invalid PatchMatch configuration");
     }

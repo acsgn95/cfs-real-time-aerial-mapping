@@ -16,6 +16,9 @@ struct PatchMatchConfig
     int    gpu_index                      = 0;
     int    num_iterations                 = 5;
     int    window_radius                  = 5;
+    /// NCC uses every n-th row and column of the window (1 or 2); 2 is
+    /// about four times faster.
+    int    window_step                    = 1;
     int    num_samples                    = 15;
     double ncc_sigma                      = 0.6;
     double min_triangulation_angle_deg    = 1.0;

@@ -57,6 +57,9 @@ struct Options
     int                      width        = 2048;
     int                      sources      = 5;
     int                      iterations   = 5;
+    int                      window_radius = 5;
+    int                      window_step   = 1;
+    int                      samples       = 15;
     int                      count        = 20;
     int                      eval_stride  = 2;
     int                      gpu          = 0;
@@ -78,6 +81,9 @@ const char *kUsage = R"(usage: dense_benchmark --poses FILE --images DIR --dsm F
   --width N             dense working width in pixels (default 2048)
   --sources K           source views per keyframe (default 5)
   --iterations N        PatchMatch iterations (default 5)
+  --window-radius N     PatchMatch NCC half window (default 5)
+  --window-step N       PatchMatch NCC window step, 1 or 2 (default 1)
+  --samples N           PatchMatch Monte Carlo samples for view selection (default 15)
   --mode causal|delayed source views from images before the keyframe, or also
                         up to the next keyframe (default causal)
   --count N             keyframes, evenly spread over the flight (default 20)
@@ -121,6 +127,9 @@ Options parseOptions(int argc, char **argv)
         else if (a == "--width") o.width = std::stoi(value());
         else if (a == "--sources") o.sources = std::stoi(value());
         else if (a == "--iterations") o.iterations = std::stoi(value());
+        else if (a == "--window-radius") o.window_radius = std::stoi(value());
+        else if (a == "--window-step") o.window_step = std::stoi(value());
+        else if (a == "--samples") o.samples = std::stoi(value());
         else if (a == "--count") o.count = std::stoi(value());
         else if (a == "--keyframe") o.keyframes.push_back(value());
         else if (a == "--target-overlap") o.target_overlap = std::stod(value());
@@ -266,6 +275,9 @@ public:
             dense::PatchMatchConfig config;
             config.gpu_index      = o.gpu;
             config.num_iterations = o.iterations;
+            config.window_radius  = o.window_radius;
+            config.window_step    = o.window_step;
+            config.num_samples    = o.samples;
             estimator_            = std::make_unique<dense::PatchMatchEstimator>(config);
         }
     }
@@ -293,7 +305,7 @@ public:
         {
             throw std::runtime_error("cannot write " + o_.out);
         }
-        csv << "image,index,flight_line,mode,method,width,height,iterations,sources,other_line_sources,source_images,"
+        csv << "image,index,flight_line,mode,method,width,height,iterations,window_radius,window_step,samples,sources,other_line_sources,source_images,"
                "depth_min,depth_max,decode_ms_mean,decoded_images,dense_s,gpu_process_peak_mb,gpu_device_peak_mb,"
                "gpu_device_baseline_mb,valid_fraction,eval_points,mean,median,mae,rmse,nmad,p95_abs,within_05,"
                "within_1,warmup,status\n";
@@ -673,7 +685,8 @@ private:
         const bench::ErrorStats &s = result.errors;
         csv << ref.name << ',' << k << ',' << views_[k].flight_line << ',' << (o_.delayed ? "delayed" : "causal") << ','
             << (o_.dry_run ? "dsm_render" : "patchmatch") << ',' << wcam_.width << ',' << wcam_.height << ','
-            << o_.iterations << ',' << sources.size() << ',' << other_line << ',' << source_names << ','
+            << o_.iterations << ',' << o_.window_radius << ',' << o_.window_step << ',' << o_.samples << ','
+            << sources.size() << ',' << other_line << ',' << source_names << ','
             << range.first << ',' << range.second << ',' << (decoded > 0 ? decode_ms / decoded : 0.0) << ','
             << decoded << ',' << result.dense_s << ',' << result.gpu.process_peak_mb << ','
             << result.gpu.device_peak_mb << ',' << result.gpu.device_baseline_mb << ',' << result.valid_fraction

@@ -101,6 +101,7 @@ Dorfberg flight with `optimized` poses.
 | Source views K | 4, 8 |
 | Geometric consistency | off, on |
 | PatchMatch iterations | 3, 5 |
+| NCC window radius | 3, 5 (added after the first results, section 6a) |
 | Processing mode | causal, delayed |
 | Method | PatchMatch, SGBM baseline |
 
@@ -122,6 +123,48 @@ GPU memory, so that ADR-001 R1 and R2 can hold.
 
 If none of these meets the acceptance criterion, a new record revisits the
 method, for example by making SGBM the primary method.
+
+### 6a. First results (2026-11-12)
+
+Two speed sweeps with `tools/dense_benchmark` on Dorfberg, `optimized`
+poses, causal mode, Copernicus terrain prior, release build, RTX 3050 Laptop
+on mains power. The second sweep uses the same six keyframes (00017, 00024,
+00208, 00211, 00386, 00585) for every configuration; one warm-up batch is
+not counted. Accuracy is the height difference to the reference DSM;
+geometric consistency is not implemented yet. Results are in
+`results/raw/dense_benchmark/sweep*`.
+
+| Width | K | Iter. | Window radius | Window step | Samples | Time mean / max | NMAD (median of keyframes) | Valid pixels |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 2048 | 5 | 5 | 5 | 1 | 15 | 16.2 / 16.7 s | 0.60 m | 55 % |
+| 2048 | 5 | 3 | 5 | 1 | 7 | 5.5 / 5.8 s | 0.58 m | 56 % |
+| 2048 | 5 | 3 | 5 | 2 | 7 | 2.4 / 2.5 s | 33.7 m | 49 % |
+| 2048 | 5 | 3 | 3 | 1 | 7 | 2.4 / 2.5 s | 0.56 m | 55 % |
+| 2048 | 4 | 3 | 3 | 1 | 7 | 2.2 / 2.2 s | 0.40 m | 37 % |
+| 1536 | 5 | 3 | 3 | 1 | 7 | 1.5 / 1.6 s | 0.67 m | 61 % |
+
+The first row is from the first sweep (other keyframes); the others are from
+the second sweep.
+
+* With COLMAP's default settings a keyframe takes about 16 s, five times
+  the 2.9 s budget. The GPU runs at full load (100 %, 1950 MHz, about
+  60 W, no throttling); peak GPU memory is 0.6 GB.
+* The fallback order of section 6 alone does not reach the budget. The
+  window radius does: radius 3 instead of 5 halves the time with no loss of
+  accuracy on this data.
+* A window step of 2 (every second row and column of the window) reaches
+  the budget but ruins the depth of most keyframes (NMAD of tens of
+  metres); it is not used.
+* Fewer source views give more accurate but less complete depth maps.
+* Large outliers remain after photometric filtering: the RMSE is tens of
+  metres while the NMAD is below a metre. Geometric consistency or stricter
+  filtering is needed (open question below).
+* The last keyframe of the flight (00754), with only one consecutive source,
+  fails in every configuration.
+
+Candidate for the default: 2048 px, K = 5, 3 iterations, window radius 3,
+window step 1, 7 samples: 2.4 s per keyframe, about 17 % below the budget.
+To be confirmed with the full matrix and the end-to-end run.
 
 ### 7. Integration constraints
 
@@ -191,7 +234,8 @@ method, for example by making SGBM the primary method.
 
 ## Open Questions
 
-* Final parameter values: from the benchmark of section 6.
+* Final parameter values: from the benchmark of section 6; section 6a gives
+  the candidate.
 * Causal or delayed mode as the default: from the benchmark.
 * Does COLMAP build with CUDA 13.1?
   * Resolved 2026-11-11: yes, from the vcpkg port (ADR-010), so section 7's
