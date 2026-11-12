@@ -61,7 +61,7 @@ struct Options
     int         window_radius = 3;
     int         window_step   = 1;
     int         samples       = 7;
-    double      filter_min_ncc        = 0.1;
+    double      filter_min_ncc        = 0.3;
     int         filter_min_consistent = 2;
     double      filter_min_angle      = 3.0;
     double      dsm_cell      = 0.26;
@@ -74,7 +74,7 @@ struct Options
     std::size_t max_tiles     = 64;
     double      finalise_distance = 600.0;
     bool        points        = false;
-    bool        delayed       = false;
+    bool        delayed       = true;   // ADR-005 section 2
     bool        evaluate_only = false;
 };
 
@@ -92,12 +92,12 @@ const char *kUsage = R"(usage: offline_pipeline --poses FILE --images DIR --terr
   --width N               dense working width (default 2048)
   --sources K             source views (default 5)
   --mode causal|delayed   source views from images before the keyframe, or also up to the
-                          next keyframe (default causal; ADR-005 section 2)
+                          next keyframe (default delayed; ADR-005 section 2)
   --iterations N          PatchMatch iterations (default 3)
   --window-radius N       PatchMatch NCC half window (default 3)
   --window-step N         PatchMatch NCC window step, 1 or 2 (default 1)
   --samples N             PatchMatch view selection samples (default 7)
-  --filter-min-ncc F      photometric filter: minimum NCC (default 0.1)
+  --filter-min-ncc F      photometric filter: minimum NCC (default 0.3)
   --filter-min-consistent N  photometric filter: minimum consistent sources (default 2)
   --filter-min-angle D    photometric filter: minimum triangulation angle (default 3)
   --dsm-cell M            DSM cell size (default 0.26)

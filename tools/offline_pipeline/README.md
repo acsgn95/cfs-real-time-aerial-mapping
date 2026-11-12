@@ -49,7 +49,8 @@ enter the evaluation.
   mission the stages run in different applications and overlap; the sum of
   the stage times is therefore an upper bound of the latency, and the
   slowest stage bounds the throughput.
-* Source views are causal: only images captured before the keyframe.
-* Geometric consistency is not implemented yet (ADR-005); depth pixels are
-  filtered photometrically, so the DSM contains outliers that later
-  observations reject only partly.
+* Source views are delayed by default: images up to the next keyframe
+  (`--mode causal` for images before the keyframe only; ADR-005 section 2).
+* Geometric consistency is not implemented yet (ADR-005). Depth pixels are
+  filtered photometrically (minimum NCC 0.3, two consistent sources) and by
+  the terrain gate (30 m from the terrain prior).

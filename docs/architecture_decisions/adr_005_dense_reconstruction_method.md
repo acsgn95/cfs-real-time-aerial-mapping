@@ -1,7 +1,7 @@
 # ADR-005: Dense Reconstruction Method
 
-* Status: Accepted; parameter values provisional until the benchmark of
-  section 6; amended by
+* Status: Accepted; parameter values set by the benchmark of section 6a
+  (2026-11-12 and 2026-11-13); amended by
   [ADR-019](adr_019_pose_refinement.md) (optional pose refinement before dense
   reconstruction)
 * Date: 2026-11-10
@@ -22,8 +22,8 @@ consistency, and depth map fusion (Schönberger et al., 2016). AerialMapper,
 the reference for incremental map products, computes depth with two-view
 OpenCV SGBM on rectified image pairs and does not fuse views.
 
-ADR-001 leaves about 2.9 s per keyframe at the nominal point, with a 5 s
-latency target and a dense working resolution of about 2048 px width (2.8 MP). ADR-002 limits
+ADR-001 leaves about 2.9 s per keyframe at the nominal point, with a
+latency target of 5 s (causal) or 10 s (delayed processing) and a dense working resolution of about 2048 px width (2.8 MP). ADR-002 limits
 GPU memory to 5 GB on an RTX 3050 Laptop with CUDA 13.1.
 
 Poses are known (ADR-003), so neither structure from motion nor bundle
@@ -46,10 +46,11 @@ pose refinement before the dense stage is decided in ADR-019.
 * The JPEG input can be decoded directly at a reduced scale (ADR-001,
   section 1d) before final resampling to the working resolution.
 
-### 2. Causal processing
+### 2. Causal and delayed processing
 
-Processing is causal by default. When keyframe `k` is processed, only images
-received before it exist.
+Processing is delayed by default (changed from causal on 2026-11-13, after
+the benchmark of section 6a). In causal mode, when keyframe `k` is processed,
+only images received before it exist.
 
 * **Source views** are chosen among images already received, including
   images of neighbouring flight lines.
@@ -57,9 +58,14 @@ received before it exist.
   computed for its source keyframes. In a stream, these depth maps are
   available from earlier batches, so they do not need to be recomputed as in
   batch COLMAP.
-* **Delayed mode (option):** keyframe `k` waits for one more keyframe, so
+* **Delayed mode (default):** keyframe `k` waits for one more keyframe, so
   that images after it can also serve as sources. This adds one keyframe
-  interval of latency. The benchmark compares it with causal mode.
+  interval of latency (about 2.9 s at the nominal point); ADR-001 R2 allows
+  10 s for it. In causal mode the part of the keyframe ahead in the
+  direction of flight is seen by no consecutive image, only by one or two
+  images of the neighbouring line; there the photometric filter either
+  keeps noise or, when stricter, removes most of the half. Causal mode stays
+  available for uses that need the lower latency (R2: 5 s).
 
 ### 3. Depth fusion is part of map product generation
 
@@ -91,9 +97,11 @@ consistency and the processing mode are still open.
 | NCC window radius | 3 (7 × 7 pixels) | 5 (COLMAP default) |
 | NCC window step | 1 | 1 |
 | View selection samples | 7 | 15 (COLMAP default) |
+| Photometric filter: minimum NCC | 0.3 | 0.1 (COLMAP default) |
+| Photometric filter: minimum consistent sources | 2 | 2 |
 | Terrain gate | 30 m (section 5a) | none |
 | Geometric consistency | open (see open questions) | on |
-| Processing mode | causal | causal |
+| Processing mode | delayed (section 2) | causal |
 
 ### 5a. Terrain gate
 
@@ -209,6 +217,22 @@ DSM against the reference DSM:
 * Keyframes at the start of a flight line have at most one causal source
   view and produce no depth; the delayed mode addresses this.
 
+Photometric filter and processing mode, same 40 keyframes, terrain gate on
+(results in `test_outputs/offline_pipeline/filter_sweep` of the
+development machine):
+
+| Mode | Min. NCC | Min. consistent | Area | NMAD | RMSE | 95 % of abs. error | Within 1 m |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| causal | 0.1 | 2 | 0.386 km² | 0.285 m | 3.38 m | 2.96 m | 91.7 % |
+| causal | 0.5 | 2 | 0.358 km² | 0.266 m | 3.17 m | 2.03 m | 93.2 % |
+| causal | 0.3 | 3 | 0.296 km² | 0.288 m | 1.36 m | 0.76 m | 96.7 % |
+| delayed | 0.3 | 2 | 0.416 km² | 0.164 m | 1.35 m | 0.57 m | 97.2 % |
+| delayed | 0.3 | 3 | 0.367 km² | 0.196 m | 0.94 m | 0.58 m | 97.7 % |
+
+Delayed mode with a minimum NCC of 0.3 and two consistent sources covers
+the most area and nearly halves the NMAD; the dense time does not change
+(2.3–2.4 s). It became the default on 2026-11-13.
+
 ### 7. Integration constraints
 
 * COLMAP is built from source with CUDA 13.1, outside this repository as a
@@ -279,7 +303,8 @@ DSM against the reference DSM:
 
 * Final parameter values: from the benchmark of section 6; section 6a gives
   the candidate.
-* Causal or delayed mode as the default: from the benchmark.
+* Causal or delayed mode as the default.
+  * Resolved 2026-11-13: delayed (section 2), with R2 at 10 s.
 * Does COLMAP build with CUDA 13.1?
   * Resolved 2026-11-11: yes, from the vcpkg port (ADR-010), so section 7's
     out-of-repository build is not needed.

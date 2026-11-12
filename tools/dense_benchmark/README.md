@@ -40,7 +40,7 @@ build-libs/release/tools/dense_benchmark/dense_benchmark \
 
 | Option | Meaning |
 | --- | --- |
-| `--mode causal\|delayed` | source views only from images before the keyframe, or also up to the next keyframe (ADR-005 section 2) |
+| `--mode causal\|delayed` | source views only from images before the keyframe, or also up to the next keyframe (default delayed; ADR-005 section 2) |
 | `--keyframe NAME` | benchmark given keyframes instead of `--count` keyframes spread over the flight |
 | `--terrain-dem FILE` | terrain prior for footprints (default CRS `EPSG:4326+3855`, Copernicus with EGM2008 heights; `--terrain-crs` for others) |
 | `--dry-run` | no PatchMatch: the depth map is rendered from the DSM; checks poses, frames, selection and evaluation without a GPU (median and NMAD should be a few centimetres) |

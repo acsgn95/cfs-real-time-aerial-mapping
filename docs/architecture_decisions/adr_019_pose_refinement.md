@@ -145,12 +145,12 @@ not compete with PatchMatch for GPU memory (ADR-002, ADR-005).
   of ADR-015 section 3 applies, and loss still happens only at the input of
   `DENSE_APP`.
 * Latency: with `refine_pose = true`, map update latency may be much longer
-  than the 5 s target of ADR-001 R2, because refinement waits for later
+  than the target of ADR-001 R2 (10 s, or 5 s in causal mode), because refinement waits for later
   images. The latency limit is a table value, `refine_max_latency`, default
   120 s; the 95th percentile of the map update latency must stay below it.
   The waiting limit of section 3 is the latency limit minus the measured time
   of refinement and dense reconstruction. With `refine_pose = false`, R2
-  stays at 5 s.
+  keeps its target.
 * Throughput (ADR-001 R1) is unchanged: on average, refinement of a batch
   must take less than the keyframe interval (2.9 s at the nominal point), or
   the backlog grows. Refinement runs on the CPU while the GPU computes
@@ -231,7 +231,7 @@ not compete with PatchMatch for GPU memory (ADR-002, ADR-005).
 ## Impact
 
 * **ADR-001:** with `refine_pose = true`, R2 uses `refine_max_latency`
-  (default 120 s) instead of 5 s.
+  (default 120 s) instead of its default target.
 * **ADR-005:** dense reconstruction still uses no bundle adjustment of its
   own. Optional refinement before it comes from this record.
 * **ADR-011:** the library list gains `refine`.

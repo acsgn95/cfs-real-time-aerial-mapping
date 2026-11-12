@@ -27,7 +27,7 @@ struct PatchMatchConfig
     double min_triangulation_angle_deg    = 1.0;
     double incident_angle_sigma           = 0.9;
     bool   filter                         = true;
-    double filter_min_ncc                 = 0.1;
+    double filter_min_ncc                 = 0.3;  // ADR-005 section 5 (COLMAP default 0.1)
     double filter_min_triangulation_angle = 3.0;
     int    filter_min_num_consistent      = 2;
     /// Geometric consistency needs depth maps of all source views; not

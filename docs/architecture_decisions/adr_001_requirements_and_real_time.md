@@ -5,6 +5,7 @@
 * Decided by: Ahmet Coşgun
 * Backlog item: D01
 * Revised: 2026-11-11 (dense working resolution given as image width; 2048 × 1366 is 2.8 MP)
+* Revised: 2026-11-13 (R2: 10 s with the delayed processing of ADR-005, 5 s in causal mode)
 * Evidence: thesis proposal (FB_YL-01, 2026-10-05) sections 4.2 and 4.3;
   Dorfberg Flight 01 dataset (WingtraHub processing report, Agisoft Metashape
   processing report of 2020-11-10, geotags); footprint, GSD and image-rate
@@ -151,7 +152,12 @@ claimed. A run is real time when all of the following hold:
   the keyframe interval.
 * **R2 Bounded latency.** Map update latency is measured from the image
   timestamp to the moment every map tile that the image affects has been
-  updated. Target: 95th percentile at most 5 s at the nominal point.
+  updated. Target: 95th percentile at most 10 s at the nominal point with
+  the default delayed processing of ADR-005 (a keyframe waits for the next
+  one, about 2.9 s, to use later images as sources), and at most 5 s in
+  causal mode. Delayed processing was chosen after the benchmark: it covers
+  more area with about half the height error (ADR-005 section 6a). With
+  pose refinement the limit is configurable (ADR-019).
 * **R3 No uncontrolled loss.** Input images inside the envelope are always
   ingested. When the dense stage is overloaded, keyframes are skipped only
   through the policy defined in D14. Every skipped keyframe is counted and
@@ -198,8 +204,8 @@ orthomosaic.
   camera calibration, real timing and independent ground control points.
 * Defining real time on keyframes instead of input images avoids spending
   dense reconstruction time on redundant images. At the nominal point this
-  leaves about 2.9 s per keyframe, which is consistent with the 5 s latency
-  target.
+  leaves about 2.9 s per keyframe, which is consistent with the latency
+  targets of R2.
 * A memory bound instead of an area bound keeps the system usable for long
   flights and matches tiled, incremental map generation.
 * Product resolutions tied to the source GSD stay meaningful across the

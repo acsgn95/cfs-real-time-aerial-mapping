@@ -64,7 +64,7 @@ struct Options
     int                      window_radius = 3;
     int                      window_step   = 1;
     int                      samples       = 7;
-    double                   filter_min_ncc        = 0.1;
+    double                   filter_min_ncc        = 0.3;
     int                      filter_min_consistent = 2;
     double                   filter_min_angle      = 3.0;
     int                      count        = 20;
@@ -73,7 +73,7 @@ struct Options
     double                   nominal_agl  = 250.0;
     double                   depth_margin = 50.0;
     double                   target_overlap = 0.7;
-    bool                     delayed      = false;
+    bool                     delayed      = true;  // ADR-005 section 2
     bool                     dry_run      = false;
     bool                     warmup       = true;
 };
@@ -91,11 +91,11 @@ const char *kUsage = R"(usage: dense_benchmark --poses FILE --images DIR --dsm F
   --window-radius N     PatchMatch NCC half window (default 3)
   --window-step N       PatchMatch NCC window step, 1 or 2 (default 1)
   --samples N           PatchMatch Monte Carlo samples for view selection (default 7)
-  --filter-min-ncc F    photometric filter: minimum NCC (default 0.1)
+  --filter-min-ncc F    photometric filter: minimum NCC (default 0.3)
   --filter-min-consistent N  photometric filter: minimum consistent sources (default 2)
   --filter-min-angle D  photometric filter: minimum triangulation angle (default 3)
   --mode causal|delayed source views from images before the keyframe, or also
-                        up to the next keyframe (default causal)
+                        up to the next keyframe (default delayed)
   --count N             keyframes, evenly spread over the flight (default 20)
   --keyframe NAME       a given keyframe instead (repeatable)
   --target-overlap F    forward overlap between keyframes (default 0.7)
