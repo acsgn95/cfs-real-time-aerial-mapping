@@ -1,0 +1,25 @@
+/*
+ * Version of the ost_common library.
+ */
+#ifndef OST_COMMON_VERSION_H
+#define OST_COMMON_VERSION_H
+
+#define OST_COMMON_BUILD_NUMBER   1
+#define OST_COMMON_BUILD_BASELINE "v0.1.0"
+#define OST_COMMON_BUILD_CODENAME "OrthoStream"
+
+#define OST_COMMON_MAJOR_VERSION 0
+#define OST_COMMON_MINOR_VERSION 1
+#define OST_COMMON_REVISION      0
+
+/* Last official release; 0 until the first release. */
+#define OST_COMMON_LAST_OFFICIAL "v0.1.0"
+
+#define OST_COMMON_STR_HELPER(x) #x
+#define OST_COMMON_STR(x)        OST_COMMON_STR_HELPER(x)
+
+#define OST_COMMON_VERSION OST_COMMON_BUILD_BASELINE "+dev" OST_COMMON_STR(OST_COMMON_BUILD_NUMBER)
+
+#define OST_COMMON_MAX_VERSION_STR_LEN 256
+
+#endif /* OST_COMMON_VERSION_H */

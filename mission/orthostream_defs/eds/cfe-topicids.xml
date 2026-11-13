@@ -115,5 +115,64 @@
     <Define name="SAMPLE_APP_HK_TLM_TOPICID"     value="${CFE_MISSION/TELEMETRY_BASE_TOPICID} + 131"/>
     <Define name="CI_LAB_HK_TLM_TOPICID"         value="${CFE_MISSION/TELEMETRY_BASE_TOPICID} + 132"/>
 
+
+    <!--
+        OrthoStream topic identifiers (ADR-016 section 1, ADR-020 section 1).
+        Each application has a block of 16 in the command range and the same
+        block in the telemetry range:
+          INGEST_APP 32, ALIGN_APP 48, SELECT_APP 64, REFINE_APP 80,
+          DENSE_APP 96, GEOREF_APP 112, MAPPROD_APP 144, RECORDER_APP 160,
+          OST (shared topics of ost_common) 176.
+        128-143 belongs to the lab and sample applications above.
+        Commands: +0 command, +1 housekeeping request, +2 1 Hz wake-up.
+        Telemetry: +0 housekeeping, then the data path messages.
+        A host mission assigns its own values.
+    -->
+    <Define name="INGEST_APP_CMD_TOPICID"            value="${CFE_MISSION/TELECOMMAND_BASE_TOPICID} + 032"/>
+    <Define name="INGEST_APP_SEND_HK_TOPICID"        value="${CFE_MISSION/TELECOMMAND_BASE_TOPICID} + 033"/>
+    <Define name="INGEST_APP_WAKEUP_TOPICID"         value="${CFE_MISSION/TELECOMMAND_BASE_TOPICID} + 034"/>
+    <Define name="ALIGN_APP_CMD_TOPICID"             value="${CFE_MISSION/TELECOMMAND_BASE_TOPICID} + 048"/>
+    <Define name="ALIGN_APP_SEND_HK_TOPICID"         value="${CFE_MISSION/TELECOMMAND_BASE_TOPICID} + 049"/>
+    <Define name="ALIGN_APP_WAKEUP_TOPICID"          value="${CFE_MISSION/TELECOMMAND_BASE_TOPICID} + 050"/>
+    <Define name="SELECT_APP_CMD_TOPICID"            value="${CFE_MISSION/TELECOMMAND_BASE_TOPICID} + 064"/>
+    <Define name="SELECT_APP_SEND_HK_TOPICID"        value="${CFE_MISSION/TELECOMMAND_BASE_TOPICID} + 065"/>
+    <Define name="SELECT_APP_WAKEUP_TOPICID"         value="${CFE_MISSION/TELECOMMAND_BASE_TOPICID} + 066"/>
+    <Define name="REFINE_APP_CMD_TOPICID"            value="${CFE_MISSION/TELECOMMAND_BASE_TOPICID} + 080"/>
+    <Define name="REFINE_APP_SEND_HK_TOPICID"        value="${CFE_MISSION/TELECOMMAND_BASE_TOPICID} + 081"/>
+    <Define name="REFINE_APP_WAKEUP_TOPICID"         value="${CFE_MISSION/TELECOMMAND_BASE_TOPICID} + 082"/>
+    <Define name="DENSE_APP_CMD_TOPICID"             value="${CFE_MISSION/TELECOMMAND_BASE_TOPICID} + 096"/>
+    <Define name="DENSE_APP_SEND_HK_TOPICID"         value="${CFE_MISSION/TELECOMMAND_BASE_TOPICID} + 097"/>
+    <Define name="DENSE_APP_WAKEUP_TOPICID"          value="${CFE_MISSION/TELECOMMAND_BASE_TOPICID} + 098"/>
+    <Define name="GEOREF_APP_CMD_TOPICID"            value="${CFE_MISSION/TELECOMMAND_BASE_TOPICID} + 112"/>
+    <Define name="GEOREF_APP_SEND_HK_TOPICID"        value="${CFE_MISSION/TELECOMMAND_BASE_TOPICID} + 113"/>
+    <Define name="GEOREF_APP_WAKEUP_TOPICID"         value="${CFE_MISSION/TELECOMMAND_BASE_TOPICID} + 114"/>
+    <Define name="MAPPROD_APP_CMD_TOPICID"           value="${CFE_MISSION/TELECOMMAND_BASE_TOPICID} + 144"/>
+    <Define name="MAPPROD_APP_SEND_HK_TOPICID"       value="${CFE_MISSION/TELECOMMAND_BASE_TOPICID} + 145"/>
+    <Define name="MAPPROD_APP_WAKEUP_TOPICID"        value="${CFE_MISSION/TELECOMMAND_BASE_TOPICID} + 146"/>
+    <Define name="RECORDER_APP_CMD_TOPICID"          value="${CFE_MISSION/TELECOMMAND_BASE_TOPICID} + 160"/>
+    <Define name="RECORDER_APP_SEND_HK_TOPICID"      value="${CFE_MISSION/TELECOMMAND_BASE_TOPICID} + 161"/>
+    <Define name="RECORDER_APP_WAKEUP_TOPICID"       value="${CFE_MISSION/TELECOMMAND_BASE_TOPICID} + 162"/>
+
+    <Define name="INGEST_APP_HK_TLM_TOPICID"         value="${CFE_MISSION/TELEMETRY_BASE_TOPICID} + 032"/>
+    <Define name="INGEST_APP_TELEMETRY_SAMPLE_TLM_TOPICID" value="${CFE_MISSION/TELEMETRY_BASE_TOPICID} + 033"/>
+    <Define name="INGEST_APP_IMAGE_ARRIVED_TLM_TOPICID" value="${CFE_MISSION/TELEMETRY_BASE_TOPICID} + 034"/>
+    <Define name="INGEST_APP_SESSION_CALIBRATION_TLM_TOPICID" value="${CFE_MISSION/TELEMETRY_BASE_TOPICID} + 035"/>
+    <Define name="ALIGN_APP_HK_TLM_TOPICID"          value="${CFE_MISSION/TELEMETRY_BASE_TOPICID} + 048"/>
+    <Define name="ALIGN_APP_IMAGE_POSE_TLM_TOPICID"  value="${CFE_MISSION/TELEMETRY_BASE_TOPICID} + 049"/>
+    <Define name="SELECT_APP_HK_TLM_TOPICID"         value="${CFE_MISSION/TELEMETRY_BASE_TOPICID} + 064"/>
+    <Define name="REFINE_APP_HK_TLM_TOPICID"         value="${CFE_MISSION/TELEMETRY_BASE_TOPICID} + 080"/>
+    <Define name="DENSE_APP_HK_TLM_TOPICID"          value="${CFE_MISSION/TELEMETRY_BASE_TOPICID} + 096"/>
+    <Define name="DENSE_APP_DEPTH_READY_TLM_TOPICID" value="${CFE_MISSION/TELEMETRY_BASE_TOPICID} + 097"/>
+    <Define name="DENSE_APP_DENSE_STATUS_TLM_TOPICID" value="${CFE_MISSION/TELEMETRY_BASE_TOPICID} + 098"/>
+    <Define name="GEOREF_APP_HK_TLM_TOPICID"         value="${CFE_MISSION/TELEMETRY_BASE_TOPICID} + 112"/>
+    <Define name="GEOREF_APP_POINTS_READY_TLM_TOPICID" value="${CFE_MISSION/TELEMETRY_BASE_TOPICID} + 113"/>
+    <Define name="MAPPROD_APP_HK_TLM_TOPICID"        value="${CFE_MISSION/TELEMETRY_BASE_TOPICID} + 144"/>
+    <Define name="MAPPROD_APP_TILE_UPDATED_TLM_TOPICID" value="${CFE_MISSION/TELEMETRY_BASE_TOPICID} + 145"/>
+    <Define name="MAPPROD_APP_TILE_PUBLISHED_TLM_TOPICID" value="${CFE_MISSION/TELEMETRY_BASE_TOPICID} + 146"/>
+    <Define name="RECORDER_APP_HK_TLM_TOPICID"       value="${CFE_MISSION/TELEMETRY_BASE_TOPICID} + 160"/>
+    <Define name="OST_FAULT_EVENT_TLM_TOPICID"       value="${CFE_MISSION/TELEMETRY_BASE_TOPICID} + 176"/>
+    <Define name="OST_BATCH_SELECTED_TLM_TOPICID"    value="${CFE_MISSION/TELEMETRY_BASE_TOPICID} + 177"/>
+    <Define name="OST_BATCH_READY_TLM_TOPICID"       value="${CFE_MISSION/TELEMETRY_BASE_TOPICID} + 178"/>
+
   </Package>
 </DesignParameters>

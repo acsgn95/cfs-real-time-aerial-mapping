@@ -2,6 +2,7 @@
 
 * Status: Accepted
 * Date: 2026-11-13
+* Revised: 2026-11-14 (shared interfaces implemented in `ost_common`; see below)
 * Decided by: Ahmet Coşgun
 * Backlog item: D21; completes D15 and D16
 * Evidence: EDS build of the reference mission on 2026-11-13 (below);
@@ -257,9 +258,73 @@ It is not visible to COSMOS.
   `TO_LAB` under `build/cosmos/`. They use the header helpers of the cFS
   COSMOS plugin (`cfs_tlm_hdr`), so they fit into it.
 
+## Shared Interfaces Implemented (2026-11-14)
+
+The shared part of sections 1, 3, 4 and 5 is implemented in the cFS library
+module `apps/ost_common` and in `interfaces/include`. Details that the
+decision left open:
+
+* **File name.** The EDS tool names the generated headers and the COSMOS
+  packets after the XML file, not after the package. The file is therefore
+  `eds/ost.xml`: the headers are `ost_eds_*.h` and the packets `OST_*` (for
+  example `OST_FAULT_EVENT`).
+* **Topics with several publishers.** Every application publishes
+  `FaultEvent`, and both `SELECT_APP` and `REFINE_APP` publish "batch
+  ready" (ADR-019). The EDS tool rejects two interfaces with the same message
+  identifier, and it only instantiates components named `Application`
+  (`instance-rules.xml` of the cFS EDS tooling). These topics are therefore
+  declared once, in a component `Application` of package `OST`:
+  `FAULT_EVENT_TLM`, `BATCH_SELECTED_TLM` and `BATCH_READY_TLM`. The
+  keyframe batch type belongs to `OST` for the same reason.
+* **Topic blocks of the reference mission** (offsets in the command and in
+  the telemetry range; 128–143 belongs to the lab and sample applications):
+
+  | Block | Owner |
+  | --- | --- |
+  | 32 | `INGEST_APP` |
+  | 48 | `ALIGN_APP` |
+  | 64 | `SELECT_APP` |
+  | 80 | `REFINE_APP` |
+  | 96 | `DENSE_APP` |
+  | 112 | `GEOREF_APP` |
+  | 144 | `MAPPROD_APP` |
+  | 160 | `RECORDER_APP` |
+  | 176 | `OST` (shared topics) |
+
+  Commands: +0 command, +1 housekeeping request, +2 1 Hz wake-up.
+  Telemetry: +0 housekeeping, then the data path messages.
+* **Sizes** of the shared messages are EDS design parameters of package
+  `OST` (`MAX_SOURCE_VIEWS` = 8, `FAULT_TEXT_LEN` = 64), defined by the host
+  mission.
+* **Fault sets.** An application lists the faults it can raise. Each change
+  of state is published as `FaultEvent` and raised as an EVS event with
+  identifier 60 + the index of the fault in the list.
+* **Momentary faults.** Faults detected per item (an image without
+  telemetry, a skipped keyframe, a failed tile write) become `LATCHED`
+  directly. Further occurrences only increase the occurrence count, so a
+  burst of failures produces one message, not one per item. These faults
+  have the policy latch. The policy of every entry is listed in
+  `docs/interfaces/faults.md`.
+* **Library diagnostics** use the event identifiers 80 (debug), 81 (warning)
+  and 82 (error) of each application.
+* `ost_status.h` and `ost_diag.h` have no cFE dependency, so the C++
+  libraries and the host tools use the same definitions.
+* `tests/interfaces/check_interfaces.py` checks that the EDS fault
+  enumeration, the C catalog and `docs/interfaces/faults.md` agree, that the
+  event identifiers of every application are unique, in range and documented
+  in `docs/interfaces/events.md`, and that the topic identifiers stay in
+  their blocks.
+* The mission builds with `ost_common`; the library loads before the lab
+  applications and reports "EDS active". The fault sets have no unit test
+  yet (cFS UT-Assert); they are first exercised by the applications.
+
 ## Open Questions
 
 * Python bindings of EdsLib for the injector, `RECORDER_APP` tools and the
   evaluation tools: they need the Python development headers. Decided when
   the first ground-side tool decodes Software Bus messages.
 * Support for host missions without EDS, if a user needs it.
+* Enumeration labels in COSMOS: the COSMOS writer of the cFS EDS tooling
+  writes enumerations as plain integers, without `STATE` lines. The
+  OrthoStream COSMOS plugin (ADR-021) has to add them, for example from the
+  EDS database.

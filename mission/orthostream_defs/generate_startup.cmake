@@ -13,10 +13,13 @@ function (generate_cfs_startup_script CFS_INSTALL_DIR)
 
     # Startup lines of the known applications, in start order:
     # type, object file, entry point, name, priority, stack size, load address, exception action
+    # Libraries come first, so that they are initialised before the
+    # applications that use them.
+    set (STARTUP_ost_common "CFE_LIB, ost_common, OST_Common_Init, OST_COMMON, 0, 0, 0x0, 0;")
     set (STARTUP_sch_lab "CFE_APP, sch_lab, SCH_LAB_AppMain, SCH_LAB, 35, 32768, 0x0, 0;")
     set (STARTUP_ci_lab  "CFE_APP, ci_lab,  CI_LAB_AppMain,  CI_LAB,  40, 32768, 0x0, 0;")
     set (STARTUP_to_lab  "CFE_APP, to_lab,  TO_LAB_AppMain,  TO_LAB,  45, 32768, 0x0, 0;")
-    set (STARTUP_ORDER sch_lab ci_lab to_lab)
+    set (STARTUP_ORDER ost_common sch_lab ci_lab to_lab)
 
     file (WRITE ${STARTUP_FILE} "")
     foreach (APP ${STARTUP_ORDER})

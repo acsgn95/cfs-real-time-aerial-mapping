@@ -93,6 +93,20 @@
     <Define name="MAX_SUBSCRIPTIONS" value="32" />
   </Package>
 
+  <Package name="OST" shortDescription="OrthoStream shared interface sizes (apps/ost_common)">
+    <Define name="MAX_SOURCE_VIEWS" value="8">
+      <LongDescription>
+        Capacity of the source view list of a keyframe batch. ADR-005 uses
+        K = 5 by default; the table value must not exceed this size.
+      </LongDescription>
+    </Define>
+    <Define name="FAULT_TEXT_LEN" value="64">
+      <LongDescription>
+        Length of the short text of a FaultEvent message, a multiple of 4.
+      </LongDescription>
+    </Define>
+  </Package>
+
   <Package name="CFE_ES" shortDescription="Executive Services">
     <!-- Placeholder, currently no options yet -->
   </Package>

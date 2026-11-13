@@ -1,0 +1,341 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    OrthoStream shared interface definitions (ADR-020 section 1).
+
+    Package OST holds the types that more than one OrthoStream application
+    uses, and the Software Bus topics that more than one application
+    publishes:
+
+      * payload header, times, data store references, poses with accuracy;
+      * the fault catalog and the FaultEvent message (ADR-020 section 4);
+      * the common part of every housekeeping message;
+      * the keyframe batch, published by SELECT_APP and REFINE_APP
+        (ADR-016 section 3, ADR-019).
+
+    Sizes (MAX_SOURCE_VIEWS, FAULT_TEXT_LEN) and topic identifiers are EDS
+    design parameters of the host mission. The reference mission defines them
+    in mission/orthostream_defs/eds/.
+
+    Conventions (ADR-004, ADR-014, ADR-016 section 2):
+      * times are signed 64-bit nanoseconds; UTC since the Unix epoch, or
+        CLOCK_MONOTONIC for stage timings;
+      * positions are ECEF (WGS84/ETRS89 geocentric) in metres;
+      * attitudes are the camera-to-ECEF quaternion q_E_C, Hamilton, scalar
+        first.
+
+    This document adheres to the Electronic Data Sheet (EDS) XML schema
+    as prescribed in CCSDS book 876.0.
+-->
+<PackageFile xmlns="http://www.ccsds.org/schema/sois/seds">
+  <Package name="OST" shortDescription="OrthoStream shared types, faults and keyframe batches">
+
+    <DataTypeSet>
+
+      <!-- Times -->
+
+      <IntegerDataType name="UtcTimeNs" shortDescription="UTC time, nanoseconds since the Unix epoch">
+        <IntegerDataEncoding sizeInBits="64" encoding="${CFE_MISSION/SIGNED_INTEGER_ENCODING}" byteOrder="${CFE_MISSION/DATA_BYTE_ORDER}" />
+        <Range>
+          <MinMaxRange max="9223372036854775807" min="-9223372036854775808" rangeType="inclusiveMinInclusiveMax"/>
+        </Range>
+      </IntegerDataType>
+
+      <IntegerDataType name="MonoTimeNs" shortDescription="CLOCK_MONOTONIC time, nanoseconds">
+        <IntegerDataEncoding sizeInBits="64" encoding="${CFE_MISSION/SIGNED_INTEGER_ENCODING}" byteOrder="${CFE_MISSION/DATA_BYTE_ORDER}" />
+        <Range>
+          <MinMaxRange max="9223372036854775807" min="-9223372036854775808" rangeType="inclusiveMinInclusiveMax"/>
+        </Range>
+      </IntegerDataType>
+
+      <!-- Enumerations -->
+
+      <EnumeratedDataType name="AppId" shortDescription="OrthoStream application that raised a fault">
+        <IntegerDataEncoding sizeInBits="8" encoding="unsigned" />
+        <EnumerationList>
+          <Enumeration label="NONE" value="0" />
+          <Enumeration label="INGEST_APP" value="1" />
+          <Enumeration label="ALIGN_APP" value="2" />
+          <Enumeration label="SELECT_APP" value="3" />
+          <Enumeration label="REFINE_APP" value="4" />
+          <Enumeration label="DENSE_APP" value="5" />
+          <Enumeration label="GEOREF_APP" value="6" />
+          <Enumeration label="MAPPROD_APP" value="7" />
+          <Enumeration label="RECORDER_APP" value="8" />
+        </EnumerationList>
+      </EnumeratedDataType>
+
+      <EnumeratedDataType name="FaultSeverity" shortDescription="Severity of a fault (ADR-020 section 4)">
+        <IntegerDataEncoding sizeInBits="8" encoding="unsigned" />
+        <EnumerationList>
+          <Enumeration label="NONE" value="0" shortDescription="No fault; used for the highest active severity" />
+          <Enumeration label="INFO" value="1" />
+          <Enumeration label="WARNING" value="2" />
+          <Enumeration label="DEGRADED" value="3" shortDescription="Output continues with reduced quality or rate" />
+          <Enumeration label="ERROR" value="4" shortDescription="Items or requests fail" />
+          <Enumeration label="CRITICAL" value="5" shortDescription="The application cannot continue its function" />
+        </EnumerationList>
+      </EnumeratedDataType>
+
+      <EnumeratedDataType name="FaultState" shortDescription="State of a fault">
+        <IntegerDataEncoding sizeInBits="8" encoding="unsigned" />
+        <EnumerationList>
+          <Enumeration label="CLEARED" value="0" />
+          <Enumeration label="ACTIVE" value="1" shortDescription="The condition is present" />
+          <Enumeration label="LATCHED" value="2" shortDescription="The condition is gone; kept until a clear command" />
+        </EnumerationList>
+      </EnumeratedDataType>
+
+      <!--
+          Fault catalog (ADR-020 section 4). Identifiers are never reused or
+          renumbered. Severity, raising application and clear policy of each
+          entry are in ost_fault_catalog.c; docs/interfaces/faults.md lists
+          them.
+      -->
+      <EnumeratedDataType name="FaultId" shortDescription="Fault catalog identifier">
+        <IntegerDataEncoding sizeInBits="16" encoding="unsigned" />
+        <EnumerationList>
+          <Enumeration label="NONE" value="0" />
+          <Enumeration label="TELEMETRY_STALE" value="1" shortDescription="No telemetry sample within the stale limit" />
+          <Enumeration label="IMAGE_STREAM_STALE" value="2" shortDescription="No image within the stale limit" />
+          <Enumeration label="LINK_FORMAT" value="3" shortDescription="Link format or version mismatch" />
+          <Enumeration label="POSE_NO_TELEMETRY" value="10" shortDescription="No telemetry around an image" />
+          <Enumeration label="POSE_ACCURACY_LOW" value="11" shortDescription="Pose accuracy below the configured limit" />
+          <Enumeration label="DATASTORE_QUOTA" value="20" shortDescription="Data store quota exhausted" />
+          <Enumeration label="KEYFRAMES_SKIPPED" value="30" shortDescription="Keyframes skipped because of backlog" />
+          <Enumeration label="GPU_FAILURE" value="31" shortDescription="GPU or CUDA failure" />
+          <Enumeration label="REFINE_REJECTED" value="40" shortDescription="Refinement result rejected" />
+          <Enumeration label="REFINE_LATENCY" value="41" shortDescription="Refinement over its latency limit" />
+          <Enumeration label="TILE_WRITE" value="50" shortDescription="Tile write failure" />
+          <Enumeration label="DISK_SPACE_LOW" value="51" shortDescription="Output disk space low" />
+          <Enumeration label="TABLE_REJECTED" value="60" shortDescription="Configuration table rejected" />
+          <Enumeration label="LIBRARY_ERROR" value="61" shortDescription="Library internal error" />
+        </EnumerationList>
+      </EnumeratedDataType>
+
+      <EnumeratedDataType name="PositionFix" shortDescription="Kind of position solution reported by the telemetry">
+        <IntegerDataEncoding sizeInBits="8" encoding="unsigned" />
+        <EnumerationList>
+          <Enumeration label="UNKNOWN" value="0" />
+          <Enumeration label="NO_FIX" value="1" />
+          <Enumeration label="SINGLE" value="2" shortDescription="Single-point GNSS" />
+          <Enumeration label="DGNSS" value="3" />
+          <Enumeration label="RTK_FLOAT" value="4" />
+          <Enumeration label="RTK_FIXED" value="5" />
+          <Enumeration label="PPK" value="6" shortDescription="Post-processed kinematic (recorded data)" />
+        </EnumerationList>
+      </EnumeratedDataType>
+
+      <EnumeratedDataType name="PoseSource" shortDescription="Origin of a pose (ADR-019)">
+        <IntegerDataEncoding sizeInBits="8" encoding="unsigned" />
+        <EnumerationList>
+          <Enumeration label="TELEMETRY" value="1" shortDescription="Interpolated from the telemetry stream" />
+          <Enumeration label="REFINED" value="2" shortDescription="Refined from the images by REFINE_APP" />
+        </EnumerationList>
+      </EnumeratedDataType>
+
+      <!-- Common containers -->
+
+      <ContainerDataType name="PayloadHeader" shortDescription="Start of every OrthoStream payload (ADR-016 section 2)">
+        <EntryList>
+          <Entry name="SchemaVersion" type="BASE_TYPES/uint16" shortDescription="Version of the payload layout" />
+          <Entry name="Flags" type="BASE_TYPES/uint16" shortDescription="Message-specific flags" />
+          <Entry name="Sequence" type="BASE_TYPES/uint32" shortDescription="Counter per publisher and message" />
+        </EntryList>
+      </ContainerDataType>
+
+      <ContainerDataType name="TraceTimes" shortDescription="Stage timing of a data path message (ADR-017 section 2)">
+        <EntryList>
+          <Entry name="EntryMono" type="MonoTimeNs" shortDescription="Stage entry, CLOCK_MONOTONIC" />
+          <Entry name="ExitMono" type="MonoTimeNs" shortDescription="Stage exit, CLOCK_MONOTONIC" />
+          <Entry name="PublishUtc" type="UtcTimeNs" shortDescription="Publication time, UTC" />
+        </EntryList>
+      </ContainerDataType>
+
+      <ContainerDataType name="ObjectRef" shortDescription="Reference to a data store object (ADR-013)">
+        <EntryList>
+          <Entry name="ObjectId" type="BASE_TYPES/uint32" shortDescription="Object identifier; 0 means none" />
+          <Entry name="Generation" type="BASE_TYPES/uint32" shortDescription="Detects references to freed objects" />
+        </EntryList>
+      </ContainerDataType>
+
+      <ContainerDataType name="Vector3" shortDescription="Three-dimensional vector">
+        <EntryList>
+          <Entry name="X" type="BASE_TYPES/double" />
+          <Entry name="Y" type="BASE_TYPES/double" />
+          <Entry name="Z" type="BASE_TYPES/double" />
+        </EntryList>
+      </ContainerDataType>
+
+      <ContainerDataType name="Quaternion" shortDescription="Unit quaternion, Hamilton convention, scalar first">
+        <EntryList>
+          <Entry name="W" type="BASE_TYPES/double" />
+          <Entry name="X" type="BASE_TYPES/double" />
+          <Entry name="Y" type="BASE_TYPES/double" />
+          <Entry name="Z" type="BASE_TYPES/double" />
+        </EntryList>
+      </ContainerDataType>
+
+      <ContainerDataType name="PoseAccuracy" shortDescription="Reported accuracy of a pose, one standard deviation">
+        <EntryList>
+          <Entry name="PositionStdNorth" type="BASE_TYPES/float" shortDescription="m" />
+          <Entry name="PositionStdEast" type="BASE_TYPES/float" shortDescription="m" />
+          <Entry name="PositionStdDown" type="BASE_TYPES/float" shortDescription="m" />
+          <Entry name="AttitudeStdRoll" type="BASE_TYPES/float" shortDescription="deg" />
+          <Entry name="AttitudeStdPitch" type="BASE_TYPES/float" shortDescription="deg" />
+          <Entry name="AttitudeStdYaw" type="BASE_TYPES/float" shortDescription="deg" />
+          <Entry name="Fix" type="PositionFix" />
+          <Entry name="Spare1" type="BASE_TYPES/uint8" />
+          <Entry name="Spare2" type="BASE_TYPES/uint16" />
+        </EntryList>
+      </ContainerDataType>
+
+      <ContainerDataType name="Pose" shortDescription="Camera pose in ECEF with its accuracy">
+        <EntryList>
+          <Entry name="PositionEcef" type="Vector3" shortDescription="Camera centre, ECEF, m" />
+          <Entry name="AttitudeEcefFromCamera" type="Quaternion" shortDescription="q_E_C" />
+          <Entry name="Accuracy" type="PoseAccuracy" />
+        </EntryList>
+      </ContainerDataType>
+
+      <ContainerDataType name="TileId" shortDescription="Tile of the product grid (ADR-007 section 1)">
+        <EntryList>
+          <Entry name="Column" type="BASE_TYPES/int32" shortDescription="Easting index in tile sizes" />
+          <Entry name="Row" type="BASE_TYPES/int32" shortDescription="Northing index in tile sizes" />
+        </EntryList>
+      </ContainerDataType>
+
+      <ContainerDataType name="HkCommon" shortDescription="First part of every OrthoStream housekeeping payload">
+        <EntryList>
+          <Entry name="CommandCounter" type="BASE_TYPES/uint16" />
+          <Entry name="CommandErrorCounter" type="BASE_TYPES/uint16" />
+          <Entry name="FaultsActive" type="BASE_TYPES/uint8" shortDescription="Faults in state ACTIVE" />
+          <Entry name="FaultsLatched" type="BASE_TYPES/uint8" shortDescription="Faults in state LATCHED" />
+          <Entry name="HighestSeverity" type="FaultSeverity" shortDescription="Highest severity of the active and latched faults" />
+          <Entry name="Spare" type="BASE_TYPES/uint8" />
+        </EntryList>
+      </ContainerDataType>
+
+      <!-- Fault event (ADR-020 section 4) -->
+
+      <StringDataType name="FaultText" length="${OST/FAULT_TEXT_LEN}" />
+
+      <ContainerDataType name="FaultEvent_Payload" shortDescription="One state change of a fault">
+        <EntryList>
+          <Entry name="Header" type="PayloadHeader" />
+          <Entry name="Time" type="UtcTimeNs" shortDescription="Time of the state change" />
+          <Entry name="OccurrenceCount" type="BASE_TYPES/uint32" shortDescription="Occurrences since the application started" />
+          <Entry name="FaultId" type="FaultId" />
+          <Entry name="Severity" type="FaultSeverity" />
+          <Entry name="State" type="FaultState" />
+          <Entry name="Source" type="AppId" />
+          <Entry name="Spare1" type="BASE_TYPES/uint8" />
+          <Entry name="Spare2" type="BASE_TYPES/uint16" />
+          <Entry name="Text" type="FaultText" />
+        </EntryList>
+      </ContainerDataType>
+
+      <ContainerDataType name="FaultEventTlm" baseType="CFE_HDR/TelemetryHeader">
+        <EntryList>
+          <Entry name="Payload" type="FaultEvent_Payload" />
+        </EntryList>
+      </ContainerDataType>
+
+      <!-- Keyframe batch (ADR-016 section 3, ADR-019) -->
+
+      <ContainerDataType name="WorkIntrinsics" shortDescription="Pinhole intrinsics of the undistorted working-resolution images">
+        <EntryList>
+          <Entry name="Fx" type="BASE_TYPES/double" shortDescription="px" />
+          <Entry name="Fy" type="BASE_TYPES/double" shortDescription="px" />
+          <Entry name="Cx" type="BASE_TYPES/double" shortDescription="px, OpenCV convention" />
+          <Entry name="Cy" type="BASE_TYPES/double" shortDescription="px, OpenCV convention" />
+          <Entry name="Width" type="BASE_TYPES/uint16" shortDescription="px" />
+          <Entry name="Height" type="BASE_TYPES/uint16" shortDescription="px" />
+          <Entry name="Spare" type="BASE_TYPES/uint32" />
+        </EntryList>
+      </ContainerDataType>
+
+      <ContainerDataType name="ViewRef" shortDescription="One image of a keyframe batch">
+        <EntryList>
+          <Entry name="CaptureUtc" type="UtcTimeNs" shortDescription="Capture time (data time)" />
+          <Entry name="ImageSeq" type="BASE_TYPES/uint32" shortDescription="Image sequence number of the link" />
+          <Entry name="Spare" type="BASE_TYPES/uint32" />
+          <Entry name="WorkImage" type="ObjectRef" shortDescription="Working-resolution image" />
+          <Entry name="Jpeg" type="ObjectRef" shortDescription="Original JPEG data" />
+          <Entry name="Pose" type="Pose" />
+        </EntryList>
+      </ContainerDataType>
+
+      <ArrayDataType name="ViewRefArray" dataTypeRef="ViewRef">
+        <DimensionList>
+          <Dimension size="${OST/MAX_SOURCE_VIEWS}" />
+        </DimensionList>
+      </ArrayDataType>
+
+      <ContainerDataType name="KeyframeBatch_Payload" shortDescription="Keyframe with its source views">
+        <EntryList>
+          <Entry name="Header" type="PayloadHeader" />
+          <Entry name="Trace" type="TraceTimes" />
+          <Entry name="KeyframeId" type="BASE_TYPES/uint32" shortDescription="Trace identifier; increases per keyframe" />
+          <Entry name="PoseSource" type="PoseSource" />
+          <Entry name="SourceCount" type="BASE_TYPES/uint8" shortDescription="Valid entries of Sources" />
+          <Entry name="Spare" type="BASE_TYPES/uint16" />
+          <Entry name="FootprintPlaneHeight" type="BASE_TYPES/double" shortDescription="Ellipsoidal height of the terrain prior under the keyframe, m" />
+          <Entry name="Intrinsics" type="WorkIntrinsics" />
+          <Entry name="Keyframe" type="ViewRef" />
+          <Entry name="Sources" type="ViewRefArray" />
+        </EntryList>
+      </ContainerDataType>
+
+      <ContainerDataType name="KeyframeBatchTlm" baseType="CFE_HDR/TelemetryHeader">
+        <EntryList>
+          <Entry name="Payload" type="KeyframeBatch_Payload" />
+        </EntryList>
+      </ContainerDataType>
+
+    </DataTypeSet>
+
+    <!--
+        Topics with more than one publisher. Each is declared once, here, so
+        that its message identifier is unique (EDS tool) and COSMOS gets one
+        packet definition.
+          * FAULT_EVENT_TLM: every OrthoStream application.
+          * BATCH_SELECTED_TLM: SELECT_APP, when refine_pose is true.
+          * BATCH_READY_TLM: SELECT_APP when refine_pose is false, REFINE_APP
+            otherwise (ADR-019).
+    -->
+    <ComponentSet>
+      <Component name="Application">
+        <RequiredInterfaceSet>
+          <Interface name="FAULT_EVENT_TLM" shortDescription="Fault state change" type="CFE_SB/Telemetry">
+            <GenericTypeMapSet>
+              <GenericTypeMap name="TelemetryDataType" type="FaultEventTlm" />
+            </GenericTypeMapSet>
+          </Interface>
+          <Interface name="BATCH_SELECTED_TLM" shortDescription="Keyframe batch waiting for pose refinement" type="CFE_SB/Telemetry">
+            <GenericTypeMapSet>
+              <GenericTypeMap name="TelemetryDataType" type="KeyframeBatchTlm" />
+            </GenericTypeMapSet>
+          </Interface>
+          <Interface name="BATCH_READY_TLM" shortDescription="Keyframe batch ready for dense reconstruction" type="CFE_SB/Telemetry">
+            <GenericTypeMapSet>
+              <GenericTypeMap name="TelemetryDataType" type="KeyframeBatchTlm" />
+            </GenericTypeMapSet>
+          </Interface>
+        </RequiredInterfaceSet>
+        <Implementation>
+          <VariableSet>
+            <Variable type="BASE_TYPES/uint16" readOnly="true" name="FaultEventTopicId" initialValue="${CFE_MISSION/OST_FAULT_EVENT_TLM_TOPICID}" />
+            <Variable type="BASE_TYPES/uint16" readOnly="true" name="BatchSelectedTopicId" initialValue="${CFE_MISSION/OST_BATCH_SELECTED_TLM_TOPICID}" />
+            <Variable type="BASE_TYPES/uint16" readOnly="true" name="BatchReadyTopicId" initialValue="${CFE_MISSION/OST_BATCH_READY_TLM_TOPICID}" />
+          </VariableSet>
+          <ParameterMapSet>
+            <ParameterMap interface="FAULT_EVENT_TLM" parameter="TopicId" variableRef="FaultEventTopicId" />
+            <ParameterMap interface="BATCH_SELECTED_TLM" parameter="TopicId" variableRef="BatchSelectedTopicId" />
+            <ParameterMap interface="BATCH_READY_TLM" parameter="TopicId" variableRef="BatchReadyTopicId" />
+          </ParameterMapSet>
+        </Implementation>
+      </Component>
+    </ComponentSet>
+
+  </Package>
+</PackageFile>
