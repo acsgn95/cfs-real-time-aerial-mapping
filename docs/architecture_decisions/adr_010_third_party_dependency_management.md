@@ -1,6 +1,6 @@
 # ADR-010: Third-Party Dependency Management
 
-* Status: Accepted
+* Status: Accepted; amended by [ADR-020](adr_020_eds_events_and_faults.md) (Lua, Expat and m4 for the EDS build)
 * Date: 2026-11-11
 * Decided by: Ahmet Coşgun
 * Backlog item: D09 (revisited)
@@ -52,6 +52,7 @@ built by the project itself, as cFS already is.
 | Eigen | linear algebra | — |
 | COLMAP | PatchMatch Stereo | `cuda`; no GUI, no CGAL |
 | GoogleTest | library tests | — |
+| Lua 5.4.8, Expat 2.8.5 | EDS tool on the build host (ADR-020); not linked into the flight software | manifest feature `eds`; versions pinned with `overrides` (Lua 5.5 is not supported by the EDS tool; Expat 2.9.0 deprecates a function the tool uses) |
 | GTSAM 4.3.0 | optional pose refinement (ADR-019) | no Boost, no TBB; optional manifest feature `refine`; built without `-march=native`; overlay port without `-Werror` (`cmake/ports/`) |
 
 PDAL is not used. GDAL and LASzip cover the needs of the real-time system,
@@ -101,6 +102,7 @@ vendored:
 | --- | --- |
 | C and C++ compiler, CMake, git, Ninja | toolchain |
 | curl, zip, unzip, tar, pkg-config | needed by vcpkg itself |
+| GNU m4 | the cFS table tool of the EDS build (ADR-020) |
 | NVIDIA driver and CUDA toolkit | must match the GPU and the driver |
 | OpenGL and GLU development files (`libglvnd-dev`, `libglu1-mesa-dev`), COLMAP only | the OpenGL dispatch library belongs to the driver; GLEW (needed by COLMAP's `cuda` feature) links against it and lists GLU in its pkg-config file, and vcpkg provides GLU only on Windows |
 | Fortran compiler (`gfortran`), COLMAP only | LAPACK, used by Ceres and SuiteSparse, is built with the system Fortran compiler |

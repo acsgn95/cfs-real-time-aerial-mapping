@@ -1,6 +1,6 @@
 # ADR-017: Observability and Performance Measurement
 
-* Status: Accepted
+* Status: Accepted; amended by [ADR-020](adr_020_eds_events_and_faults.md) (event identifiers, fault catalog, diagnostics) and [ADR-021](adr_021_ground_station.md) (COSMOS as a consumer of housekeeping, events and faults)
 * Date: 2026-11-11
 * Decided by: Ahmet Coşgun
 * Backlog item: D16

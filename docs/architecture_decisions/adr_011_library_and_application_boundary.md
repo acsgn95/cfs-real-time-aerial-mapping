@@ -1,6 +1,6 @@
 # ADR-011: Boundary between Algorithm Libraries and cFS Applications
 
-* Status: Accepted; amended by [ADR-012](adr_012_application_boundaries.md) (eighth library `imaging`) and [ADR-013](adr_013_shared_data_store.md) (ninth library `datastore`) and [ADR-019](adr_019_pose_refinement.md) (library `refine`)
+* Status: Accepted; amended by [ADR-012](adr_012_application_boundaries.md) (eighth library `imaging`) and [ADR-013](adr_013_shared_data_store.md) (ninth library `datastore`) and [ADR-019](adr_019_pose_refinement.md) (library `refine`) and [ADR-020](adr_020_eds_events_and_faults.md) (status codes, diagnostic levels, no process termination)
 * Date: 2026-11-11
 * Decided by: Ahmet Coşgun
 * Backlog item: D10

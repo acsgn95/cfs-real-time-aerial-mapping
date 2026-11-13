@@ -85,17 +85,19 @@ optionally be refined from the imagery.
 | [ADR-006](adr_006_keyframe_and_source_view_selection.md) | Keyframe and source view selection | D06 | Accepted |
 | [ADR-007](adr_007_depth_fusion_and_map_products.md) | Depth fusion and incremental map products | D07 | Accepted, amended by ADR-011 |
 | [ADR-008](adr_008_offline_reference_and_camera_model.md) | Offline reference products and camera model conventions | D08 | Accepted |
-| [ADR-009](adr_009_cfs_version_and_build_structure.md) | cFS version and build structure | D09 | Accepted, amended by ADR-010 |
-| [ADR-010](adr_010_third_party_dependency_management.md) | Third-party dependency management | D09 | Accepted |
-| [ADR-011](adr_011_library_and_application_boundary.md) | Boundary between algorithm libraries and cFS applications | D10 | Accepted, amended by ADR-012, ADR-013 and ADR-019 |
+| [ADR-009](adr_009_cfs_version_and_build_structure.md) | cFS version and build structure | D09 | Accepted, amended by ADR-010 and ADR-020 |
+| [ADR-010](adr_010_third_party_dependency_management.md) | Third-party dependency management | D09 | Accepted, amended by ADR-020 |
+| [ADR-011](adr_011_library_and_application_boundary.md) | Boundary between algorithm libraries and cFS applications | D10 | Accepted, amended by ADR-012, ADR-013, ADR-019 and ADR-020 |
 | [ADR-012](adr_012_application_boundaries.md) | Application boundaries | D11 | Accepted, amended by ADR-019 |
 | [ADR-013](adr_013_shared_data_store.md) | Shared data store for bulk data | D12 | Accepted |
 | [ADR-014](adr_014_time_model.md) | Time model | D13 | Accepted |
 | [ADR-015](adr_015_execution_model.md) | Execution model | D14 | Accepted, amended by ADR-019 |
-| [ADR-016](adr_016_messages_commands_and_tables.md) | Messages, commands and tables | D15 | Accepted, amended by ADR-019 |
-| [ADR-017](adr_017_observability.md) | Observability and performance measurement | D16 | Accepted |
+| [ADR-016](adr_016_messages_commands_and_tables.md) | Messages, commands and tables | D15 | Accepted, amended by ADR-019, ADR-020 and ADR-021 |
+| [ADR-017](adr_017_observability.md) | Observability and performance measurement | D16 | Accepted, amended by ADR-020 and ADR-021 |
 | [ADR-018](adr_018_experiment_design.md) | Experiment design | D17 | Accepted, amended by ADR-019 |
 | [ADR-019](adr_019_pose_refinement.md) | Optional pose refinement | D18 | Accepted |
+| [ADR-020](adr_020_eds_events_and_faults.md) | Interface definitions with EDS, events and faults | D21 | Accepted |
+| [ADR-021](adr_021_ground_station.md) | Ground station and operator interface | D23 | Accepted |
 
 ## Decision Backlog
 
@@ -160,6 +162,6 @@ production use.
 | --- | --- | --- | --- | --- |
 | D19 | Unit tests of the cFS applications with UT-Assert and stubs, and functional tests of the mission | D15 | — | Open |
 | D20 | Security of the data link and of command ingest (authentication, replacing `CI_LAB`) | D03, D15 | — | Open |
-| D21 | Electronic Data Sheets (EDS) for interoperability with ground systems | D15 | — | Open |
+| D21 | Electronic Data Sheets (EDS) for interoperability with ground systems; event identifiers, fault catalog and status codes | D15 | [ADR-020](adr_020_eds_events_and_faults.md) | Accepted |
 | D22 | Component versioning, packaging and deployment to a production target | D09, D10 | — | Open |
-| D23 | Ground station and operator interface, outside the cFS mission: commands, telemetry, health and live map display. Candidates: OpenC3 COSMOS with the cFS plugin of `vendor/cfs/tools` (commands, telemetry, limits, logging, scripted experiments) plus a map view, either as a COSMOS tool or in an installable Electron application that also hosts the COSMOS web interface; a Qt application; or a plain web viewer. Questions: map display of the published tiles (Cloud Optimized GeoTIFF for browser viewers), generation of COSMOS packet definitions from the message headers, licenses (COSMOS open source edition, Qt LGPL), resource use next to the mission. Until decided, QGIS on the published VRT serves as the map display. Decided once the pipeline produces telemetry | D11, D15, D16 | — | Open |
+| D23 | Ground station and operator interface, outside the cFS mission: commands, telemetry, health and live map display. Candidates: OpenC3 COSMOS with the cFS plugin of `vendor/cfs/tools` (commands, telemetry, limits, logging, scripted experiments) plus a map view, either as a COSMOS tool or in an installable Electron application that also hosts the COSMOS web interface; a Qt application; or a plain web viewer. Questions: map display of the published tiles (Cloud Optimized GeoTIFF for browser viewers), generation of COSMOS packet definitions from the message headers, licenses (COSMOS open source edition, Qt LGPL), resource use next to the mission. Until decided, QGIS on the published VRT serves as the map display. Decided once the pipeline produces telemetry | D11, D15, D16 | [ADR-021](adr_021_ground_station.md) | Accepted |

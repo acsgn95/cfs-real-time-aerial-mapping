@@ -1,6 +1,6 @@
 # ADR-009: cFS Version and Build Structure
 
-* Status: Accepted; amended by [ADR-010](adr_010_third_party_dependency_management.md) (third-party dependencies)
+* Status: Accepted; amended by [ADR-010](adr_010_third_party_dependency_management.md) (third-party dependencies) and [ADR-020](adr_020_eds_events_and_faults.md) (mission built with EDS)
 * Date: 2026-11-10
 * Decided by: Ahmet Coşgun
 * Backlog item: D09
@@ -59,6 +59,8 @@ The repository has two parts:
   to `vendor/cfs/apps` when lab applications are needed).
 * One target, `cpu1`: Linux with the POSIX OSAL and the `pc-linux` PSP,
   built natively (`SIMULATION=native`).
+* The mission is built with Electronic Data Sheets (`CFE_EDS_ENABLED=ON`,
+  ADR-020).
 * A host mission integrates OrthoStream by adding `apps/` to its
   `CFS_APP_PATH`, listing the applications in its `targets.cmake`, and
   overriding the default configuration headers in its own `*_defs` directory

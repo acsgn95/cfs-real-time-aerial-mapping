@@ -1,6 +1,6 @@
 # ADR-016: Messages, Commands and Tables
 
-* Status: Accepted; amended by [ADR-019](adr_019_pose_refinement.md) (`KeyframeBatch` routed as "batch selected" or "batch ready", pose source, table values `refine_pose` and `precise_position`)
+* Status: Accepted; amended by [ADR-019](adr_019_pose_refinement.md) (`KeyframeBatch` routed as "batch selected" or "batch ready", pose source, table values `refine_pose` and `precise_position`) and by [ADR-020](adr_020_eds_events_and_faults.md) (definitions in EDS instead of C headers; section 1 replaced) and [ADR-021](adr_021_ground_station.md) (`TO_LAB` subscriptions part of the reference mission)
 * Date: 2026-11-11
 * Decided by: Ahmet Coşgun
 * Backlog item: D15
@@ -22,6 +22,9 @@ applications are implemented, and they must follow this record.
 ## Decision
 
 ### 1. Where definitions live
+
+> Replaced by ADR-020 section 1: the definitions are written in EDS and the
+> mission is built with EDS. The text below is kept as the original decision.
 
 * Message structures are C headers under `interfaces/messages/`.
 * cFS Electronic Data Sheets (EDS) are not used. The mission is built with
