@@ -81,7 +81,7 @@ optionally be refined from the imagery.
 | [ADR-002](adr_002_target_hardware_and_runtime.md) | Target hardware and runtime environment | D02 | Accepted, amended by ADR-009 and ADR-014 |
 | [ADR-003](adr_003_data_source_and_injector.md) | Data source and injector interface | D03 | Accepted |
 | [ADR-004](adr_004_coordinate_frames_and_conventions.md) | Coordinate frames and conventions | D04 | Accepted, completed by ADR-008 |
-| [ADR-005](adr_005_dense_reconstruction_method.md) | Dense reconstruction method | D05 | Accepted; parameters from the benchmark (section 6a); amended by ADR-019 |
+| [ADR-005](adr_005_dense_reconstruction_method.md) | Dense reconstruction method | D05 | Accepted; parameters from the benchmark (section 6a); amended by ADR-019; SGBM default since 2026-11-13 (section 6b) |
 | [ADR-006](adr_006_keyframe_and_source_view_selection.md) | Keyframe and source view selection | D06 | Accepted |
 | [ADR-007](adr_007_depth_fusion_and_map_products.md) | Depth fusion and incremental map products | D07 | Accepted, amended by ADR-011 |
 | [ADR-008](adr_008_offline_reference_and_camera_model.md) | Offline reference products and camera model conventions | D08 | Accepted |
@@ -118,7 +118,7 @@ item; the ADR column links the resulting records.
 
 | Item | Decision | Depends on | ADR | Status |
 | --- | --- | --- | --- | --- |
-| D05 | Dense reconstruction method: COLMAP PatchMatch Stereo (CUDA) as a library with known poses, a two-view SGBM baseline, or both; number of source views per depth map | D01, D02, D03 | [ADR-005](adr_005_dense_reconstruction_method.md) | Accepted; benchmark after D09 |
+| D05 | Dense reconstruction method: COLMAP PatchMatch Stereo (CUDA) as a library with known poses, a two-view SGBM baseline, or both; number of source views per depth map | D01, D02, D03 | [ADR-005](adr_005_dense_reconstruction_method.md) | Accepted; SGBM default, PatchMatch alternative (2026-11-13) |
 | D06 | Frame and source view selection: footprint overlap, baseline and viewing-angle criteria and thresholds | D04, D05 | [ADR-006](adr_006_keyframe_and_source_view_selection.md) | Accepted |
 | D07 | Depth fusion and incremental map products: tiled DSM and orthomosaic layout in a fixed projection, tile finalisation and eviction to keep memory bounded, cell update rule, orthomosaic pixel source selection and blending | D01, D04, D05 | [ADR-007](adr_007_depth_fusion_and_map_products.md) | Accepted |
 | D08 | Offline reference workflow (decided: Metashape products of the same flight instead of an offline COLMAP run) and camera model conventions | D05 | [ADR-008](adr_008_offline_reference_and_camera_model.md) | Accepted |

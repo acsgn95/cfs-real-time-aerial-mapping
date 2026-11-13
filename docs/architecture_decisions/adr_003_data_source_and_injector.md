@@ -1,6 +1,7 @@
 # ADR-003: Data Source and Injector Interface
 
-* Status: Accepted
+* Status: Accepted; section 4 amended 2026-11-13 (heights of the
+  `non-optimized` set)
 * Date: 2026-11-10
 * Decided by: Ahmet Coşgun
 * Backlog item: D03
@@ -59,6 +60,17 @@ The pose set is selected per run:
 | --- | --- | --- | --- |
 | `optimized` (default) | Metashape bundle-adjusted camera poses | bundle-adjusted | nominal runs |
 | `non-optimized` | PPK positions recorded in flight | attitude recorded by the aircraft (about 1.5° from the adjusted attitude) | pose-error experiments |
+
+Heights of the `non-optimized` set (added 2026-11-13): the Metashape
+project was adjusted with the recorded positions as LV95 and LN02 heights,
+while its coordinate system declares CHGeo2004 (LHN95) heights. Its camera
+centres are therefore 0.26 to 0.40 m below the recorded ellipsoidal heights.
+The `non-optimized` set uses the same heights (LN02 height plus the
+CHGeo2004 undulation, `tools/dataset/extract_geotag_poses.py
+--reference-heights`), so that it differs from the `optimized` set only by
+the errors of the aircraft: 0.8 mm mean and 3.6 cm standard deviation
+vertically, 1.5 cm horizontally. The recorded positions contain no antenna
+lever arm.
 
 ### 5. Link conditions are emulated outside the injector
 

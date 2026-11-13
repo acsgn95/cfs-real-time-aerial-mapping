@@ -3,11 +3,13 @@
 * Status: Accepted; parameter values set by the benchmark of section 6a
   (2026-11-12 and 2026-11-13); amended by
   [ADR-019](adr_019_pose_refinement.md) (optional pose refinement before dense
-  reconstruction)
+  reconstruction); amended 2026-11-13: SGBM is the default method and
+  PatchMatch the alternative (sections 1, 4 and 6b)
 * Date: 2026-11-10
 * Decided by: Ahmet Coşgun
 * Backlog item: D05
-* Revised: 2026-11-11 (dense working resolution given as image width; 2048 × 1366 is 2.8 MP)
+* Revised: 2026-11-11 (dense working resolution given as image width; 2048 × 1366 is 2.8 MP);
+  2026-11-13 (default method SGBM after the comparison of section 6b)
 * Evidence: thesis proposal (FB_YL-01) sections 2 and 4.2; ADR-001 (keyframe
   interval, latency target, working resolution); ADR-002 (GPU memory budget,
   CUDA 13.1); ADR-004 (working frames `L_k`); AerialMapper source analysis
@@ -32,19 +34,27 @@ pose refinement before the dense stage is decided in ADR-019.
 
 ## Decision
 
-### 1. Primary method: COLMAP PatchMatch Stereo as a library
+### 1. Default method: two-view SGBM
 
-* Depth and normal maps are computed with COLMAP's CUDA PatchMatch Stereo
-  module, used as a library with known poses. Feature extraction, matching,
-  structure from motion and bundle adjustment are not used.
-* Input per keyframe batch: the reference keyframe and K source views
-  selected by D06. Images are undistorted and reduced to the dense working
-  resolution. Intrinsics are scaled accordingly, and poses are expressed in
-  the batch working frame `L_k` (ADR-004).
-* Output per keyframe: a depth map, a normal map and a confidence measure in
-  the reference camera, at the working resolution.
-* The JPEG input can be decoded directly at a reduced scale (ADR-001,
-  section 1d) before final resampling to the working resolution.
+Changed on 2026-11-13. Until then PatchMatch (section 4) was the primary
+method and SGBM the baseline. The comparison of section 6b reversed the
+roles.
+
+* Depth is computed with OpenCV's semi-global matching (StereoSGBM) on the
+  CPU, from the reference keyframe and one source view, as in AerialMapper.
+* The source view is the one of the batch whose baseline is closest to 0.2
+  of the mean depth (about the spacing of consecutive keyframes at the
+  nominal point). The pair is rectified with the known poses. Epipolar
+  lines along the image columns are handled by transposing the images.
+* Pixels whose match falls outside the rectified source image are invalid
+  (source mask). Without the mask SGBM matches the black border with itself
+  and produces far depths (section 6b).
+* Output per keyframe: a depth map and a confidence of 1 for matched pixels.
+  The normals point towards the camera, since SGBM gives no surface
+  orientation.
+* The input, the working resolution, the working frame `L_k`, the terrain
+  gate (section 5a) and the processing mode (section 2) are the same as for
+  PatchMatch.
 
 ### 2. Causal and delayed processing
 
@@ -74,14 +84,26 @@ and is not used in the real-time path. Depth maps are fused into the map tiles
 incrementally (D07), following the consistency principles of the COLMAP
 approach.
 
-### 4. Baseline method: two-view SGBM
+### 4. Alternative method: COLMAP PatchMatch Stereo as a library
 
-* A two-view semi-global matching baseline (OpenCV SGBM, on CPU or CUDA) is
-  implemented on rectified consecutive keyframes, as in AerialMapper.
+* PatchMatch stays implemented behind the same depth-estimator interface and
+  is selected by configuration. It is the multi-view method of the proposal
+  and is kept for comparison, for scenes where two views are not enough
+  (for example steep terrain or occlusions) and for work on geometric
+  consistency.
+* Depth and normal maps are computed with COLMAP's CUDA PatchMatch Stereo
+  module, used as a library with known poses. Feature extraction, matching,
+  structure from motion and bundle adjustment are not used.
+* Input per keyframe batch: the reference keyframe and K source views
+  selected by D06. Images are undistorted and reduced to the dense working
+  resolution. Intrinsics are scaled accordingly, and poses are expressed in
+  the batch working frame `L_k` (ADR-004).
+* Output per keyframe: a depth map, a normal map and a confidence measure in
+  the reference camera, at the working resolution.
+* The JPEG input can be decoded directly at a reduced scale (ADR-001,
+  section 1d) before final resampling to the working resolution.
 * Both methods implement the same depth-estimator interface: a keyframe batch
   as input, and a depth map with confidence in the reference camera as output.
-  They can be swapped by configuration.
-* The baseline is used for comparison in the evaluation and as a fallback.
 
 ### 5. Parameters
 
@@ -91,6 +113,10 @@ consistency and the processing mode are still open.
 
 | Parameter | Value | First value |
 | --- | --- | --- |
+| Method | SGBM (section 1) | PatchMatch |
+| SGBM: source view | baseline closest to 0.2 of the mean depth | — |
+| SGBM: block size, P1, P2 | 5 px, 8·5², 32·5² (OpenCV 3-way mode) | — |
+| SGBM: uniqueness, left-right check, speckle filter | 10 %, 1 px, 100 px window and range 2 | — |
 | Dense working resolution | 2048 px width (2048 × 1366, 2.8 MP, for Dorfberg) | same |
 | Source views K | 5 | same |
 | PatchMatch iterations | 3 | 5 (COLMAP default) |
@@ -132,7 +158,7 @@ Dorfberg flight with `optimized` poses.
 | PatchMatch iterations | 3, 5 |
 | NCC window radius | 3, 5 (added after the first results, section 6a) |
 | Processing mode | causal, delayed |
-| Method | PatchMatch, SGBM baseline |
+| Method | PatchMatch, SGBM (default since 2026-11-13) |
 
 Measured for each run: processing time per keyframe, peak GPU memory, and
 depth completeness and accuracy against the reference DSM.
@@ -151,7 +177,9 @@ GPU memory, so that ADR-001 R1 and R2 can hold.
 4. geometric consistency off.
 
 If none of these meets the acceptance criterion, a new record revisits the
-method, for example by making SGBM the primary method.
+method, for example by making SGBM the primary method. (SGBM became the
+default on 2026-11-13 for accuracy, not because PatchMatch missed the
+budget; section 6b.)
 
 ### 6a. First results (2026-11-12)
 
@@ -233,6 +261,50 @@ Delayed mode with a minimum NCC of 0.3 and two consistent sources covers
 the most area and nearly halves the NMAD; the dense time does not change
 (2.3–2.4 s). It became the default on 2026-11-13.
 
+### 6b. SGBM against PatchMatch (2026-11-13)
+
+`tools/offline_pipeline`, Dorfberg, delayed mode, terrain gate 30 m,
+2048 px, products in LV95 with LHN95 heights; the same settings for both
+methods. SGBM runs on the CPU, PatchMatch on the GPU.
+
+40 keyframes (60 to 99), `optimized` poses, against the reference DSM:
+
+| Method | Area | Median | NMAD | RMSE | 95 % of abs. error | Within 1 m | Dense time mean / max |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| PatchMatch | 0.416 km² | −0.080 m | 0.164 m | 1.35 m | 0.57 m | 97.2 % | 2.42 / 3.88 s |
+| SGBM, no source mask | 0.401 km² | −0.008 m | 0.070 m | 1.24 m | 0.28 m | 98.1 % | 0.94 / 1.17 s |
+| SGBM, source mask | 0.400 km² | −0.007 m | 0.069 m | 0.363 m | 0.25 m | 98.9 % | 0.96 / 1.12 s |
+
+Whole flight (339 keyframes, 1.8 km²):
+
+| Method | Median | NMAD | RMSE | 95 % of abs. error | Within 1 m | Dense time mean / 95 % / max |
+| --- | --- | --- | --- | --- | --- | --- |
+| PatchMatch | −0.085 m | 0.146 m | 2.38 m | 1.38 m | 94.1 % | 2.55 / 2.77 / 2.91 s |
+| SGBM | −0.004 m | 0.062 m | 1.29 m | 0.62 m | 96.2 % | 0.96 / 1.42 / 2.51 s |
+
+Independent check at the five ground control points (GNSS RTK, LHN95; DSM
+height minus GNSS height): SGBM mean +0.012 m, RMS 0.098 m; PatchMatch mean
+−0.118 m, RMS 0.275 m; the Metashape reference DSM mean +0.042 m, RMS
+0.077 m. The reference DSM comes from Metashape's dense matching, which may
+favour SGBM; the ground control points do not depend on it and give the
+same order.
+
+With refined poses (ADR-019 section 8) both methods keep the same order
+(NMAD 0.077 m and 0.168 m).
+
+* SGBM is more accurate than PatchMatch on every measure and on both
+  references, and 2.5 times faster, without the GPU.
+* PatchMatch has a constant bias of about −8 cm that SGBM does not have
+  (open question).
+* SGBM leaves thin and complex structures (barriers, vegetation) empty
+  instead of filling them with wrong heights.
+* Dorfberg is mostly open meadow and gentle slopes. Scenes with steep
+  terrain, buildings or occlusions may favour multi-view matching; they are
+  not covered by this data.
+
+Decision of the project owner (2026-11-13): SGBM is the default method,
+PatchMatch the alternative.
+
 ### 7. Integration constraints
 
 * COLMAP is built from source with CUDA 13.1, outside this repository as a
@@ -248,6 +320,10 @@ the most area and nearly halves the NMAD; the dense time does not change
 
 ## Rationale
 
+* SGBM (since 2026-11-13): more accurate and faster than PatchMatch on the
+  Dorfberg data, against the reference DSM and the ground control points
+  (section 6b). It runs on the CPU, so the default configuration needs no
+  GPU and does not depend on COLMAP.
 * PatchMatch Stereo matches the proposal's reference method and gives
   multi-view depth with photometric and geometric consistency.
 * Using only the dense module fits known poses. It also follows the idea of
@@ -263,8 +339,16 @@ the most area and nearly halves the NMAD; the dense time does not change
 
 * **Full COLMAP pipeline (SfM and MVS).** Rejected: poses are known, and pose
   estimation is out of scope.
-* **SGBM only.** Rejected as the primary method: it does not meet the
-  proposal's multi-view reference. It is kept as the baseline.
+* **SGBM only.** First rejected as the primary method because it does not
+  meet the proposal's multi-view reference. Since 2026-11-13 SGBM is the
+  default (section 6b), but PatchMatch is kept as the alternative rather
+  than removed: it is the proposal's reference method, and other scenes
+  may need multi-view matching.
+* **PatchMatch as the default (decision of 2026-11-10).** Replaced on
+  2026-11-13: less accurate and slower than SGBM on Dorfberg (section 6b).
+* **SGBM on the GPU (OpenCV CUDA StereoSGM).** Not now: the CPU version
+  already takes about 1 s per keyframe, a third of the budget. It may be
+  considered if the CPU is needed by pose refinement (ADR-019).
 * **A custom GPU plane-sweep MVS.** Rejected: too much implementation work for
   the thesis timeline.
 * **COLMAP command-line tools per keyframe.** Rejected for the real-time path:
@@ -298,6 +382,17 @@ the most area and nearly halves the NMAD; the dense time does not change
 * **D11 and D14:** the dense stage keeps one GPU job in flight. The delayed
   mode needs a queue of one keyframe.
 * **D16:** per-keyframe time and peak GPU memory are recorded.
+* **SGBM as the default (2026-11-13):**
+  * The default dense stage runs on the CPU. The GPU budget of ADR-002 and
+    the single GPU job of D11 and D14 apply only when PatchMatch is
+    selected.
+  * The `exit()` behaviour of COLMAP (open question below) concerns only
+    PatchMatch runs.
+  * SGBM and pose refinement (ADR-019) both use the CPU. With
+    `refine_pose = true` their combined time per keyframe is measured; the
+    CPU threads of each are a table value.
+  * Geometric consistency is a PatchMatch question; SGBM uses its own
+    left-right check (`disp12_max_diff`).
 
 ## Open Questions
 
@@ -315,6 +410,8 @@ the most area and nearly halves the NMAD; the dense time does not change
   COLMAP through an overlay port to raise an exception instead; or run the
   GPU work in a separate process. To be decided before `DENSE_APP` is
   written (found 2026-11-11).
+* The −8 cm bias of PatchMatch (section 6b): COLMAP settings or the window
+  radius of 3; to be explained if PatchMatch is used for results.
 * Geometric consistency needs depth and normal maps of every source view
   and a first photometric pass of the reference view. Source views that are
   not keyframes have no depth maps (ADR-006). Either geometric consistency

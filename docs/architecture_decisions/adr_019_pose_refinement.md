@@ -115,7 +115,10 @@ GNSS-aided visual SLAM without loop closure.
    that pose is used as a tight prior. Memory stays bounded (ADR-001 R4).
 
 GPU: features and optimisation run on the CPU. Refinement therefore does
-not compete with PatchMatch for GPU memory (ADR-002, ADR-005).
+not compete with PatchMatch for GPU memory (ADR-002, ADR-005). With SGBM,
+the default dense method since 2026-11-13 (ADR-005), dense reconstruction
+also runs on the CPU; refinement and SGBM share it, and their combined time
+per keyframe is measured.
 
 ### 4. Accuracy that can be expected
 
@@ -206,12 +209,37 @@ not compete with PatchMatch for GPU memory (ADR-002, ADR-005).
   | recorded (prior) | 1.51° | 2.47° | 3.32° | 73.8 px |
   | refined | 0.014° | 0.026° | 0.032° | 0.24 px |
 
-  The boresight came out at 1.27°. The positions keep the antenna lever arm
-  (0.39 m vertical against Metashape), which refinement must not and does
-  not remove; it is a calibration value of the aircraft. Time: features
+  The boresight came out at 1.27°. The positions keep a vertical offset of
+  0.39 m against Metashape, which refinement must not and does not remove.
+  It was first taken for the antenna lever arm; it is the height datum of
+  the reference project (ADR-003 section 4, amended 2026-11-13), and the
+  pose set now uses the reference heights. Time: features
   16 s, matching 2.4 s, adjustment 101 s on the CPU for the whole block,
   too slow for the keyframe interval; the window and the number of points
   must be bounded.
+* Closing the block-mode evaluation (2026-11-13, keyframes 60 to 99,
+  SGBM, against the reference DSM):
+
+  | Run | Median | NMAD | RMSE | Area |
+  | --- | --- | --- | --- | --- |
+  | Metashape poses | −0.007 m | 0.069 m | 0.363 m | 0.400 km² |
+  | refined; ellipsoidal heights, selection with refined poses | +0.342 m | 0.077 m | 1.565 m | 0.379 km² |
+  | refined; reference heights (ADR-003 section 4) | −0.001 m | 0.080 m | 1.598 m | 0.380 km² |
+  | refined; reference heights, selection with telemetry poses | +0.002 m | 0.079 m | 0.359 m | 0.392 km² |
+
+  * The median offset was the height datum of the reference, not a lever
+    arm (ADR-003 section 4).
+  * The high RMSE came from the tool, not from refinement: the pipeline
+    chose keyframes and source views again with the refined poses, so some
+    source views lay outside the refined block and kept their recorded
+    attitude. `offline_pipeline --selection-poses` now selects with the
+    telemetry poses, as section 2 requires, while depth range, terrain
+    gate and footprint follow the batch poses. With refined poses SGBM
+    then matches the Metashape poses (RMSE 0.36 m).
+  * PatchMatch with the same refined block: median −0.036 m, NMAD 0.190 m,
+    RMSE 2.15 m (Metashape poses: 0.164 m and 1.35 m). The additional
+    errors lie at both ends of the block, where the refined poses have the
+    fewest tie points. Not yet explained (open question).
 
 ## Rationale
 
@@ -251,8 +279,10 @@ not compete with PatchMatch for GPU memory (ADR-002, ADR-005).
 * **Loop closure across flight lines.** Not now: neighbouring flight lines
   already share source views within the window (ADR-006). It may be added
   later, for example with iSAM2.
-* **Features on the GPU (COLMAP SIFT).** Not now: the GPU is reserved for
-  PatchMatch. To be reconsidered if CPU features are too slow.
+* **Features on the GPU (COLMAP SIFT).** Not now: the GPU was reserved for
+  PatchMatch. With SGBM as the default dense method (ADR-005, 2026-11-13)
+  the GPU is free, so this is the first option if CPU features are too
+  slow.
 * **Refining the camera calibration as well.** Rejected: the calibration is
   known (ADR-008), and estimating it in a small window is unstable.
 
@@ -292,3 +322,6 @@ not compete with PatchMatch for GPU memory (ADR-002, ADR-005).
 * Run time of the adjustment (section 8): the sliding window must fit the
   keyframe interval on average.
 * The values of the failure checks of section 5: set from the benchmark.
+* PatchMatch with refined poses is worse at the ends of a refined block
+  than with the Metashape poses, SGBM is not (section 8). To be examined
+  with the sliding window, whose ends are always open.
