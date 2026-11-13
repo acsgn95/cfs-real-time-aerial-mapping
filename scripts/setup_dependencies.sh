@@ -9,6 +9,9 @@
 #                                            without COLMAP (no GPU, e.g. CI)
 #   ORTHOSTREAM_WITH_REFINE=0 scripts/setup_dependencies.sh
 #                                            without GTSAM (pose refinement, D18)
+#   ORTHOSTREAM_WITH_EDS=0 scripts/setup_dependencies.sh
+#                                            without the EDS tool dependencies
+#                                            (Lua, Expat; ADR-020)
 #
 # The first run builds every dependency from source and takes a long time
 # (GDAL, OpenCV and COLMAP in particular). Later runs reuse vcpkg's binary
@@ -21,6 +24,7 @@ TRIPLET="x64-linux-orthostream"
 INSTALL_ROOT="$REPO_ROOT/build-deps/vcpkg_installed"
 WITH_COLMAP="${ORTHOSTREAM_WITH_COLMAP:-1}"
 WITH_REFINE="${ORTHOSTREAM_WITH_REFINE:-1}"
+WITH_EDS="${ORTHOSTREAM_WITH_EDS:-1}"
 
 # System prerequisites (ADR-010 section 4), listed in
 # scripts/system-packages-ubuntu.txt. Packages after the "# colmap:" marker
@@ -69,6 +73,9 @@ if [ "$WITH_COLMAP" = "1" ]; then
 fi
 if [ "$WITH_REFINE" = "1" ]; then
   FEATURES+=(--x-feature=refine)
+fi
+if [ "$WITH_EDS" = "1" ]; then
+  FEATURES+=(--x-feature=eds)
 fi
 
 "$VCPKG_ROOT/vcpkg" install \

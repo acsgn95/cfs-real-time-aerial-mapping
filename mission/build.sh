@@ -10,6 +10,11 @@
 #
 # The cFS lab applications (SCH_LAB, CI_LAB, TO_LAB) come from vendor/cfs/apps.
 # CI_LAB accepts commands from anyone on UDP; use it for development only.
+#
+# The mission is built with Electronic Data Sheets (ADR-020). The EDS tool
+# needs Lua 5.4 and Expat on the build host; both come from build-deps
+# (vcpkg feature "eds"), never from the system. The tool is built and run on
+# the host only; nothing of Lua or Expat is linked into the flight software.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -32,6 +37,20 @@ if [ -d "$DEPS_PREFIX" ]; then
   PREFIX_ARGS+=(-DCMAKE_PREFIX_PATH="$DEPS_PREFIX")
 fi
 
+# EDS tool dependencies. vcpkg's Lua has no pkg-config file, so the variables
+# that tools/eds/edslib would otherwise get from pkg-config are set here.
+if [ ! -f "$DEPS_PREFIX/lib/liblua.a" ] || [ ! -f "$DEPS_PREFIX/lib/libexpat.a" ]; then
+  echo "Lua or Expat is missing: run scripts/setup_dependencies.sh (feature eds)" >&2
+  exit 1
+fi
+EDS_ARGS=(
+  -DCFE_EDS_ENABLED=ON
+  -DLUALIB_FOUND=TRUE
+  -DLUALIB_INCLUDE_DIRS="$DEPS_PREFIX/include"
+  "-DLUALIB_LDFLAGS=$DEPS_PREFIX/lib/liblua.a;m;dl"
+  -DEXPAT_LIB="$DEPS_PREFIX/lib/libexpat.a"
+)
+
 mkdir -p "$BUILD_DIR"
 
 CFS_APP_PATH="$APP_PATH" cmake \
@@ -41,11 +60,11 @@ CFS_APP_PATH="$APP_PATH" cmake \
   -DCMAKE_EXPORT_COMPILE_COMMANDS=TRUE \
   -DCMAKE_INSTALL_PREFIX=/exe \
   -DSIMULATION=native \
-  -DCFE_EDS_ENABLED=OFF \
   -DENABLE_UNIT_TESTS=FALSE \
   -DMISSIONCONFIG=orthostream \
   -DMISSION_DEFS="$MISSION_DEFS" \
-  "${PREFIX_ARGS[@]}"
+  "${PREFIX_ARGS[@]}" \
+  "${EDS_ARGS[@]}"
 
 make -C "$BUILD_DIR" DESTDIR="$BUILD_DIR" mission-install "$@"
 

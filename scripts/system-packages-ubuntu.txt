@@ -21,6 +21,9 @@ unzip
 tar
 pkg-config
 
+# EDS build of the mission (ADR-020): the cFS table tool runs GNU m4
+m4
+
 # colmap: packages below are needed only with ORTHOSTREAM_WITH_COLMAP=1
 # Fortran compiler: LAPACK for Ceres and SuiteSparse
 gfortran

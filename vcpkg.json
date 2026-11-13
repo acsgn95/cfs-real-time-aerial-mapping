@@ -56,6 +56,23 @@
           "default-features": false
         }
       ]
+    },
+    "eds": {
+      "description": "Host tools for the EDS build of the mission (CFE_EDS_ENABLED, ADR-020): Lua and Expat for the EDS tool. Used at build time only; not linked into the flight software",
+      "dependencies": [
+        "expat",
+        "lua"
+      ]
     }
-  }
+  },
+  "overrides": [
+    {
+      "name": "expat",
+      "version": "2.8.5"
+    },
+    {
+      "name": "lua",
+      "version": "5.4.8"
+    }
+  ]
 }
