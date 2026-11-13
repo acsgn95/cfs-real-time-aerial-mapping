@@ -14,6 +14,7 @@
 #include <iostream>
 #include <limits>
 #include <map>
+#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
@@ -48,7 +49,7 @@ double since(Clock::time_point t0)
 
 struct Options
 {
-    std::string poses, images, terrain_dem, out, reference_dsm;
+    std::string poses, selection_poses, images, terrain_dem, out, reference_dsm;
     std::string terrain_crs   = "EPSG:4326+3855";
     std::string product_crs   = "EPSG:2056";
     std::string vertical_crs  = "EPSG:5729";
@@ -76,13 +77,16 @@ struct Options
     double      finalise_distance = 600.0;
     bool        points        = false;
     bool        delayed       = true;   // ADR-005 section 2
-    std::string method        = "patchmatch";
+    std::string method        = "sgbm";
     bool        evaluate_only = false;
 };
 
 const char *kUsage = R"(usage: offline_pipeline --poses FILE --images DIR --terrain-dem FILE --out DIR [options]
 
   --poses FILE            camera and poses (tools/dataset/extract_metashape_poses.py)
+  --selection-poses FILE  poses for keyframe and source view selection, as the telemetry
+                          poses in ADR-019 section 2 (default: --poses); depth range,
+                          terrain gate and reconstruction always use --poses
   --images DIR            JPEG images named in the pose file
   --terrain-dem FILE      terrain prior (tools/dataset/fetch_dem.py)
   --terrain-crs CRS       its CRS with heights (default EPSG:4326+3855)
@@ -91,7 +95,8 @@ const char *kUsage = R"(usage: offline_pipeline --poses FILE --images DIR --terr
   --product-crs CRS       projected CRS of the products (default EPSG:2056)
   --vertical-crs CRS      vertical CRS of the products, empty for ellipsoidal (default EPSG:5729)
   --first N, --count N    keyframes to process (default 0, 20)
-  --method M              patchmatch (GPU) or sgbm (CPU, two views; ADR-005 section 4)
+  --method M              sgbm (CPU, two views; default, ADR-005 section 1) or
+                          patchmatch (GPU, ADR-005 section 4)
   --width N               dense working width (default 2048)
   --sources K             source views (default 5)
   --mode causal|delayed   source views from images before the keyframe, or also up to the
@@ -131,6 +136,7 @@ Options parse(int argc, char **argv)
             return argv[++i];
         };
         if (a == "--poses") o.poses = value();
+        else if (a == "--selection-poses") o.selection_poses = value();
         else if (a == "--images") o.images = value();
         else if (a == "--terrain-dem") o.terrain_dem = value();
         else if (a == "--terrain-crs") o.terrain_crs = value();
@@ -358,7 +364,33 @@ int run(const Options &o)
     fc.terrain_crs   = o.terrain_crs;
     fc.sources       = o.sources;
     fc.delayed       = o.delayed;
-    const tools::Flight flight(data, fc);
+    // Selection uses its own poses when given (ADR-019 section 2: the
+    // telemetry poses), so that a refined block keeps its keyframes and
+    // source views.
+    tools::Dataset selection = data;
+    if (!o.selection_poses.empty())
+    {
+        selection = tools::loadPoses(o.selection_poses);
+        tools::dropMissingImages(selection, o.images);
+        bool same = selection.images.size() == data.images.size();
+        for (std::size_t i = 0; same && i < data.images.size(); ++i)
+        {
+            same = selection.images[i].name == data.images[i].name;
+        }
+        if (!same)
+        {
+            throw std::runtime_error("--selection-poses must list the same images as --poses");
+        }
+    }
+    const tools::Flight flight(selection, fc);
+    // Depth range, terrain gate and footprint follow the poses of the batch
+    // (DENSE_APP computes them from the refined poses it receives).
+    std::unique_ptr<tools::Flight> refined_geometry;
+    if (!o.selection_poses.empty())
+    {
+        refined_geometry = std::make_unique<tools::Flight>(data, fc);
+    }
+    const tools::Flight &geometry = refined_geometry ? *refined_geometry : flight;
     const auto         &kf = flight.keyframes();
     const std::size_t   first = std::min<std::size_t>(static_cast<std::size_t>(o.first), kf.size());
     const std::size_t   last  = std::min<std::size_t>(first + static_cast<std::size_t>(o.count), kf.size());
@@ -456,7 +488,7 @@ int run(const Options &o)
         const geo::LocalFrame L(data.images[k].T_E_C.translation(), g.latitude_rad, g.longitude_rad);
         dense::DepthBatch     batch;
         batch.camera = wcam;
-        std::tie(batch.depth_min, batch.depth_max) = flight.depthRange(wcam, k, o.depth_margin);
+        std::tie(batch.depth_min, batch.depth_max) = geometry.depthRange(wcam, k, o.depth_margin);
         batch.reference.T_L_C = L.poseInLocal(data.images[k].T_E_C);
         batch.reference.image = { working(k).data(), static_cast<std::size_t>(wcam.width) };
         for (const auto &s : sources)
@@ -476,7 +508,7 @@ int run(const Options &o)
         std::size_t gated    = 0;
         if (o.terrain_gate > 0.0)
         {
-            gated = dense::applyTerrainGate(batch, flight.heightGrid(k, L), o.terrain_gate,
+            gated = dense::applyTerrainGate(batch, geometry.heightGrid(k, L), o.terrain_gate,
                                             { depth.data(), normals.data(), confidence.data() });
         }
         const double t_gate = since(t0);
@@ -502,9 +534,9 @@ int run(const Options &o)
         // Render around the keyframe's footprint only: outliers can stretch
         // the extent of the fused points far beyond it.
         Eigen::AlignedBox2d footprint;
-        for (const Eigen::Vector3d &c : flight.view(k).footprint.corners)
+        for (const Eigen::Vector3d &c : geometry.view(k).footprint.corners)
         {
-            footprint.extend(frame.fromEcef(flight.frame().toEcef(c)).head<2>());
+            footprint.extend(frame.fromEcef(geometry.frame().toEcef(c)).head<2>());
         }
         footprint.min().array() -= 30.0;
         footprint.max().array() += 30.0;

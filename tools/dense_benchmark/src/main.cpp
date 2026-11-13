@@ -56,7 +56,7 @@ struct Options
     std::string              grid_dir  = OST_BENCH_GRID_DIR;
     std::string              save_depth;
     std::string              compare;
-    std::string              method = "patchmatch";
+    std::string              method = "sgbm";
     std::string              terrain_dem;
     std::string              terrain_crs = "EPSG:4326+3855";  // Copernicus DEM: WGS 84 with EGM2008 heights
     std::vector<std::string> keyframes;
@@ -108,7 +108,7 @@ const char *kUsage = R"(usage: dense_benchmark --poses FILE --images DIR --dsm F
   --terrain-crs CRS     CRS of the terrain prior with heights (default EPSG:4326+3855)
   --depth-margin M      margin of the depth range around the terrain (default 50)
   --eval-stride N       evaluate every N-th pixel in both directions (default 2)
-  --method M            patchmatch (GPU) or sgbm (CPU, two views) (default patchmatch)
+  --method M            sgbm (CPU, two views) or patchmatch (GPU) (default sgbm, ADR-005)
   --gpu N               GPU index (default 0)
   --no-warmup           do not run the first batch once before measuring
   --dry-run             no PatchMatch: render depth from the DSM instead; checks

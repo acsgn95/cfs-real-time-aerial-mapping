@@ -3,7 +3,7 @@
 Benchmark of dense reconstruction on keyframe batches of a posed image set
 (ADR-005 section 6). For each keyframe it measures:
 
-* the PatchMatch time;
+* the depth estimation time (SGBM or PatchMatch);
 * the peak GPU memory of the process and of the device (NVML);
 * the depth accuracy against a reference DSM: height differences (mean,
   median, MAE, RMSE, NMAD, 95th percentile of |e|, share within 0.5 m and
@@ -60,7 +60,9 @@ memory allocation); its row has `warmup = 1`.
 * COLMAP ends the process on CUDA errors (ADR-005, open questions). Each CSV
   row is written as soon as its batch finishes, so the rows before a crash
   are kept.
-* Geometric consistency and the SGBM baseline are not implemented yet; the
-  benchmark covers working width, K, iterations and the processing mode.
+* `--method` selects SGBM (the default since 2026-11-13, ADR-005 section 1)
+  or PatchMatch. The matrix of `scripts/run_dense_benchmark.sh` varies
+  PatchMatch factors and therefore runs PatchMatch. Geometric consistency
+  is not implemented yet.
 * Measurements need a GPU that no other process uses; the device baseline
   column shows memory used by other processes when sampling started.

@@ -5,7 +5,7 @@ The OrthoStream mapping pipeline on a recorded flight, without cFS
 mission would process them, but one after the other on one thread:
 
 1. keyframe and source view selection on the terrain prior (ADR-006);
-2. working images and PatchMatch depth (ADR-005);
+2. working images and depth, SGBM by default or PatchMatch (ADR-005);
 3. DSM fusion, orthomosaic and, optionally, the LAZ point cloud (ADR-007);
 4. tile lifecycle: finalising, writing and evicting tiles (ADR-007).
 

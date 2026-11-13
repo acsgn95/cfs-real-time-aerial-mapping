@@ -45,7 +45,7 @@ for width in $WIDTHS; do
       for mode in $MODES; do
         name="w${width}_k${k}_it${it}_${mode}"
         echo "== $name"
-        "$BIN" --poses "$POSES" --images "$DATA" \
+        "$BIN" --method patchmatch --poses "$POSES" --images "$DATA" \
           --dsm "$DATA/DSM_Dorfberg_20201109_10cm.tif" --terrain-dem "$TERRAIN" \
           --out "$OUT/$name.csv" --width "$width" --sources "$k" \
           --iterations "$it" --mode "$mode" --count "$COUNT" \

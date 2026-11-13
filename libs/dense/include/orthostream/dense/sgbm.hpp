@@ -1,6 +1,6 @@
 // Two-view semi-global matching on the CPU (OpenCV StereoSGBM), the
-// baseline method of ADR-005 section 4 and the method of AerialMapper. Works
-// without COLMAP and without a GPU.
+// default method of ADR-005 (section 1, since 2026-11-13) and the method of
+// AerialMapper. Works without COLMAP and without a GPU.
 
 #ifndef ORTHOSTREAM_DENSE_SGBM_HPP
 #define ORTHOSTREAM_DENSE_SGBM_HPP
