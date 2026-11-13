@@ -15,9 +15,9 @@ TEST(GeoCApi, UsageFromC)
 TEST(GeoCApi, CreateWithBadDataDirectoryFailsCleanly)
 {
     OST_Geo_Context_t *ctx = nullptr;
-    EXPECT_EQ(OST_Geo_Create(&ctx, "/nonexistent"), OST_GEO_ERR_PROJ);
+    EXPECT_EQ(OST_Geo_Create(&ctx, "/nonexistent"), OST_ERR_INVALID_ARGUMENT);
     EXPECT_EQ(ctx, nullptr);
-    EXPECT_EQ(OST_Geo_Create(nullptr, "/tmp"), OST_GEO_ERR_INVALID_ARGUMENT);
+    EXPECT_EQ(OST_Geo_Create(nullptr, "/tmp"), OST_ERR_INVALID_ARGUMENT);
 }
 
 }  // namespace

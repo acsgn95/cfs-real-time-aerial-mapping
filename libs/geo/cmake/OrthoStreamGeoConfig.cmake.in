@@ -1,6 +1,7 @@
 @PACKAGE_INIT@
 
 include(CMakeFindDependencyMacro)
+find_dependency(OrthoStreamInterfaces)
 find_dependency(Eigen3 CONFIG)
 # PROJ is private, but a static library still needs it at link time.
 find_dependency(PROJ CONFIG)

@@ -40,6 +40,7 @@ if(BUILD_TESTING)
     include(GoogleTest)
 endif()
 
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../interfaces ${CMAKE_CURRENT_BINARY_DIR}/interfaces)
 add_subdirectory(geo)
 add_subdirectory(imaging)
 add_subdirectory(selection)

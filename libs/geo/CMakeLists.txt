@@ -19,7 +19,7 @@ target_include_directories(orthostream_geo PUBLIC
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 target_compile_features(orthostream_geo PUBLIC cxx_std_17)
 target_link_libraries(orthostream_geo
-    PUBLIC Eigen3::Eigen
+    PUBLIC Eigen3::Eigen OrthoStream::interfaces
     PRIVATE PROJ::proj $<BUILD_INTERFACE:orthostream_warnings>)
 
 install(TARGETS orthostream_geo EXPORT OrthoStreamGeoTargets

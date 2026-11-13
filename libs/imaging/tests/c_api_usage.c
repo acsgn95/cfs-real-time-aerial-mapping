@@ -24,16 +24,16 @@ int ost_imaging_c_api_usage(const uint8_t *jpeg, size_t size)
     memset(&decoded, 0, sizeof(decoded));
     memset(&working, 0, sizeof(working));
 
-    if (OST_Imaging_DecoderCreate(&dec) != OST_IMAGING_SUCCESS)
+    if (OST_Imaging_DecoderCreate(&dec) != OST_SUCCESS)
     {
         return 1;
     }
-    if (OST_Imaging_JpegSize(dec, jpeg, size, &w, &h) != OST_IMAGING_SUCCESS || w != 320 || h != 240)
+    if (OST_Imaging_JpegSize(dec, jpeg, size, &w, &h) != OST_SUCCESS || w != 320 || h != 240)
     {
         result = 2;
         goto done;
     }
-    if (OST_Imaging_ChooseDctScale(w, h, 100, 75, &scale) != OST_IMAGING_SUCCESS || scale.width != 120)
+    if (OST_Imaging_ChooseDctScale(w, h, 100, 75, &scale) != OST_SUCCESS || scale.width != 120)
     {
         result = 3; /* 3/8 of 320 */
         goto done;
@@ -44,7 +44,7 @@ int ost_imaging_c_api_usage(const uint8_t *jpeg, size_t size)
     decoded.channels = 3;
     decoded.stride   = (size_t)scale.width * 3u;
     decoded.data     = malloc(decoded.stride * (size_t)decoded.height);
-    if (decoded.data == NULL || OST_Imaging_DecodeJpeg(dec, jpeg, size, &scale, &decoded) != OST_IMAGING_SUCCESS)
+    if (decoded.data == NULL || OST_Imaging_DecodeJpeg(dec, jpeg, size, &scale, &decoded) != OST_SUCCESS)
     {
         result = 4;
         goto done;
@@ -58,12 +58,12 @@ int ost_imaging_c_api_usage(const uint8_t *jpeg, size_t size)
     camera.cx     = 159.5;
     camera.cy     = 119.5;
     camera.k1     = -0.05;
-    if (OST_Imaging_UndistorterCreate(&und, &camera, 100, 0, 3) != OST_IMAGING_SUCCESS)
+    if (OST_Imaging_UndistorterCreate(&und, &camera, 100, 0, 3) != OST_SUCCESS)
     {
         result = 5;
         goto done;
     }
-    if (OST_Imaging_UndistorterOutputCamera(und, &out_camera) != OST_IMAGING_SUCCESS || out_camera.height != 75
+    if (OST_Imaging_UndistorterOutputCamera(und, &out_camera) != OST_SUCCESS || out_camera.height != 75
         || out_camera.k1 != 0.0)
     {
         result = 6;
@@ -75,20 +75,20 @@ int ost_imaging_c_api_usage(const uint8_t *jpeg, size_t size)
     working.channels = 3;
     working.stride   = (size_t)working.width * 3u;
     working.data     = malloc(working.stride * (size_t)working.height);
-    if (working.data == NULL || OST_Imaging_Undistort(und, &decoded, &working) != OST_IMAGING_SUCCESS)
+    if (working.data == NULL || OST_Imaging_Undistort(und, &decoded, &working) != OST_SUCCESS)
     {
         result = 7;
         goto done;
     }
     /* Mismatched output: rejected as a caller error. */
     working.width = 50;
-    if (OST_Imaging_Undistort(und, &decoded, &working) != OST_IMAGING_ERR_INVALID_ARGUMENT
+    if (OST_Imaging_Undistort(und, &decoded, &working) != OST_ERR_INVALID_ARGUMENT
         || strlen(OST_Imaging_UndistorterLastError(und)) == 0)
     {
         result = 8;
         goto done;
     }
-    if (OST_Imaging_JpegSize(dec, (const uint8_t *)"not a jpeg", 10, &w, &h) != OST_IMAGING_ERR_DECODE)
+    if (OST_Imaging_JpegSize(dec, (const uint8_t *)"not a jpeg", 10, &w, &h) != OST_ERR_FORMAT)
     {
         result = 9;
         goto done;
