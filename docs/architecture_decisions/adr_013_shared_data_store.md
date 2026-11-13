@@ -4,7 +4,8 @@
 * Date: 2026-11-11
 * Decided by: Ahmet Coşgun
 * Backlog item: D12
-* Revised: 2026-11-11 (image pool count corrected for 2048 × 1366 RGB images)
+* Revised: 2026-11-11 (image pool count corrected for 2048 × 1366 RGB images);
+  2026-11-14 (implementation; hand-over of references along the data path)
 * Evidence: ADR-001 (data sizes, R4), ADR-002 (16 GB RAM budget), ADR-006
   (image pool), ADR-011 (caller-owned buffers), ADR-012 (four applications
   share bulk data); the cFS native build runs all applications as threads of
@@ -159,6 +160,45 @@ references.
 * **D15:** messages carry `{object id, generation}` references. Store size
   and quotas are table values.
 * **D16:** store statistics go into housekeeping.
+
+## Implementation (2026-11-14)
+
+* The library `libs/datastore` (C++17, no third-party dependency, C
+  interface `datastore_c_api.h`) is wrapped by the cFS library module
+  `apps/ost_datastore`. `OST_DS_Init` creates the one store of the mission
+  from `ost_datastore_platform_cfg.h` (default 8 GB arena, the quotas of
+  section 4, 4096 objects); a mission overrides the header. The applications
+  call `OST_DS_Allocate`, `OST_DS_Seal`, `OST_DS_Abort`, `OST_DS_Acquire`,
+  `OST_DS_Release` and `OST_DS_GetStats` with the EDS type
+  `OST_ObjectRef_t`.
+* Allocator: first fit over a sorted list of free extents, coalesced on
+  release; sizes are rounded up to 64 bytes. The object table, the free
+  list and the stack of free identifiers have fixed capacities, so nothing
+  is allocated after start. A quota failure returns `OST_ERR_QUOTA`; a full
+  arena (also through fragmentation) or a full object table returns
+  `OST_ERR_NO_MEMORY`. Stale references and operations in the wrong state
+  return `OST_ERR_INVALID_ARGUMENT`; stale references are counted.
+* The arena is reserved, not touched: on Linux its pages become resident
+  only when they are written. The mission starts with an 8 GB arena and a
+  resident size of about 8 MB.
+* **Hand-over of references along the data path.** Software Bus delivery
+  is asynchronous, so a producer that released its reference right after
+  publishing could free an object before the consumer acquires it. Rule:
+  * a data path message carries one reference count for each object it
+    names. It belongs to the application that consumes the message (each
+    data path message has one consuming application, ADR-012);
+  * the consumer releases that count, or hands it on in its own output
+    message;
+  * a publisher that keeps using an object, for example `SELECT_APP` for
+    the images of its pool, acquires its own count before it publishes;
+  * when `DENSE_APP` skips a batch (ADR-015 section 3), it releases the
+    counts of that batch. A message lost in a full pipe leaves its counts
+    unreleased; the leak shows in the statistics.
+* Tests: lifecycle, stale references after reuse of a slot, state rules,
+  quotas, fragmentation and coalescing, the object table limit, concurrent
+  readers with a concurrent producer, and use of the C interface from C99.
+* Open: which application publishes the store statistics of section 6.
+  A library module has no Software Bus task of its own.
 
 ## Open Questions
 

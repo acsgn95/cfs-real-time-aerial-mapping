@@ -5,7 +5,8 @@
 * Decided by: Ahmet Coşgun
 * Backlog item: D10
 * Revised: 2026-11-11 (reusable components for other cFS missions; first test
-  follows the corrected criterion of ADR-008)
+  follows the corrected criterion of ADR-008); 2026-11-14 (section 8:
+  linking libraries into cFS modules)
 * Evidence: ADR-005 section 7 (COLMAP only in an algorithm library);
   ADR-009 (C99 applications, C++17 libraries, `OST_` prefix); ADR-010
   (dependencies); the library pattern of a cFS mission on the same machine
@@ -99,6 +100,33 @@ and tile. Merging and thinning happen offline. This amends ADR-007.
 * The first test: the ground control point check of ADR-008 section 2
   (camera model conversion, triangulated markers against the Metashape
   report, and surveyed against estimated positions).
+
+### 8. Linking libraries into cFS modules
+
+Added 2026-11-14, with the first module that links a library
+(`ost_datastore`).
+
+* cFE loads library modules (`CFE_LIB`) with global symbols and
+  applications with local symbols, all into one process. If two modules
+  both contained, for example, PROJ or OpenCV with exported symbols, one
+  module's calls could bind to the other module's copy.
+* Every cFS module therefore links the OrthoStream libraries and their
+  third-party dependencies statically and keeps their symbols inside the
+  module (`-Wl,--exclude-libs,ALL`). Only the module's own C functions are
+  exported. Only C interfaces cross module boundaries.
+* Two applications that use the same library each contain their own copy.
+  This costs disk and memory for code, not for data, and keeps every
+  module independent.
+* Shared state lives in a library module with a C interface (the data store
+  in `ost_datastore`), never in a statically linked copy.
+* `scripts/build_libs.sh` installs the libraries under
+  `build-libs/<build type>/install`. The reference mission adds this prefix
+  in `arch_build_custom.cmake`: cFS passes `CMAKE_PREFIX_PATH` to the
+  architecture build without quotes, so a second path on the command line
+  would be lost. A host mission adds the install prefix of the libraries in
+  the same way.
+* The C++ runtime (`libstdc++`) is linked dynamically from the toolchain;
+  it is part of the compiler, not a third-party dependency (ADR-010).
 
 ## Rationale
 

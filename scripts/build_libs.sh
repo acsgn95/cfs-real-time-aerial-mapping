@@ -7,6 +7,9 @@
 #   ORTHOSTREAM_BUILD_TYPE=release scripts/build_libs.sh
 #   ORTHOSTREAM_WITH_COLMAP=0 scripts/build_libs.sh   without PatchMatch (no GPU)
 #   ORTHOSTREAM_WITH_REFINE=0 scripts/build_libs.sh   without pose refinement (no GTSAM)
+#
+# The libraries are installed under build-libs/<build type>/install, where
+# mission/build.sh finds them for the cFS modules (ADR-011 section 8).
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -33,3 +36,5 @@ cmake -S "$REPO_ROOT/libs" -B "$BUILD_DIR" -G Ninja \
   -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 cmake --build "$BUILD_DIR"
 ctest --test-dir "$BUILD_DIR" --output-on-failure
+cmake --install "$BUILD_DIR" --prefix "$BUILD_DIR/install" > /dev/null
+echo "Libraries installed under $BUILD_DIR/install"

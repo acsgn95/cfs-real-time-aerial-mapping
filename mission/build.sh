@@ -32,9 +32,18 @@ APP_PATH="$REPO_ROOT/apps:$REPO_ROOT/vendor/cfs/apps"
 # Third-party dependencies built by scripts/setup_dependencies.sh (ADR-010).
 # cFS passes CMAKE_PREFIX_PATH on to its per-architecture builds.
 DEPS_PREFIX="$REPO_ROOT/build-deps/vcpkg_installed/x64-linux-orthostream"
+
 PREFIX_ARGS=()
 if [ -d "$DEPS_PREFIX" ]; then
   PREFIX_ARGS+=(-DCMAKE_PREFIX_PATH="$DEPS_PREFIX")
+fi
+
+# The OrthoStream libraries (libs/), built and installed by
+# scripts/build_libs.sh with the same build type. The cFS modules link them
+# statically (ADR-011 section 8); arch_build_custom.cmake adds their prefix.
+if [ ! -d "$REPO_ROOT/build-libs/$BUILD_TYPE/install/lib/cmake" ]; then
+  echo "OrthoStream libraries missing: run ORTHOSTREAM_BUILD_TYPE=$BUILD_TYPE scripts/build_libs.sh" >&2
+  exit 1
 fi
 
 # EDS tool dependencies. vcpkg's Lua has no pkg-config file, so the variables

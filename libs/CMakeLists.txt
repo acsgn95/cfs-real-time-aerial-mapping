@@ -41,6 +41,7 @@ if(BUILD_TESTING)
 endif()
 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../interfaces ${CMAKE_CURRENT_BINARY_DIR}/interfaces)
+add_subdirectory(datastore)
 add_subdirectory(geo)
 add_subdirectory(imaging)
 add_subdirectory(selection)
