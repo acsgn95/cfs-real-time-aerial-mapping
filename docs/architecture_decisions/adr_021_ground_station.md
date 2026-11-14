@@ -1,6 +1,7 @@
 # ADR-021: Ground Station and Operator Interface
 
-* Status: Accepted
+* Status: Accepted; implementation notes added 2026-11-14 (own instance,
+  plugin generator)
 * Date: 2026-11-13
 * Decided by: Ahmet Coşgun
 * Backlog item: D23
@@ -112,6 +113,52 @@ thesis it either runs on another machine, or its resource use is recorded by
 the sampler (ADR-017 section 3). Runs without COSMOS remain the reference for
 the timing results (ADR-002).
 
+## Implementation Notes (2026-11-14)
+
+* **Pinned release:** OpenC3 COSMOS 7.4.1 (`cosmos-project` tag `v7.4.1`).
+* **Own instance.** Another project on the development machine runs its
+  own COSMOS. OrthoStream therefore runs a separate instance next to it.
+  * `scripts/cosmos_setup.sh` fetches the project into
+    `ground/cosmos/runtime/orthostream-cosmos` (not tracked by git) and
+    links `ground/cosmos/compose.override.yaml` into it.
+  * The instance has its own compose project name, `orthostream-cosmos`,
+    so its own containers and volumes.
+  * It has its own ports: web interface 2910, telemetry 2244, commands
+    1244.
+* **Mission ports.** The mission uses the same ports:
+  * `TO_LAB` sends to UDP 2244 and `CI_LAB` listens on UDP 1244
+    (`mission/orthostream_defs/eds/config.xml`).
+  * `TO_LAB` output is enabled with the command
+    `TO_LAB_CMD_ENABLE_OUTPUT` (`DEST_IP 127.0.0.1`).
+* **Subscriptions** (`mission/orthostream_defs/tables/to_lab_sub.c`):
+  * cFE housekeeping and EVS long event messages;
+  * `FaultEvent`;
+  * the housekeeping and status messages of the applications.
+  * During development also the small data path messages
+    `TelemetrySample` and `ImageArrived`.
+* **Plugin generator.** `tools/ground/generate_cosmos_plugin.py` builds
+  the plugin under `build/cosmos_plugin` from the template
+  `ground/cosmos/plugin` and the EDS output `build/cosmos`.
+  `scripts/cosmos_plugin.sh` generates the plugin, builds the gem and
+  installs it.
+  * **Message identifiers:** computed from the topic identifiers as cFE
+    does: command 0x1800 + offset, telemetry 0x0800 + offset. They were
+    checked against the built `SCH_LAB` and `TO_LAB` tables and against
+    received packets. The cFS plugin's fixed table of identifiers is not
+    used.
+  * **Byte order:** packets are big-endian, as `TO_LAB` encodes them
+    through EDS. The telemetry header has 4 bytes of alignment after the
+    time.
+  * **Enumerations:** `STATE` lines are added from the EDS enumerations
+    (ADR-020 open question).
+  * **Screens:** one housekeeping screen per application and a fault event
+    screen.
+* **Verified (2026-11-14):** commands from COSMOS reached `CI_LAB`, and
+  `INGEST_APP_HK` showed the values of a three-image session. `STATE` was
+  displayed as `LISTENING`, `COMMON_HIGHEST_SEVERITY` as `NONE`.
+* **Packet time:** shown in 1970 because cFE time is not set. Setting cFE
+  time from the host clock is open.
+
 ## Rationale
 
 * COSMOS covers commands, telemetry, limits, event logs and scripted
@@ -162,7 +209,9 @@ the timing results (ADR-002).
 
 ## Open Questions
 
-* The COSMOS release to pin.
+* ~~The COSMOS release to pin~~ — 7.4.1 (implementation notes).
+* Setting cFE time from the host clock, so that COSMOS shows packet times in
+  UTC.
 * How the published tiles reach a remote operator (file synchronisation or
   an HTTP tile server on the mission side). Decided with the map view.
 * The map library of the map view (for example OpenLayers or MapLibre).

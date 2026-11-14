@@ -171,3 +171,6 @@ secrets.json
 *.tar.gz
 *.tgz
 *.7z
+
+# OrthoStream COSMOS instance (scripts/cosmos_setup.sh)
+/ground/cosmos/runtime/

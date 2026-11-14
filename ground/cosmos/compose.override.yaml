@@ -1,0 +1,27 @@
+# OrthoStream settings for its own OpenC3 COSMOS instance (ADR-021).
+#
+# scripts/cosmos_setup.sh links this file into
+# ground/cosmos/runtime/orthostream-cosmos/ as compose.override.yaml; openc3.sh
+# merges it on top of the upstream compose.yaml, which stays unedited.
+#
+# The instance runs next to other COSMOS instances on the same machine: its
+# own compose project (named in .env.local), its own volumes, and its own
+# ports. "!override" replaces the upstream port lists instead of adding to
+# them.
+#
+#   http://localhost:2910   COSMOS web interface
+#   UDP 2244                telemetry from TO_LAB (mission/orthostream_defs/eds/config.xml)
+#   UDP 1244                commands to CI_LAB, on the host
+
+services:
+  openc3-traefik:
+    ports: !override
+      - "127.0.0.1:2910:2900"
+      - "127.0.0.1:2953:2943"
+
+  openc3-operator:
+    ports: !override
+      - "127.0.0.1:2244:2244/udp"
+    extra_hosts:
+      # CI_LAB runs on the host; the interface sends commands there.
+      - "host.docker.internal:host-gateway"

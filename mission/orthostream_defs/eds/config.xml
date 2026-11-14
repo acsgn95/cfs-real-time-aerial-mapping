@@ -63,8 +63,11 @@
     <Define name="STRING_VAL_LEN" value="10" />
   </Package>
 
+  <!-- OrthoStream uses its own ports (1244 commands, 2244 telemetry), so that
+       its ground system can run next to other cFS projects on one machine
+       (ADR-021 section 2). -->
   <Package name="CI_LAB">
-    <Define name="BASE_UDP_PORT" value="1234" />
+    <Define name="BASE_UDP_PORT" value="1244" />
   </Package>
 
   <Package name="IOLib">
@@ -89,7 +92,7 @@
   </Package>
 
   <Package name="TO_LAB">
-    <Define name="TLM_PORT" value="2234" />
+    <Define name="TLM_PORT" value="2244" />
     <Define name="MAX_SUBSCRIPTIONS" value="32" />
   </Package>
 

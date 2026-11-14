@@ -324,7 +324,7 @@ decision left open:
   evaluation tools: they need the Python development headers. Decided when
   the first ground-side tool decodes Software Bus messages.
 * Support for host missions without EDS, if a user needs it.
-* Enumeration labels in COSMOS: the COSMOS writer of the cFS EDS tooling
-  writes enumerations as plain integers, without `STATE` lines. The
-  OrthoStream COSMOS plugin (ADR-021) has to add them, for example from the
-  EDS database.
+* ~~Enumeration labels in COSMOS~~ — resolved 2026-11-14: the plugin
+  generator (`tools/ground/generate_cosmos_plugin.py`, ADR-021) reads the
+  EDS files and adds `STATE` lines to every item whose type is an
+  enumeration.

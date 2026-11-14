@@ -1,0 +1,20 @@
+# OpenC3 COSMOS plugin of OrthoStream (ADR-021 section 1).
+#
+# Generated into build/cosmos_plugin by tools/ground/generate_cosmos_plugin.py
+# from this template and the EDS build output (build/cosmos). Packet
+# definitions are never edited by hand.
+
+# Address of the host running cFS (CI_LAB listens there), and the UDP ports
+# of mission/orthostream_defs/eds/config.xml.
+VARIABLE cfs_host host.docker.internal
+VARIABLE cmd_port 1244
+VARIABLE tlm_port 2244
+
+TARGET ORTHOSTREAM ORTHOSTREAM
+
+INTERFACE ORTHOSTREAM_INT udp_interface.rb <%= cfs_host %> <%= cmd_port %> <%= tlm_port %> nil nil 128 nil nil
+  MAP_TARGET ORTHOSTREAM
+  PROTOCOL WRITE ProtocolCcsdsChecksum
+  PROTOCOL WRITE ProtocolCcsdsLength
+  PROTOCOL READ LengthProtocol 32 16 7 1 BIG_ENDIAN 0 nil
+  PROTOCOL READ ProtocolEvsLog
