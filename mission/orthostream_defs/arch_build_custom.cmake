@@ -35,3 +35,6 @@ string(TOLOWER "${CMAKE_BUILD_TYPE}" OST_LIBS_BUILD_TYPE)
 get_filename_component(OST_LIBS_PREFIX
     "${MISSION_DEFS}/../../build-libs/${OST_LIBS_BUILD_TYPE}/install" ABSOLUTE)
 list(APPEND CMAKE_PREFIX_PATH "${OST_LIBS_PREFIX}")
+
+# Link dependencies of the static vcpkg packages (GDAL, PROJ) in this build.
+include("${MISSION_DEFS}/ost_vcpkg_find_package.cmake")

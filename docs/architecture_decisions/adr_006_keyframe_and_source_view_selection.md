@@ -1,6 +1,6 @@
 # ADR-006: Keyframe and Source View Selection
 
-* Status: Accepted
+* Status: Accepted; implementation notes added 2026-11-14 (`libs/terrain`, `SELECT_APP`)
 * Date: 2026-11-10
 * Decided by: Ahmet Coşgun
 * Backlog item: D06
@@ -192,6 +192,30 @@ ADR-005 benchmark.
 * **D13:** defines when a pose is valid.
 * **D16:** footprint rejections, keyframe decisions and pool size are
   reported.
+
+## Implementation Notes (2026-11-14)
+
+* **Terrain prior:** `libs/terrain` reads a window of the model around the
+  flight (default radius 20 km) through GDAL and converts heights through
+  PROJ, from the model's CRS to ECEF (`EPSG:4326+3855` needs the EGM2008
+  grid). At Davos the applied undulation is about 49 m (test with the
+  Copernicus mosaic).
+* **Incremental selection:** `selection::Selector` (C interface
+  `OST_Select_*`) decides one image at a time: footprint, flight line (the
+  rule of `assignFlightLines`, one image at a time), keyframe, and causal
+  sources among the pool images. Geometry runs in an ENU frame at the
+  first image of the session. The plane height in `KeyframeBatch` is the
+  ellipsoidal height of the footprint plane at its centre.
+* **Pool:** at most `MaxPoolImages` (200) images; images whose footprint
+  centre is farther than `PoolDistanceM` (600 m) from the current camera
+  position leave it. The spatial index of section 6 is a linear scan over
+  at most 200 entries; it is enough at this size.
+* **Working images:** RGB at 2048 px by default (also the source of the
+  orthomosaic); the JPEG of a keyframe goes with its batch, other JPEGs are
+  released after decoding.
+* **Verification:** on Dorfberg images 42–122 `SELECT_APP` chose the same
+  keyframes as `tools/offline_pipeline` (36 of 36, apart from the first
+  of the session); 20 of 36 batches had a source of the neighbouring line.
 
 ## Open Questions
 

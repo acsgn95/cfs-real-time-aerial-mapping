@@ -132,6 +132,19 @@ recorded with every measurement.
 * **ADR-002:** the scheduling mode (with or without real-time privileges) is
   part of the recorded measurement conditions.
 
+## Implementation Notes (2026-11-14)
+
+* `ALIGN_APP` uses no wake-up message: its 50 ms pipe timeout enforces the
+  waiting limit of ADR-014.
+* `SELECT_APP` hands images to its worker through a ring of the
+  application with a mutex and a counting semaphore. OSAL queues map to
+  POSIX message queues, which allow only 10 entries
+  (`/proc/sys/fs/mqueue/msg_max`) without privileges.
+* cFE limits a pipe to 50 messages (`CFE_PLATFORM_SB_MAX_PIPE_DEPTH`). A
+  data path message lost to a full pipe also loses the data store counts
+  it carries, so the per-message limits of the subscriptions are set
+  generously.
+
 ## Open Questions
 
 None.

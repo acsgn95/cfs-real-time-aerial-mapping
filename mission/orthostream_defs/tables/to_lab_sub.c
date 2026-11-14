@@ -29,6 +29,8 @@ TO_LAB_Subs_t Subscriptions = {.Subs = {
 
     /* OrthoStream, shared */
     OST_TO_TLM(OST_FAULT_EVENT_TLM_TOPICID, 16),
+    OST_TO_TLM(OST_BATCH_SELECTED_TLM_TOPICID, 8),
+    OST_TO_TLM(OST_BATCH_READY_TLM_TOPICID, 8),
 
     /* INGEST_APP */
     OST_TO_TLM(INGEST_APP_HK_TLM_TOPICID, 4),
@@ -39,6 +41,9 @@ TO_LAB_Subs_t Subscriptions = {.Subs = {
     /* ALIGN_APP */
     OST_TO_TLM(ALIGN_APP_HK_TLM_TOPICID, 4),
     OST_TO_TLM(ALIGN_APP_IMAGE_POSE_TLM_TOPICID, 8),
+
+    /* SELECT_APP */
+    OST_TO_TLM(SELECT_APP_HK_TLM_TOPICID, 4),
 
     /* End of the list */
     {CFE_SB_MSGID_RESERVED, {0, 0}, 0}}};

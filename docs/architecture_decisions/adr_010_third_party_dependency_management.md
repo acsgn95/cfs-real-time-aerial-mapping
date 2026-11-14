@@ -184,3 +184,15 @@ Static linkage and pinned dependencies are the preconditions for both.
 * COLMAP needed three system packages not foreseen in section 4: OpenGL and
   GLU development files (for GLEW) and a Fortran compiler (for LAPACK). They
   were added to section 4 and `scripts/system-packages-ubuntu.txt`.
+
+## Implementation Note (2026-11-14): vcpkg wrappers in the cFS build
+
+The libraries are built with vcpkg's toolchain, which runs a package's
+`share/<package>/vcpkg-cmake-wrapper.cmake` when `find_package` looks for
+it; the wrappers add the link dependencies of the static libraries (for
+example `SQLite3::SQLite3` for PROJ, LZMA and JPEG for TIFF). The cFS build
+has no vcpkg toolchain, so the first module that links GDAL and PROJ
+(`SELECT_APP`) failed to configure. `mission/orthostream_defs/ost_vcpkg_find_package.cmake`
+installs the same `find_package` override for the packages of build-deps,
+included from `arch_build_custom.cmake`. Everything is still taken from
+build-deps, never from the system.

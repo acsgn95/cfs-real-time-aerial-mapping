@@ -91,5 +91,35 @@ and Meaning; the fault events list the application's faults in order.
 | 62 | fault `TABLE_REJECTED` | | the configuration table was not loaded |
 | 63 | fault `LIBRARY_ERROR` | | a call of `libs/time_align` failed |
 
+### `SELECT_APP`
+
+| Id | Name | Type | Meaning |
+| --- | --- | --- | --- |
+| 1 | `SELECT_APP_INIT_INF_EID` | INFORMATION | initialised: working image size, K, destination of the batches |
+| 2 | `SELECT_APP_NOOP_INF_EID` | INFORMATION | no-op command |
+| 3 | `SELECT_APP_RESET_INF_EID` | INFORMATION | counters reset |
+| 4 | `SELECT_APP_MID_ERR_EID` | ERROR | message with an unknown message identifier |
+| 5 | `SELECT_APP_CMD_LEN_ERR_EID` | ERROR | command of wrong length |
+| 6 | `SELECT_APP_CC_ERR_EID` | ERROR | unknown command code |
+| 7 | `SELECT_APP_PIPE_ERR_EID` | ERROR | Software Bus pipe read error; the application stops |
+| 8 | `SELECT_APP_TBL_ERR_EID` | ERROR | configuration table rejected or not loaded |
+| 9 | `SELECT_APP_CLEAR_INF_EID` | INFORMATION | latched faults cleared |
+| 10 | `SELECT_APP_INIT_ERR_EID` | ERROR | initialisation failed |
+| 20 | `SELECT_APP_SESSION_INF_EID` | INFORMATION | session calibration applied: camera and working image size |
+| 21 | `SELECT_APP_CALIBRATION_ERR_EID` | ERROR | working image converter not created for the session camera |
+| 22 | `SELECT_APP_TERRAIN_ERR_EID` | ERROR | terrain prior not usable, or no terrain at an image (filtered) |
+| 23 | `SELECT_APP_DECODE_ERR_EID` | ERROR | image not decoded to the working resolution (filtered) |
+| 24 | `SELECT_APP_QUOTA_ERR_EID` | ERROR | working image not stored after evicting pool images (filtered) |
+| 25 | `SELECT_APP_QUEUE_FULL_EID` | ERROR | image or calibration dropped: worker queue full (filtered) |
+| 26 | `SELECT_APP_MSG_LEN_ERR_EID` | ERROR | input message of wrong length (filtered) |
+| 27 | `SELECT_APP_LIB_ERR_EID` | ERROR | a call of `libs/selection` failed (filtered) |
+| 28 | `SELECT_APP_KEYFRAME_DBG_EID` | DEBUG | keyframe: image, flight line, overlap, sources, plane height |
+| 29 | `SELECT_APP_DATASTORE_ERR_EID` | ERROR | data store reference not released (filtered) |
+| 60 | fault `TERRAIN_UNAVAILABLE` | | elevation model or PROJ data not usable, or no terrain at the last image |
+| 61 | fault `IMAGE_DECODE` | | an image could not be decoded |
+| 62 | fault `DATASTORE_QUOTA` | | a working image could not be stored |
+| 63 | fault `TABLE_REJECTED` | | the configuration table was not loaded |
+| 64 | fault `LIBRARY_ERROR` | | a call of `libs/selection` or `libs/imaging` failed |
+
 Filtered events are sent for the first 8 occurrences; the counts are in
 the housekeeping.

@@ -24,3 +24,19 @@ target_include_directories(sch_lab.table INTERFACE ${APP_INCLUDE_TABLE_LIST})
 # Startup script generated from the application list of targets.cmake
 install(SCRIPT ${MISSION_DEFS}/generate_startup.cmake)
 install(CODE "generate_cfs_startup_script(\"${TGTNAME}/${INSTALL_SUBDIR}\" ${${TGTNAME}_APPLIST})")
+
+# Geodata for the terrain prior of SELECT_APP (ADR-006 section 2), under
+# /cf/geodata as its default table expects: proj.db of the PROJ package in
+# use, the EGM2008 grid (scripts/fetch_proj_grids.sh) and the Copernicus
+# mosaic of the mission area (tools/dataset/fetch_dem.py), installed as
+# terrain.vrt. Missing files are left out; SELECT_APP then reports
+# TERRAIN_UNAVAILABLE.
+get_filename_component(OST_REPO_ROOT "${MISSION_DEFS}/../.." ABSOLUTE)
+set(OST_DEPS_PREFIX "${OST_REPO_ROOT}/build-deps/vcpkg_installed/x64-linux-orthostream")
+set(OST_DEM_DIR "${OST_REPO_ROOT}/data/raw/dem/cop30")
+install(FILES "${OST_DEPS_PREFIX}/share/proj/proj.db" DESTINATION cpu1/cf/geodata/proj OPTIONAL)
+install(FILES "${OST_REPO_ROOT}/build-deps/proj-grids/us_nga_egm08_25.tif" DESTINATION cpu1/cf/geodata/grids OPTIONAL)
+install(FILES "${OST_DEM_DIR}/dorfberg.vrt" DESTINATION cpu1/cf/geodata/dem RENAME terrain.vrt OPTIONAL)
+if(EXISTS "${OST_DEM_DIR}/tiles")
+    install(DIRECTORY "${OST_DEM_DIR}/tiles" DESTINATION cpu1/cf/geodata/dem)
+endif()

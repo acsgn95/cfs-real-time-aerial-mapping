@@ -100,6 +100,8 @@
           <Enumeration label="LINK_FORMAT" value="3" shortDescription="Link format or version mismatch" />
           <Enumeration label="POSE_NO_TELEMETRY" value="10" shortDescription="No telemetry around an image" />
           <Enumeration label="POSE_ACCURACY_LOW" value="11" shortDescription="Pose accuracy below the configured limit" />
+          <Enumeration label="TERRAIN_UNAVAILABLE" value="15" shortDescription="No terrain prior at the image position" />
+          <Enumeration label="IMAGE_DECODE" value="16" shortDescription="An image could not be decoded" />
           <Enumeration label="DATASTORE_QUOTA" value="20" shortDescription="Data store quota exhausted" />
           <Enumeration label="KEYFRAMES_SKIPPED" value="30" shortDescription="Keyframes skipped because of backlog" />
           <Enumeration label="GPU_FAILURE" value="31" shortDescription="GPU or CUDA failure" />

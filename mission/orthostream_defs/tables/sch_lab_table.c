@@ -31,6 +31,9 @@ SCH_LAB_ScheduleTable_t Schedule = {
 
         /* ALIGN_APP: no wake-up, its pipe timeout checks the waiting images */
         {OST_SCH_CMD(ALIGN_APP_SEND_HK_TOPICID), 100, 0},
+
+        /* SELECT_APP */
+        {OST_SCH_CMD(SELECT_APP_SEND_HK_TOPICID), 100, 0},
     }
 };
 

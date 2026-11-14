@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  SELECT_APP: footprints, keyframes and source views (ADR-006, ADR-012).
+  Consumes ImagePose and SessionCalibration, decodes the images to the
+  working resolution, keeps the image pool and publishes keyframe batches
+  on OST/BATCH_SELECTED_TLM (pose refinement on) or OST/BATCH_READY_TLM
+  (ADR-019). Definitions follow ADR-020.
+-->
+<PackageFile xmlns="http://www.ccsds.org/schema/sois/seds">
+  <Package name="SELECT_APP" shortDescription="Keyframe and source view selection">
+
+    <DataTypeSet>
+
+      <StringDataType name="PathName" length="128" />
+      <StringDataType name="CrsName" length="32" />
+
+      <!-- Configuration table (ADR-016 section 5); defaults of ADR-006 -->
+
+      <ContainerDataType name="ConfigTable" shortDescription="Configuration of SELECT_APP">
+        <EntryList>
+          <Entry name="RefinePose" type="BASE_TYPES/uint8" shortDescription="1: batches go to REFINE_APP (BATCH_SELECTED); 0: to DENSE_APP (BATCH_READY)" />
+          <Entry name="WorkChannels" type="BASE_TYPES/uint8" shortDescription="1: grey, 3: RGB working images" />
+          <Entry name="Spare" type="BASE_TYPES/uint16" />
+          <Entry name="WorkWidth" type="BASE_TYPES/uint32" shortDescription="Working image width, px; the height keeps the aspect ratio" />
+          <Entry name="FootprintIterations" type="BASE_TYPES/uint32" shortDescription="Fixed-point iterations of the footprint plane" />
+          <Entry name="MaxSources" type="BASE_TYPES/uint32" shortDescription="K source views, at most OST MAX_SOURCE_VIEWS" />
+          <Entry name="MaxPoolImages" type="BASE_TYPES/uint32" shortDescription="Images in the pool" />
+          <Entry name="NominalHeightAglM" type="BASE_TYPES/float" shortDescription="Starting plane below the camera" />
+          <Entry name="MaxTiltDeg" type="BASE_TYPES/float" shortDescription="Keyframes: tilt from nadir" />
+          <Entry name="TargetOverlap" type="BASE_TYPES/float" shortDescription="Keyframes: forward overlap, 0.6-0.8" />
+          <Entry name="MinOverlap" type="BASE_TYPES/float" shortDescription="Sources: overlap with the keyframe" />
+          <Entry name="MinBaselineRatio" type="BASE_TYPES/float" shortDescription="Sources: baseline / height above the footprint plane" />
+          <Entry name="MaxBaselineRatio" type="BASE_TYPES/float" />
+          <Entry name="MaxViewAngleDeg" type="BASE_TYPES/float" shortDescription="Sources: angle between the optical axes" />
+          <Entry name="PreferredTriangulationAngleDeg" type="BASE_TYPES/float" shortDescription="Sources: angles above it score fully" />
+          <Entry name="LineTurnDeg" type="BASE_TYPES/float" shortDescription="A new flight line after this change of direction" />
+          <Entry name="PoolDistanceM" type="BASE_TYPES/float" shortDescription="Pool images whose footprint centre is farther from the current position leave the pool" />
+          <Entry name="TerrainRadiusM" type="BASE_TYPES/float" shortDescription="Radius of the terrain window held in memory" />
+          <Entry name="DemPath" type="PathName" shortDescription="Elevation model (GDAL); /cf/ paths are translated" />
+          <Entry name="DemCrs" type="CrsName" shortDescription="CRS of the model with heights" />
+          <Entry name="ProjDataDir" type="PathName" shortDescription="Directory of proj.db" />
+          <Entry name="GridDir" type="PathName" shortDescription="Directory of the PROJ grids; empty: none" />
+        </EntryList>
+      </ContainerDataType>
+
+      <ContainerDataType name="HkTlm_Payload" shortDescription="SELECT_APP housekeeping">
+        <EntryList>
+          <Entry name="Common" type="OST/HkCommon" />
+          <Entry name="SessionId" type="BASE_TYPES/uint32" />
+          <Entry name="Calibrated" type="BASE_TYPES/uint8" shortDescription="1: camera and working image converter of the session ready" />
+          <Entry name="TerrainLoaded" type="BASE_TYPES/uint8" />
+          <Entry name="RefinePose" type="BASE_TYPES/uint8" />
+          <Entry name="Spare" type="BASE_TYPES/uint8" />
+          <Entry name="ImagesReceived" type="BASE_TYPES/uint32" shortDescription="ImagePose messages" />
+          <Entry name="ImagesInvalidPose" type="BASE_TYPES/uint32" shortDescription="ImagePose without a valid pose" />
+          <Entry name="ImagesNoCalibration" type="BASE_TYPES/uint32" shortDescription="Valid pose, but no calibration of its session" />
+          <Entry name="ImagesNoFootprint" type="BASE_TYPES/uint32" />
+          <Entry name="ImagesNoTerrain" type="BASE_TYPES/uint32" shortDescription="No footprint because no terrain covers the image" />
+          <Entry name="ImagesDecoded" type="BASE_TYPES/uint32" />
+          <Entry name="DecodeErrors" type="BASE_TYPES/uint32" />
+          <Entry name="QuotaFailures" type="BASE_TYPES/uint32" shortDescription="Working image not stored after evicting the pool" />
+          <Entry name="QueueOverflows" type="BASE_TYPES/uint32" shortDescription="Images dropped because the worker queue was full" />
+          <Entry name="Keyframes" type="BASE_TYPES/uint32" />
+          <Entry name="BatchesPublished" type="BASE_TYPES/uint32" />
+          <Entry name="SourcesPublished" type="BASE_TYPES/uint32" />
+          <Entry name="BatchesWithOtherLine" type="BASE_TYPES/uint32" shortDescription="Batches with a source of another flight line" />
+          <Entry name="PoolImages" type="BASE_TYPES/uint32" />
+          <Entry name="PoolEvicted" type="BASE_TYPES/uint32" />
+          <Entry name="QuotaEvictions" type="BASE_TYPES/uint32" shortDescription="Pool images released early for memory" />
+          <Entry name="FlightLines" type="BASE_TYPES/uint32" />
+          <Entry name="TerrainLoads" type="BASE_TYPES/uint32" />
+          <Entry name="QueueDepth" type="BASE_TYPES/uint32" shortDescription="Images waiting for the worker" />
+          <Entry name="LastDecodeMs" type="BASE_TYPES/uint32" />
+          <Entry name="MaxDecodeMs" type="BASE_TYPES/uint32" />
+          <Entry name="LastSelectMs" type="BASE_TYPES/uint32" shortDescription="Footprint, keyframe and source decision" />
+          <Entry name="MaxSelectMs" type="BASE_TYPES/uint32" />
+          <Entry name="LastOverlap" type="BASE_TYPES/float" shortDescription="Overlap of the last keyframe with the one before" />
+        </EntryList>
+      </ContainerDataType>
+
+      <!-- Commands -->
+
+      <ContainerDataType name="CommandBase" baseType="CFE_HDR/CommandHeader" />
+      <ContainerDataType name="SendHkCmd" baseType="CFE_HDR/CommandHeader" />
+
+      <ContainerDataType name="NoopCmd" baseType="CommandBase">
+        <ConstraintSet><ValueConstraint entry="Sec.FunctionCode" value="0" /></ConstraintSet>
+      </ContainerDataType>
+      <ContainerDataType name="ResetCountersCmd" baseType="CommandBase">
+        <ConstraintSet><ValueConstraint entry="Sec.FunctionCode" value="1" /></ConstraintSet>
+      </ContainerDataType>
+      <ContainerDataType name="ClearLatchedFaultsCmd" baseType="CommandBase">
+        <ConstraintSet><ValueConstraint entry="Sec.FunctionCode" value="2" /></ConstraintSet>
+      </ContainerDataType>
+
+      <!-- Telemetry -->
+
+      <ContainerDataType name="HkTlm" baseType="CFE_HDR/TelemetryHeader">
+        <EntryList><Entry name="Payload" type="HkTlm_Payload" /></EntryList>
+      </ContainerDataType>
+
+    </DataTypeSet>
+
+    <ComponentSet>
+      <Component name="Application">
+        <RequiredInterfaceSet>
+          <Interface name="ConfigTable" shortDescription="Configuration table" type="CFE_TBL/Table">
+            <GenericTypeMapSet>
+              <GenericTypeMap name="TableDataType" type="ConfigTable" />
+            </GenericTypeMapSet>
+          </Interface>
+          <Interface name="CMD" shortDescription="Ground commands" type="CFE_SB/Telecommand">
+            <GenericTypeMapSet>
+              <GenericTypeMap name="TelecommandDataType" type="CommandBase" />
+            </GenericTypeMapSet>
+          </Interface>
+          <Interface name="SEND_HK" shortDescription="Housekeeping request" type="CFE_SB/Telecommand">
+            <GenericTypeMapSet>
+              <GenericTypeMap name="TelecommandDataType" type="SendHkCmd" />
+            </GenericTypeMapSet>
+          </Interface>
+          <Interface name="HK_TLM" shortDescription="Housekeeping" type="CFE_SB/Telemetry">
+            <GenericTypeMapSet>
+              <GenericTypeMap name="TelemetryDataType" type="HkTlm" />
+            </GenericTypeMapSet>
+          </Interface>
+        </RequiredInterfaceSet>
+        <Implementation>
+          <VariableSet>
+            <Variable type="BASE_TYPES/uint16" readOnly="true" name="CmdTopicId" initialValue="${CFE_MISSION/SELECT_APP_CMD_TOPICID}" />
+            <Variable type="BASE_TYPES/uint16" readOnly="true" name="SendHkTopicId" initialValue="${CFE_MISSION/SELECT_APP_SEND_HK_TOPICID}" />
+            <Variable type="BASE_TYPES/uint16" readOnly="true" name="HkTlmTopicId" initialValue="${CFE_MISSION/SELECT_APP_HK_TLM_TOPICID}" />
+          </VariableSet>
+          <ParameterMapSet>
+            <ParameterMap interface="CMD" parameter="TopicId" variableRef="CmdTopicId" />
+            <ParameterMap interface="SEND_HK" parameter="TopicId" variableRef="SendHkTopicId" />
+            <ParameterMap interface="HK_TLM" parameter="TopicId" variableRef="HkTlmTopicId" />
+          </ParameterMapSet>
+        </Implementation>
+      </Component>
+    </ComponentSet>
+
+  </Package>
+</PackageFile>
