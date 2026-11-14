@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  REFINE_APP: pose refinement of the keyframe batches (ADR-019). Consumes
+  OST/BATCH_SELECTED_TLM, refines the poses with the sliding window of
+  libs/refine and publishes the batch on OST/BATCH_READY_TLM with pose
+  source REFINED or REFINE_FAILED. Definitions follow ADR-020.
+-->
+<PackageFile xmlns="http://www.ccsds.org/schema/sois/seds">
+  <Package name="REFINE_APP" shortDescription="Pose refinement of keyframe batches">
+
+    <DataTypeSet>
+
+      <!-- Configuration table (ADR-016 section 5); defaults of ADR-019 -->
+
+      <ContainerDataType name="ConfigTable" shortDescription="Configuration of REFINE_APP">
+        <EntryList>
+          <Entry name="PrecisePosition" type="BASE_TYPES/uint8" shortDescription="1: PPK/RTK positions held by a tight prior; only attitudes are estimated" />
+          <Entry name="EstimateBoresight" type="BASE_TYPES/uint8" shortDescription="1: one mounting rotation shared by all images" />
+          <Entry name="Spare" type="BASE_TYPES/uint16" />
+          <Entry name="MaxLatencyS" type="BASE_TYPES/float" shortDescription="refine_max_latency: REFINE_LATENCY beyond it (capture to publication)" />
+          <Entry name="MaxWaitS" type="BASE_TYPES/float" shortDescription="Waiting for the next flight line, from the keyframe capture" />
+          <Entry name="WindowS" type="BASE_TYPES/float" shortDescription="Images older than this leave the window; larger than MaxWaitS" />
+          <Entry name="MaxWindowImages" type="BASE_TYPES/uint32" shortDescription="Images of one local solution" />
+          <Entry name="MaxPoints" type="BASE_TYPES/uint32" shortDescription="Tie points of one local solution" />
+          <Entry name="MaxIterations" type="BASE_TYPES/uint32" shortDescription="Levenberg-Marquardt iterations" />
+          <Entry name="MaxFeatures" type="BASE_TYPES/uint32" shortDescription="SIFT features per image" />
+          <Entry name="PositionSigmaM" type="BASE_TYPES/float" shortDescription="Position prior when the image reports none" />
+          <Entry name="PrecisePositionSigmaM" type="BASE_TYPES/float" shortDescription="Position prior with PrecisePosition" />
+          <Entry name="AttitudeSigmaDeg" type="BASE_TYPES/float" shortDescription="Attitude prior when the image reports none" />
+          <Entry name="BoresightSigmaDeg" type="BASE_TYPES/float" shortDescription="Boresight prior until it is held" />
+          <Entry name="BoresightSettleBatches" type="BASE_TYPES/uint32" shortDescription="Refined batches before the boresight is held" />
+          <Entry name="HeldBoresightSigmaDeg" type="BASE_TYPES/float" />
+          <Entry name="RefinedAttitudeSigmaDeg" type="BASE_TYPES/float" shortDescription="Prior of images refined before" />
+          <Entry name="MinImageObservations" type="BASE_TYPES/uint32" shortDescription="Check: tie point observations per image" />
+          <Entry name="MaxReprojectionRmsPx" type="BASE_TYPES/float" shortDescription="Check: reprojection RMS" />
+          <Entry name="MaxCorrectionSigmas" type="BASE_TYPES/float" shortDescription="Check: correction against the prior sigma" />
+        </EntryList>
+      </ContainerDataType>
+
+      <ContainerDataType name="HkTlm_Payload" shortDescription="REFINE_APP housekeeping">
+        <EntryList>
+          <Entry name="Common" type="OST/HkCommon" />
+          <Entry name="PrecisePosition" type="BASE_TYPES/uint8" />
+          <Entry name="BoresightHeld" type="BASE_TYPES/uint8" />
+          <Entry name="Ready" type="BASE_TYPES/uint8" shortDescription="1: a refinement handle exists for the current session" />
+          <Entry name="Spare" type="BASE_TYPES/uint8" />
+          <Entry name="BatchesReceived" type="BASE_TYPES/uint32" />
+          <Entry name="BatchesPublished" type="BASE_TYPES/uint32" />
+          <Entry name="BatchesRefined" type="BASE_TYPES/uint32" />
+          <Entry name="BatchesFailed" type="BASE_TYPES/uint32" shortDescription="Published with REFINE_FAILED" />
+          <Entry name="BatchesCovered" type="BASE_TYPES/uint32" shortDescription="Solved when the next flight line covered the keyframe" />
+          <Entry name="BatchesWaitLimit" type="BASE_TYPES/uint32" shortDescription="Solved when the waiting limit expired" />
+          <Entry name="BatchesHeld" type="BASE_TYPES/uint32" shortDescription="Waiting for refinement now" />
+          <Entry name="LatencyExceeded" type="BASE_TYPES/uint32" shortDescription="Published later than MaxLatencyS after the keyframe capture" />
+          <Entry name="QueueOverflows" type="BASE_TYPES/uint32" shortDescription="Batches passed on unrefined because the worker queue was full" />
+          <Entry name="MessagesRejected" type="BASE_TYPES/uint32" />
+          <Entry name="ImagesAdded" type="BASE_TYPES/uint32" shortDescription="Images whose features were extracted" />
+          <Entry name="WindowImages" type="BASE_TYPES/uint32" shortDescription="Images in the window now" />
+          <Entry name="QueueDepth" type="BASE_TYPES/uint32" />
+          <Entry name="LastPoints" type="BASE_TYPES/uint32" />
+          <Entry name="LastIterations" type="BASE_TYPES/uint32" />
+          <Entry name="LastWindowImages" type="BASE_TYPES/uint32" />
+          <Entry name="LastWaitedS" type="BASE_TYPES/float" shortDescription="Data time from the keyframe capture to the solution" />
+          <Entry name="LastLatencyS" type="BASE_TYPES/float" shortDescription="Keyframe capture to publication" />
+          <Entry name="MaxLatencyObservedS" type="BASE_TYPES/float" />
+          <Entry name="LastRmsPx" type="BASE_TYPES/float" />
+          <Entry name="LastBoresightDeg" type="BASE_TYPES/float" />
+          <Entry name="LastCorrectionDeg" type="BASE_TYPES/float" shortDescription="Keyframe attitude change by the refinement" />
+          <Entry name="LastSolveMs" type="BASE_TYPES/uint32" shortDescription="Matching and adjustment of the last solved batch" />
+          <Entry name="MaxSolveMs" type="BASE_TYPES/uint32" />
+          <Entry name="LastFeaturesMs" type="BASE_TYPES/uint32" shortDescription="Feature extraction of the new images of the last batch" />
+          <Entry name="FeaturesTotalS" type="BASE_TYPES/float" />
+        </EntryList>
+      </ContainerDataType>
+
+      <!-- Commands -->
+
+      <ContainerDataType name="CommandBase" baseType="CFE_HDR/CommandHeader" />
+      <ContainerDataType name="SendHkCmd" baseType="CFE_HDR/CommandHeader" />
+
+      <ContainerDataType name="NoopCmd" baseType="CommandBase">
+        <ConstraintSet><ValueConstraint entry="Sec.FunctionCode" value="0" /></ConstraintSet>
+      </ContainerDataType>
+      <ContainerDataType name="ResetCountersCmd" baseType="CommandBase">
+        <ConstraintSet><ValueConstraint entry="Sec.FunctionCode" value="1" /></ConstraintSet>
+      </ContainerDataType>
+      <ContainerDataType name="ClearLatchedFaultsCmd" baseType="CommandBase">
+        <ConstraintSet><ValueConstraint entry="Sec.FunctionCode" value="2" /></ConstraintSet>
+      </ContainerDataType>
+      <ContainerDataType name="FlushCmd" baseType="CommandBase" shortDescription="Solve and publish all waiting batches now">
+        <ConstraintSet><ValueConstraint entry="Sec.FunctionCode" value="3" /></ConstraintSet>
+      </ContainerDataType>
+
+      <!-- Telemetry -->
+
+      <ContainerDataType name="HkTlm" baseType="CFE_HDR/TelemetryHeader">
+        <EntryList><Entry name="Payload" type="HkTlm_Payload" /></EntryList>
+      </ContainerDataType>
+
+    </DataTypeSet>
+
+    <ComponentSet>
+      <Component name="Application">
+        <RequiredInterfaceSet>
+          <Interface name="ConfigTable" shortDescription="Configuration table" type="CFE_TBL/Table">
+            <GenericTypeMapSet>
+              <GenericTypeMap name="TableDataType" type="ConfigTable" />
+            </GenericTypeMapSet>
+          </Interface>
+          <Interface name="CMD" shortDescription="Ground commands" type="CFE_SB/Telecommand">
+            <GenericTypeMapSet>
+              <GenericTypeMap name="TelecommandDataType" type="CommandBase" />
+            </GenericTypeMapSet>
+          </Interface>
+          <Interface name="SEND_HK" shortDescription="Housekeeping request" type="CFE_SB/Telecommand">
+            <GenericTypeMapSet>
+              <GenericTypeMap name="TelecommandDataType" type="SendHkCmd" />
+            </GenericTypeMapSet>
+          </Interface>
+          <Interface name="HK_TLM" shortDescription="Housekeeping" type="CFE_SB/Telemetry">
+            <GenericTypeMapSet>
+              <GenericTypeMap name="TelemetryDataType" type="HkTlm" />
+            </GenericTypeMapSet>
+          </Interface>
+        </RequiredInterfaceSet>
+        <Implementation>
+          <VariableSet>
+            <Variable type="BASE_TYPES/uint16" readOnly="true" name="CmdTopicId" initialValue="${CFE_MISSION/REFINE_APP_CMD_TOPICID}" />
+            <Variable type="BASE_TYPES/uint16" readOnly="true" name="SendHkTopicId" initialValue="${CFE_MISSION/REFINE_APP_SEND_HK_TOPICID}" />
+            <Variable type="BASE_TYPES/uint16" readOnly="true" name="HkTlmTopicId" initialValue="${CFE_MISSION/REFINE_APP_HK_TLM_TOPICID}" />
+          </VariableSet>
+          <ParameterMapSet>
+            <ParameterMap interface="CMD" parameter="TopicId" variableRef="CmdTopicId" />
+            <ParameterMap interface="SEND_HK" parameter="TopicId" variableRef="SendHkTopicId" />
+            <ParameterMap interface="HK_TLM" parameter="TopicId" variableRef="HkTlmTopicId" />
+          </ParameterMapSet>
+        </Implementation>
+      </Component>
+    </ComponentSet>
+
+  </Package>
+</PackageFile>

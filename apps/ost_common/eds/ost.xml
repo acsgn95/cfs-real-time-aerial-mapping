@@ -132,6 +132,7 @@
         <EnumerationList>
           <Enumeration label="TELEMETRY" value="1" shortDescription="Interpolated from the telemetry stream" />
           <Enumeration label="REFINED" value="2" shortDescription="Refined from the images by REFINE_APP" />
+          <Enumeration label="REFINE_FAILED" value="3" shortDescription="Refinement failed its checks; telemetry poses (ADR-019 section 5)" />
         </EnumerationList>
       </EnumeratedDataType>
 

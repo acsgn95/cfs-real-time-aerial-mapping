@@ -121,5 +121,34 @@ and Meaning; the fault events list the application's faults in order.
 | 63 | fault `TABLE_REJECTED` | | the configuration table was not loaded |
 | 64 | fault `LIBRARY_ERROR` | | a call of `libs/selection` or `libs/imaging` failed |
 
+### `REFINE_APP`
+
+| Id | Name | Type | Meaning |
+| --- | --- | --- | --- |
+| 1 | `REFINE_APP_INIT_INF_EID` | INFORMATION | initialised: precise position, window, waiting and latency limits |
+| 2 | `REFINE_APP_NOOP_INF_EID` | INFORMATION | no-op command |
+| 3 | `REFINE_APP_RESET_INF_EID` | INFORMATION | counters reset |
+| 4 | `REFINE_APP_MID_ERR_EID` | ERROR | message with an unknown message identifier |
+| 5 | `REFINE_APP_CMD_LEN_ERR_EID` | ERROR | command of wrong length |
+| 6 | `REFINE_APP_CC_ERR_EID` | ERROR | unknown command code |
+| 7 | `REFINE_APP_PIPE_ERR_EID` | ERROR | Software Bus pipe read error; the application stops |
+| 8 | `REFINE_APP_TBL_ERR_EID` | ERROR | configuration table rejected or not loaded |
+| 9 | `REFINE_APP_CLEAR_INF_EID` | INFORMATION | latched faults cleared |
+| 10 | `REFINE_APP_INIT_ERR_EID` | ERROR | initialisation failed |
+| 11 | `REFINE_APP_FLUSH_INF_EID` | INFORMATION / ERROR | flush command accepted, or refused with a full queue |
+| 20 | `REFINE_APP_SESSION_INF_EID` | INFORMATION | new session: waiting batches solved, window cleared |
+| 21 | `REFINE_APP_FAILED_EID` | ERROR | batch passed on with telemetry poses (`REFINE_FAILED`), with the reason (filtered) |
+| 22 | `REFINE_APP_LATENCY_EID` | ERROR | batch published later than `MaxLatencyS` after its capture (filtered) |
+| 23 | `REFINE_APP_QUEUE_FULL_EID` | ERROR | batch passed on unrefined: queue full or no table (filtered) |
+| 24 | `REFINE_APP_MSG_LEN_ERR_EID` | ERROR | input message of wrong length (filtered) |
+| 25 | `REFINE_APP_LIB_ERR_EID` | ERROR | a call of `libs/refine` failed (filtered) |
+| 26 | `REFINE_APP_DATASTORE_ERR_EID` | ERROR | data store reference not released (filtered) |
+| 27 | `REFINE_APP_BATCH_DBG_EID` | DEBUG | solved batch: covered or waiting limit, waiting time, RMS, window, points, time |
+| 28 | `REFINE_APP_HELD_FULL_EID` | ERROR | all hold slots in use: every waiting batch solved at once (filtered) |
+| 60 | fault `REFINE_REJECTED` | | a batch failed the checks or could not be refined |
+| 61 | fault `REFINE_LATENCY` | | a batch was published later than `MaxLatencyS` |
+| 62 | fault `TABLE_REJECTED` | | the configuration table was not loaded |
+| 63 | fault `LIBRARY_ERROR` | | a call of `libs/refine` failed |
+
 Filtered events are sent for the first 8 occurrences; the counts are in
 the housekeeping.

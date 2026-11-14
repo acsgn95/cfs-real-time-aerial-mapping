@@ -196,3 +196,10 @@ has no vcpkg toolchain, so the first module that links GDAL and PROJ
 installs the same `find_package` override for the packages of build-deps,
 included from `arch_build_custom.cmake`. Everything is still taken from
 build-deps, never from the system.
+
+A second trap of the same build: `find_package` caches the package
+directories of the OrthoStream libraries (`OrthoStream<Lib>_DIR`). After a
+change of build type they kept pointing to the other install, so a release
+mission linked the -O0 libraries (refinement took 12 s per batch instead
+of 1.3 s). `arch_build_custom.cmake` drops cached entries outside the
+current install prefix.

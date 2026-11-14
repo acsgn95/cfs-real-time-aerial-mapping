@@ -295,6 +295,51 @@ per keyframe is measured.
 * Outputs: `test_outputs/refine/sliding_*`,
   `test_outputs/offline_pipeline/sliding_v{1,2}_40kf_sgbm`.
 
+### 10. `REFINE_APP` in the mission (2026-11-14)
+
+* `REFINE_APP` (main task and the child task `REFINE_WORK`) takes
+  `BATCH_SELECTED`, adds the views it does not have to the sliding window
+  (RGB working images converted to grey), holds the batch, and publishes
+  it on `BATCH_READY` when `OST_Refine_Poll` returns its solution. The
+  waiting limit is checked every 0.5 s on UTC data time.
+* Pose source: the EDS enumeration `OST/PoseSource` gained
+  `REFINE_FAILED` (3) for section 5. A batch that cannot be queued, or
+  arrives without a table, is published at once with `REFINE_FAILED`.
+* `precise_position` is a value of the `REFINE_APP` table (default false,
+  section 1); the reference mission's table sets it for the PPK positions
+  of Dorfberg.
+* End-to-end run (injector with the recorded, non-optimized poses →
+  `INGEST_APP` → `ALIGN_APP` → `SELECT_APP` → `REFINE_APP`; Dorfberg images
+  42–122, release build), compared with the Metashape poses
+  (`tools/ground/compare_batch_poses.py`):
+
+  | | Before | After |
+  | --- | --- | --- |
+  | keyframe attitude error (median / max) | 1.32° / 2.48° | 0.049° / 0.064° |
+  | attitude error of all batch views (median) | 1.85° | 0.046° |
+  | position change by the refinement (max) | — | 4.6 cm (held, PPK) |
+
+  * 37 of 37 batches refined; 17 solved when the next line covered them,
+    20 by the waiting limit (the run ends after two lines, so the last
+    line is never covered).
+  * Time per batch: solution 1.3 s typical, 2.4 s at most; features of
+    the new images 0.33 s per batch.
+  * Latency from capture to publication: median 101.7 s. Three batches
+    exceeded the 120 s limit (at most 126 s): batches that reach the
+    waiting limit together are solved one after the other. The waiting
+    limit should leave room for that queue, or such batches be solved in
+    a smaller window.
+  * The attitude error after refinement is twice that of the benchmark
+    (0.024°, section 9). The run is short (37 batches, the boresight is
+    estimated in the first 4) and ends at a line without a following one;
+    a whole-flight run decides.
+  * The Metashape positions differ from the recorded ones by about 0.38 m,
+    mostly in height (ADR-008: the height datum of the Metashape project);
+    this is not an error of the refinement.
+  * Measuring with a debug build gives 12 s per batch: the libraries'
+    own code (matching, Eigen) is slow at -O0. Measurements use release
+    builds (ADR-002).
+
 ## Rationale
 
 * Two values match the two situations an operator actually has: poses that
@@ -374,8 +419,10 @@ per keyframe is measured.
   is reported faster and more robust than SIFT; XFeat needs a neural network
   runtime (for example ONNX Runtime), a new dependency to be approved.
 * ~~Run time of the adjustment~~: the sliding window fits the keyframe
-  interval (section 9). Open: the time per batch when `SGBM` runs on the
-  CPU at the same time, measured in the mission.
+  interval (section 9), also in the mission (section 10). Open: the time
+  per batch when `SGBM` runs on the CPU at the same time.
+* Batches that reach the waiting limit together exceed the latency limit
+  while they are solved one after the other (section 10).
 * The accuracy gap between the sliding window and block mode (NMAD 0.108
   against 0.079 m): candidates are a larger window for a later re-solution
   of each batch, or a second pass before the tiles are finalised.

@@ -45,6 +45,9 @@ TO_LAB_Subs_t Subscriptions = {.Subs = {
     /* SELECT_APP */
     OST_TO_TLM(SELECT_APP_HK_TLM_TOPICID, 4),
 
+    /* REFINE_APP */
+    OST_TO_TLM(REFINE_APP_HK_TLM_TOPICID, 4),
+
     /* End of the list */
     {CFE_SB_MSGID_RESERVED, {0, 0}, 0}}};
 

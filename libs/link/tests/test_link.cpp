@@ -53,7 +53,7 @@ void putU32(Bytes &b, size_t off, uint32_t v)
 {
     for (size_t i = 0; i < 4; ++i)
     {
-        b[off + i] = static_cast<uint8_t>(v >> (8 * i));
+        b.at(off + i) = static_cast<uint8_t>(v >> (8 * i));
     }
 }
 
@@ -63,7 +63,7 @@ void putF64(Bytes &b, size_t off, double v)
     std::memcpy(&u, &v, sizeof u);
     for (size_t i = 0; i < 8; ++i)
     {
-        b[off + i] = static_cast<uint8_t>(u >> (8 * i));
+        b.at(off + i) = static_cast<uint8_t>(u >> (8 * i));
     }
 }
 

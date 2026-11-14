@@ -34,6 +34,9 @@ SCH_LAB_ScheduleTable_t Schedule = {
 
         /* SELECT_APP */
         {OST_SCH_CMD(SELECT_APP_SEND_HK_TOPICID), 100, 0},
+
+        /* REFINE_APP */
+        {OST_SCH_CMD(REFINE_APP_SEND_HK_TOPICID), 100, 0},
     }
 };
 
