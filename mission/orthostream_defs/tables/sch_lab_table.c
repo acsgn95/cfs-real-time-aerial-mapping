@@ -43,6 +43,10 @@ SCH_LAB_ScheduleTable_t Schedule = {
 
         /* GEOREF_APP */
         {OST_SCH_CMD(GEOREF_APP_SEND_HK_TOPICID), 100, 0},
+
+        /* MAPPROD_APP */
+        {OST_SCH_CMD(MAPPROD_APP_SEND_HK_TOPICID), 100, 0},
+        {OST_SCH_CMD(MAPPROD_APP_WAKEUP_TOPICID), 100, 0},
     }
 };
 

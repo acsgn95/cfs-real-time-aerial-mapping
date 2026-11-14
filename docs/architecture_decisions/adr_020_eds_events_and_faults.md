@@ -133,6 +133,7 @@ It is not visible to COSMOS.
   | GPU failure | `DENSE_APP` | `CRITICAL` |
   | depth estimation failed (2026-11-14) | `DENSE_APP` | `ERROR` |
   | depth set dropped by georeferencing (2026-11-14) | `GEOREF_APP` | `ERROR` |
+  | keyframe not fused into the map (2026-11-14) | `MAPPROD_APP` | `ERROR` |
   | refinement rejected (ADR-019 section 5) | `REFINE_APP` | `WARNING` |
   | refinement over its latency limit | `REFINE_APP` | `DEGRADED` |
   | tile write failure | `MAPPROD_APP`, `GEOREF_APP` (point cloud files) | `ERROR` |

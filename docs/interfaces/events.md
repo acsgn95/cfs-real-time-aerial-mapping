@@ -218,3 +218,39 @@ the housekeeping and in `DENSE_STATUS`.
 
 Filtered events are sent for the first 8 occurrences; the counts are in
 the housekeeping.
+
+### `MAPPROD_APP`
+
+| Id | Name | Type | Meaning |
+| --- | --- | --- | --- |
+| 1 | `MAPPROD_APP_INIT_INF_EID` | INFORMATION | initialised: product CRS, DSM cell and tile size, orthomosaic on or off, publication period |
+| 2 | `MAPPROD_APP_NOOP_INF_EID` | INFORMATION | no-op command |
+| 3 | `MAPPROD_APP_RESET_INF_EID` | INFORMATION | counters reset |
+| 4 | `MAPPROD_APP_MID_ERR_EID` | ERROR | message with an unknown message identifier |
+| 5 | `MAPPROD_APP_CMD_LEN_ERR_EID` | ERROR | command of wrong length |
+| 6 | `MAPPROD_APP_CC_ERR_EID` | ERROR | unknown command code, or finalise all with a full worker queue |
+| 7 | `MAPPROD_APP_PIPE_ERR_EID` | ERROR | Software Bus pipe read error; the application stops |
+| 8 | `MAPPROD_APP_TBL_ERR_EID` | ERROR | configuration table rejected or not loaded |
+| 9 | `MAPPROD_APP_CLEAR_INF_EID` | INFORMATION | latched faults cleared |
+| 10 | `MAPPROD_APP_INIT_ERR_EID` | ERROR | initialisation failed |
+| 11 | `MAPPROD_APP_FINALISE_INF_EID` | INFORMATION | every active tile finalised and written (command or application stop) |
+| 20 | `MAPPROD_APP_FAILED_EID` | ERROR | keyframe dropped: no table or products, unreadable point set, fusion error, full queue; or a calibration lost to a full queue (filtered) |
+| 21 | `MAPPROD_APP_MSG_LEN_ERR_EID` | ERROR | input message of wrong length (filtered) |
+| 22 | `MAPPROD_APP_LIB_ERR_EID` | ERROR | the map products could not be created, or rendering failed (filtered) |
+| 23 | `MAPPROD_APP_DATASTORE_ERR_EID` | ERROR | data store reference not released (filtered) |
+| 24 | `MAPPROD_APP_UPDATE_DBG_EID` | DEBUG | keyframe in the map: points, rejected, orthomosaic pixels, tiles, times |
+| 25 | `MAPPROD_APP_DECODE_ERR_EID` | ERROR | keyframe JPEG not decoded or not of the calibrated size: not in the orthomosaic (filtered) |
+| 26 | `MAPPROD_APP_WRITE_ERR_EID` | ERROR | tiles not written: publication, finalising (filtered) |
+| 27 | `MAPPROD_APP_READY_INF_EID` | INFORMATION | map products created: CRS, vertical datum, output directory |
+| 28 | `MAPPROD_APP_CALIBRATION_EID` | INFORMATION | session calibration received: camera size and focal length |
+| 29 | `MAPPROD_APP_NO_ORTHO_EID` | ERROR | keyframe not in the orthomosaic: no session calibration (filtered) |
+| 30 | `MAPPROD_APP_GRID_ERR_EID` | ERROR | point set on another tile grid or CRS than the table (filtered) |
+| 31 | `MAPPROD_APP_PUBLISH_DBG_EID` | DEBUG | tiles published: count, write time, publication delay |
+| 60 | fault `MAP_UPDATE_FAILED` | | a keyframe could not be fused into the map |
+| 61 | fault `IMAGE_DECODE` | | a keyframe JPEG could not be decoded for the orthomosaic |
+| 62 | fault `TILE_WRITE` | | a tile could not be written |
+| 63 | fault `TABLE_REJECTED` | | the configuration table was not loaded, or the tile grid differs from `GEOREF_APP` |
+| 64 | fault `LIBRARY_ERROR` | | the map products could not be created, or rendering failed |
+
+Filtered events are sent for the first 8 occurrences; the counts are in
+the housekeeping.

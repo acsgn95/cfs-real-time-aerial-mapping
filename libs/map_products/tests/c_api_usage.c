@@ -37,5 +37,26 @@ int ost_map_c_api_usage(void)
         return 4;
     }
     OST_Map_GeorefDestroy(NULL);
+    {
+        OST_Map_ProductsConfig_t products;
+        OST_Map_Products_t      *map = NULL;
+        OST_Map_WriteResult_t    written;
+
+        OST_Map_ProductsDefaultConfig(&products);
+        if (products.cell_size_m != 0.26 || products.tile_cells != 512 || products.min_observations != 3 ||
+            products.rejection_sigmas != 3.0 || products.min_sigma_m != 0.25 || products.ortho_pixel_m != 0.066 ||
+            products.surface_smoothing_m != 1.0 || products.switch_margin_deg != 2.0 ||
+            products.max_active_tiles != 64 || products.finalise_distance_m != 600.0 || products.defer_writes != 1)
+        {
+            return 5;
+        }
+        /* No output directory. */
+        if (OST_Map_ProductsCreate(&products, &map) != OST_ERR_INVALID_ARGUMENT || map != NULL ||
+            OST_Map_ProductsPublish(NULL, &written) != OST_ERR_INVALID_ARGUMENT)
+        {
+            return 6;
+        }
+        OST_Map_ProductsDestroy(NULL);
+    }
     return 0;
 }

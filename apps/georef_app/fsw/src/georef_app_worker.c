@@ -191,6 +191,7 @@ static void GEOREF_APP_OnDepthSet(const GEOREF_APP_Item_t *It)
     OST_Status_t                          Status;
     char                                  Text[160];
     float                                 Latency;
+    float                                 AllocateMs;
 
     C->LastWaitMs = GEOREF_APP_Ms(Start - It->EntryMono);
     if (W.Georef == NULL && GEOREF_APP_Data.ConfigValid)
@@ -266,7 +267,7 @@ static void GEOREF_APP_OnDepthSet(const GEOREF_APP_Item_t *It)
             GEOREF_APP_FaultReport(OST_FaultId_DATASTORE_QUOTA, "point set quota exhausted");
         }
     }
-    P->AllocateMs = GEOREF_APP_Ms(OST_TimeMonoNs() - T0);
+    AllocateMs = GEOREF_APP_Ms(OST_TimeMonoNs() - T0);
     memset(&R, 0, sizeof(R));
     if (Status == OST_SUCCESS && Count > 0)
     {
@@ -332,6 +333,7 @@ static void GEOREF_APP_OnDepthSet(const GEOREF_APP_Item_t *It)
     P->HeightMinM           = (float)R.height_min;
     P->HeightMaxM           = (float)R.height_max;
     P->WaitMs               = C->LastWaitMs;
+    P->AllocateMs           = AllocateMs; /* after CFE_MSG_Init, which clears the message */
     P->ConvertMs            = (float)(R.convert_s * 1e3);
     memcpy(P->ProjectedCrs, GEOREF_APP_Data.Config.ProjectedCrs, sizeof(P->ProjectedCrs));
     memset(P->Tiles, 0, sizeof(P->Tiles));

@@ -4,7 +4,7 @@
 * Date: 2026-11-10
 * Decided by: Ahmet Coşgun
 * Backlog item: D07
-* Revised: 2026-11-12 (implementation notes, section 8); 2026-11-14 (point sets, section 8)
+* Revised: 2026-11-12 (implementation notes, section 8); 2026-11-14 (point sets, publication on its own task, section 8)
 * Evidence: thesis proposal (FB_YL-01) sections 2, 4.2 and 4.3; ADR-001
   (R2, R4, R5, product resolutions); ADR-004 (product frame `P`, working
   frames `L_k`); ADR-005 (depth, normal and confidence maps; no
@@ -168,7 +168,29 @@ change the decisions.
   point set; its files equal those written straight from the depth map
   (the offline pipeline's path) within one millimetre step of the LAZ
   coordinates. DSM fusion in `MAPPROD_APP` takes the same point sets, so
-  the mission and the offline pipeline fuse the same points.
+  the mission and the offline pipeline fuse the same points. Within a tile
+  the point set keeps the pixel order, so every cell receives its
+  observations in the same order and the k-sigma test decides alike: in a
+  test with outliers, 2 of 24 296 cells differ (points within the float
+  rounding of a cell edge), all others agree to 15 µm.
+* **Publication on its own task (2026-11-14, `MAPPROD_APP`).** Writing an
+  orthomosaic tile (2017 × 2017 RGBA, deflate) takes about 0.75 s, a DSM
+  tile 0.09 s; copying both in memory about 3 ms. Written on the task that
+  fuses and renders, the 5 s publication of section 6 (about 10 tiles,
+  6.5 s) held up the map update by up to 20 s. The tile manager therefore
+  hands over copies (`TileManager::snapshot`) that another task writes
+  (`TileManager::write`). Each tile has a version (its changes); a copy is
+  not written over the files of a tile finalised meanwhile in the same or a
+  newer version. Finalised tiles are evicted and their state saved at once,
+  and their products are written with the next copy (`defer_writes`; the
+  offline pipeline keeps writing them itself). With both, the map stage
+  of `MAPPROD_APP` takes 0.84 s per keyframe (median; largest 1.6 s)
+  with at most 0.7 s of waiting. Section 6 is unchanged: the publication delay is reported
+  separately (`TILE_PUBLISHED.PendingS`, about 10 s). The writers need a
+  `ProductFrame` of their own: the DSM writer converts heights to the
+  vertical datum through PROJ, whose objects are not thread-safe. Sharing
+  the frame with the fusion task corrupted the height offsets of one tile
+  in one run (smooth blobs of tens of metres).
 
 ## Rationale
 

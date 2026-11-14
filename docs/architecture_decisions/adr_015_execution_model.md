@@ -166,6 +166,17 @@ recorded with every measurement.
   about 0.3 s per keyframe, well within the keyframe interval; a separate
   writer task is not needed. A ring of 16 depth sets without a drop rule;
   a depth set finding it full is dropped with an error (section 3).
+* `MAPPROD_APP` (2026-11-14): `MAPPROD_WORK` owns the tiles (the library
+  is not thread-safe): fusion, orthomosaic, lifecycle and, every
+  publication period, a copy of the changed tiles. `MAPPROD_PUB` (below
+  the worker) writes the copies. On the worker, writing held up the map
+  update by up to 20 s; ADR-007 section 8 has the details. The period
+  comes from the 1 Hz wake-up of `SCH_LAB`; while the publisher still
+  writes, changes wait for the next period.
+* Stopping: cFE deletes the child tasks of an application when it exits.
+  `MAPPROD_APP`'s main task therefore waits for its worker (which waits for
+  the publisher) before `CFE_ES_ExitApp`. A process ended by a signal runs
+  none of this; the command `FINALISE_ALL` ends a flight cleanly.
 
 ## Open Questions
 

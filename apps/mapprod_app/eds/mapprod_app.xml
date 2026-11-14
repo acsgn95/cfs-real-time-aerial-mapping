@@ -1,0 +1,215 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  MAPPROD_APP: DSM and orthomosaic (ADR-007, ADR-012).
+  Consumes GEOREF_APP/POINTS_READY_TLM: fuses each point set into the DSM
+  tiles, renders the keyframe's JPEG into the orthomosaic, finalises tiles
+  far from the vehicle and publishes changed tiles periodically.
+  TILE_UPDATED_TLM marks the in-memory map update of a keyframe (the
+  latency of ADR-001 R2); TILE_PUBLISHED_TLM each publication.
+  Definitions follow ADR-020.
+-->
+<PackageFile xmlns="http://www.ccsds.org/schema/sois/seds">
+  <Package name="MAPPROD_APP" shortDescription="DSM and orthomosaic tiles">
+    <DataTypeSet>
+      <StringDataType name="PathName" length="128" />
+      <StringDataType name="CrsName" length="32" />
+      <EnumeratedDataType name="PublishReason" shortDescription="Why tiles were written">
+        <IntegerDataEncoding sizeInBits="8" encoding="unsigned" />
+        <EnumerationList>
+          <Enumeration label="PERIODIC" value="1" shortDescription="Changed active tiles, every PublishPeriodS (ADR-007 section 6)" />
+          <Enumeration label="FINALISE_ALL" value="2" shortDescription="Command: every active tile written and evicted (end of the flight)" />
+          <Enumeration label="STOPPED" value="3" shortDescription="The application stopped with active tiles" />
+        </EnumerationList>
+      </EnumeratedDataType>
+      <!-- Configuration table (ADR-016 section 5); defaults of ADR-007 -->
+      <ContainerDataType name="ConfigTable" shortDescription="Configuration of MAPPROD_APP">
+        <EntryList>
+          <Entry name="ProjectedCrs" type="CrsName" shortDescription="CRS of P; must equal that of GEOREF_APP" />
+          <Entry name="VerticalCrs" type="CrsName" shortDescription="Heights of the written DSM; empty: ellipsoidal" />
+          <Entry name="ProjDataDir" type="PathName" shortDescription="Directory of proj.db; /cf/ paths are translated" />
+          <Entry name="GridDir" type="PathName" shortDescription="Directory of the PROJ grids; empty: none" />
+          <Entry name="OutputDir" type="PathName" shortDescription="dsm/, ortho/, state/ and the mosaic indexes" />
+          <Entry name="CellSizeM" type="BASE_TYPES/float" shortDescription="DSM cell size; must equal that of GEOREF_APP" />
+          <Entry name="TileCells" type="BASE_TYPES/uint32" shortDescription="Cells per tile side" />
+          <Entry name="MinObservations" type="BASE_TYPES/uint32" shortDescription="Observations of a cell before outliers are rejected" />
+          <Entry name="RejectionSigmas" type="BASE_TYPES/float" shortDescription="k of the k-sigma test" />
+          <Entry name="MinSigmaM" type="BASE_TYPES/float" shortDescription="Floor of sigma in the k-sigma test" />
+          <Entry name="MinConfidence" type="BASE_TYPES/float" shortDescription="Points with a lower weight are not fused" />
+          <Entry name="OrthoPixelM" type="BASE_TYPES/float" shortDescription="Orthomosaic pixel size" />
+          <Entry name="SurfaceSmoothingM" type="BASE_TYPES/float" shortDescription="Median filter radius of the orthomosaic surface" />
+          <Entry name="SwitchMarginDeg" type="BASE_TYPES/float" shortDescription="A pixel takes a later keyframe only this much closer to nadir" />
+          <Entry name="RenderMarginM" type="BASE_TYPES/float" shortDescription="Rendered area around the keyframe footprint" />
+          <Entry name="OrthoWidth" type="BASE_TYPES/uint32" shortDescription="Smallest decoded keyframe width (DCT scaling); 0: half the camera width" />
+          <Entry name="MaxActiveTiles" type="BASE_TYPES/uint32" shortDescription="Tiles in memory (ADR-007 section 5)" />
+          <Entry name="FinaliseDistanceM" type="BASE_TYPES/float" shortDescription="Tiles farther from the vehicle are finalised" />
+          <Entry name="PublishPeriodS" type="BASE_TYPES/uint32" shortDescription="Changed active tiles are written this often; 0: never" />
+          <Entry name="RenderOrtho" type="BASE_TYPES/uint8" shortDescription="1: render the orthomosaic" />
+          <Entry name="FinaliseOnStop" type="BASE_TYPES/uint8" shortDescription="1: write all active tiles when the application stops" />
+          <Entry name="Spare" type="BASE_TYPES/uint16" />
+        </EntryList>
+      </ContainerDataType>
+      <ArrayDataType name="TileIdArray" dataTypeRef="OST/TileId">
+        <DimensionList>
+          <Dimension size="${MAPPROD_APP/MAX_TILES}" />
+        </DimensionList>
+      </ArrayDataType>
+      <ContainerDataType name="TileUpdated_Payload" shortDescription="Map update of one keyframe (ADR-016 section 3)">
+        <EntryList>
+          <Entry name="Header" type="OST/PayloadHeader" />
+          <Entry name="Trace" type="OST/TraceTimes" shortDescription="PublishUtc: the tiles are updated in memory" />
+          <Entry name="KeyframeId" type="BASE_TYPES/uint32" />
+          <Entry name="ImageSeq" type="BASE_TYPES/uint32" />
+          <Entry name="CaptureUtc" type="OST/UtcTimeNs" shortDescription="Keyframe capture" />
+          <Entry name="PoseSource" type="OST/PoseSource" />
+          <Entry name="Ortho" type="BASE_TYPES/uint8" shortDescription="1: rendered into the orthomosaic" />
+          <Entry name="TileCount" type="BASE_TYPES/uint8" shortDescription="Tiles changed (DSM and orthomosaic); the first MAX_TILES are listed" />
+          <Entry name="Spare" type="BASE_TYPES/uint8" />
+          <Entry name="PointsFused" type="BASE_TYPES/uint32" />
+          <Entry name="PointsRejected" type="BASE_TYPES/uint32" shortDescription="Outliers of the k-sigma test" />
+          <Entry name="OrthoPixels" type="BASE_TYPES/uint32" shortDescription="Orthomosaic pixels that took this keyframe" />
+          <Entry name="ActiveTiles" type="BASE_TYPES/uint32" />
+          <Entry name="TilesFinalised" type="BASE_TYPES/uint32" shortDescription="Finalised after this keyframe (distance, budget)" />
+          <Entry name="WaitMs" type="BASE_TYPES/float" shortDescription="Entry to the start of the job (queue)" />
+          <Entry name="FuseMs" type="BASE_TYPES/float" />
+          <Entry name="DecodeMs" type="BASE_TYPES/float" shortDescription="JPEG to RGB at the orthomosaic scale" />
+          <Entry name="RenderMs" type="BASE_TYPES/float" />
+          <Entry name="LifecycleMs" type="BASE_TYPES/float" shortDescription="Finalising tiles, with writing them" />
+          <Entry name="LatencyS" type="BASE_TYPES/float" shortDescription="Capture to the map update (ADR-001 R2)" />
+          <Entry name="MemoryMb" type="BASE_TYPES/float" shortDescription="Tile data in memory" />
+          <Entry name="Tiles" type="TileIdArray" />
+        </EntryList>
+      </ContainerDataType>
+      <ContainerDataType name="TilePublished_Payload" shortDescription="Tiles written to disk (ADR-007 section 6)">
+        <EntryList>
+          <Entry name="Header" type="OST/PayloadHeader" />
+          <Entry name="Time" type="OST/UtcTimeNs" shortDescription="Written" />
+          <Entry name="Reason" type="PublishReason" />
+          <Entry name="Spare1" type="BASE_TYPES/uint8" />
+          <Entry name="Spare2" type="BASE_TYPES/uint16" />
+          <Entry name="TilesWritten" type="BASE_TYPES/uint32" />
+          <Entry name="ActiveTiles" type="BASE_TYPES/uint32" />
+          <Entry name="LastKeyframeId" type="BASE_TYPES/uint32" shortDescription="Last keyframe included" />
+          <Entry name="WriteMs" type="BASE_TYPES/float" />
+          <Entry name="PendingS" type="BASE_TYPES/float" shortDescription="Age of the oldest included update: the publication delay" />
+        </EntryList>
+      </ContainerDataType>
+      <ContainerDataType name="HkTlm_Payload" shortDescription="MAPPROD_APP housekeeping">
+        <EntryList>
+          <Entry name="Common" type="OST/HkCommon" />
+          <Entry name="Ready" type="BASE_TYPES/uint8" shortDescription="1: the products exist" />
+          <Entry name="CalibrationKnown" type="BASE_TYPES/uint8" shortDescription="1: a session calibration was received" />
+          <Entry name="RenderOrtho" type="BASE_TYPES/uint8" />
+          <Entry name="Spare" type="BASE_TYPES/uint8" />
+          <Entry name="PointSetsReceived" type="BASE_TYPES/uint32" />
+          <Entry name="KeyframesUpdated" type="BASE_TYPES/uint32" />
+          <Entry name="KeyframesFailed" type="BASE_TYPES/uint32" />
+          <Entry name="OrthoSkipped" type="BASE_TYPES/uint32" shortDescription="No calibration, or the JPEG not decoded" />
+          <Entry name="MessagesRejected" type="BASE_TYPES/uint32" />
+          <Entry name="QueueDepth" type="BASE_TYPES/uint32" />
+          <Entry name="ActiveTiles" type="BASE_TYPES/uint32" />
+          <Entry name="ChangedTiles" type="BASE_TYPES/uint32" shortDescription="Active tiles changed since the last publication" />
+          <Entry name="TilesFinalised" type="BASE_TYPES/uint32" />
+          <Entry name="Publications" type="BASE_TYPES/uint32" />
+          <Entry name="TileWriteFailures" type="BASE_TYPES/uint32" />
+          <Entry name="LastKeyframeId" type="BASE_TYPES/uint32" />
+          <Entry name="MemoryMb" type="BASE_TYPES/float" />
+          <Entry name="LastFuseMs" type="BASE_TYPES/float" />
+          <Entry name="LastDecodeMs" type="BASE_TYPES/float" />
+          <Entry name="LastRenderMs" type="BASE_TYPES/float" />
+          <Entry name="LastLifecycleMs" type="BASE_TYPES/float" />
+          <Entry name="LastUpdateMs" type="BASE_TYPES/float" shortDescription="Start of the job to TILE_UPDATED" />
+          <Entry name="MaxUpdateMs" type="BASE_TYPES/float" />
+          <Entry name="LastPublishMs" type="BASE_TYPES/float" />
+          <Entry name="MaxPublishMs" type="BASE_TYPES/float" />
+          <Entry name="LastLatencyS" type="BASE_TYPES/float" />
+          <Entry name="MaxLatencyS" type="BASE_TYPES/float" />
+        </EntryList>
+      </ContainerDataType>
+      <!-- Commands -->
+      <ContainerDataType name="CommandBase" baseType="CFE_HDR/CommandHeader" />
+      <ContainerDataType name="SendHkCmd" baseType="CFE_HDR/CommandHeader" />
+      <ContainerDataType name="WakeupCmd" baseType="CFE_HDR/CommandHeader" />
+      <ContainerDataType name="NoopCmd" baseType="CommandBase">
+        <ConstraintSet><ValueConstraint entry="Sec.FunctionCode" value="0" /></ConstraintSet>
+      </ContainerDataType>
+      <ContainerDataType name="ResetCountersCmd" baseType="CommandBase">
+        <ConstraintSet><ValueConstraint entry="Sec.FunctionCode" value="1" /></ConstraintSet>
+      </ContainerDataType>
+      <ContainerDataType name="ClearLatchedFaultsCmd" baseType="CommandBase">
+        <ConstraintSet><ValueConstraint entry="Sec.FunctionCode" value="2" /></ConstraintSet>
+      </ContainerDataType>
+      <ContainerDataType name="FinaliseAllCmd" baseType="CommandBase" shortDescription="End of the flight: write and evict every active tile">
+        <ConstraintSet><ValueConstraint entry="Sec.FunctionCode" value="3" /></ConstraintSet>
+      </ContainerDataType>
+      <!-- Telemetry -->
+      <ContainerDataType name="HkTlm" baseType="CFE_HDR/TelemetryHeader">
+        <EntryList><Entry name="Payload" type="HkTlm_Payload" /></EntryList>
+      </ContainerDataType>
+      <ContainerDataType name="TileUpdatedTlm" baseType="CFE_HDR/TelemetryHeader">
+        <EntryList><Entry name="Payload" type="TileUpdated_Payload" /></EntryList>
+      </ContainerDataType>
+      <ContainerDataType name="TilePublishedTlm" baseType="CFE_HDR/TelemetryHeader">
+        <EntryList><Entry name="Payload" type="TilePublished_Payload" /></EntryList>
+      </ContainerDataType>
+    </DataTypeSet>
+    <ComponentSet>
+      <Component name="Application">
+        <RequiredInterfaceSet>
+          <Interface name="ConfigTable" shortDescription="Configuration table" type="CFE_TBL/Table">
+            <GenericTypeMapSet>
+              <GenericTypeMap name="TableDataType" type="ConfigTable" />
+            </GenericTypeMapSet>
+          </Interface>
+          <Interface name="CMD" shortDescription="Ground commands" type="CFE_SB/Telecommand">
+            <GenericTypeMapSet>
+              <GenericTypeMap name="TelecommandDataType" type="CommandBase" />
+            </GenericTypeMapSet>
+          </Interface>
+          <Interface name="SEND_HK" shortDescription="Housekeeping request" type="CFE_SB/Telecommand">
+            <GenericTypeMapSet>
+              <GenericTypeMap name="TelecommandDataType" type="SendHkCmd" />
+            </GenericTypeMapSet>
+          </Interface>
+          <Interface name="WAKEUP" shortDescription="1 Hz wake-up: publication period (ADR-015 section 1)" type="CFE_SB/Telecommand">
+            <GenericTypeMapSet>
+              <GenericTypeMap name="TelecommandDataType" type="WakeupCmd" />
+            </GenericTypeMapSet>
+          </Interface>
+          <Interface name="HK_TLM" shortDescription="Housekeeping" type="CFE_SB/Telemetry">
+            <GenericTypeMapSet>
+              <GenericTypeMap name="TelemetryDataType" type="HkTlm" />
+            </GenericTypeMapSet>
+          </Interface>
+          <Interface name="TILE_UPDATED_TLM" shortDescription="Map update of a keyframe" type="CFE_SB/Telemetry">
+            <GenericTypeMapSet>
+              <GenericTypeMap name="TelemetryDataType" type="TileUpdatedTlm" />
+            </GenericTypeMapSet>
+          </Interface>
+          <Interface name="TILE_PUBLISHED_TLM" shortDescription="Tiles written to disk" type="CFE_SB/Telemetry">
+            <GenericTypeMapSet>
+              <GenericTypeMap name="TelemetryDataType" type="TilePublishedTlm" />
+            </GenericTypeMapSet>
+          </Interface>
+        </RequiredInterfaceSet>
+        <Implementation>
+          <VariableSet>
+            <Variable type="BASE_TYPES/uint16" readOnly="true" name="CmdTopicId" initialValue="${CFE_MISSION/MAPPROD_APP_CMD_TOPICID}" />
+            <Variable type="BASE_TYPES/uint16" readOnly="true" name="SendHkTopicId" initialValue="${CFE_MISSION/MAPPROD_APP_SEND_HK_TOPICID}" />
+            <Variable type="BASE_TYPES/uint16" readOnly="true" name="WakeupTopicId" initialValue="${CFE_MISSION/MAPPROD_APP_WAKEUP_TOPICID}" />
+            <Variable type="BASE_TYPES/uint16" readOnly="true" name="HkTlmTopicId" initialValue="${CFE_MISSION/MAPPROD_APP_HK_TLM_TOPICID}" />
+            <Variable type="BASE_TYPES/uint16" readOnly="true" name="TileUpdatedTopicId" initialValue="${CFE_MISSION/MAPPROD_APP_TILE_UPDATED_TLM_TOPICID}" />
+            <Variable type="BASE_TYPES/uint16" readOnly="true" name="TilePublishedTopicId" initialValue="${CFE_MISSION/MAPPROD_APP_TILE_PUBLISHED_TLM_TOPICID}" />
+          </VariableSet>
+          <ParameterMapSet>
+            <ParameterMap interface="CMD" parameter="TopicId" variableRef="CmdTopicId" />
+            <ParameterMap interface="SEND_HK" parameter="TopicId" variableRef="SendHkTopicId" />
+            <ParameterMap interface="WAKEUP" parameter="TopicId" variableRef="WakeupTopicId" />
+            <ParameterMap interface="HK_TLM" parameter="TopicId" variableRef="HkTlmTopicId" />
+            <ParameterMap interface="TILE_UPDATED_TLM" parameter="TopicId" variableRef="TileUpdatedTopicId" />
+            <ParameterMap interface="TILE_PUBLISHED_TLM" parameter="TopicId" variableRef="TilePublishedTopicId" />
+          </ParameterMapSet>
+        </Implementation>
+      </Component>
+    </ComponentSet>
+  </Package>
+</PackageFile>

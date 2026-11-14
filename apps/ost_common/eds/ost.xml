@@ -107,6 +107,7 @@
           <Enumeration label="GPU_FAILURE" value="31" shortDescription="GPU or CUDA failure" />
           <Enumeration label="DEPTH_FAILED" value="32" shortDescription="Depth estimation failed for a keyframe" />
           <Enumeration label="POINTS_FAILED" value="33" shortDescription="Georeferencing failed or a depth set was dropped" />
+          <Enumeration label="MAP_UPDATE_FAILED" value="34" shortDescription="A keyframe could not be fused into the map" />
           <Enumeration label="REFINE_REJECTED" value="40" shortDescription="Refinement result rejected" />
           <Enumeration label="REFINE_LATENCY" value="41" shortDescription="Refinement over its latency limit" />
           <Enumeration label="TILE_WRITE" value="50" shortDescription="Tile write failure" />

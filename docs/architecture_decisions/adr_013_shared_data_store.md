@@ -204,6 +204,10 @@ references.
   (the publisher rule above). The layout is in
   `apps/georef_app/README.md` and `map_products_c_api.h`. When the quota is
   full, `GEOREF_APP` waits for `MAPPROD_APP` (ADR-015 section 3).
+* `MAPPROD_APP` (2026-11-14) is the last consumer: it releases the point
+  set after fusion and the keyframe's JPEG after rendering. Whether a run
+  leaves objects behind is not measured yet: it needs the store
+  statistics below.
 * Open: which application publishes the store statistics of section 6.
   A library module has no Software Bus task of its own.
 

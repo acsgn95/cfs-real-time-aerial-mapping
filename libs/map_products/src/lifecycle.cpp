@@ -61,6 +61,10 @@ std::string TileManager::statePath(const char *kind, const TileId &id) const
 void TileManager::markChanged(const std::vector<TileId> &tiles)
 {
     changed_.insert(tiles.begin(), tiles.end());
+    for (const TileId &id : tiles)
+    {
+        ++version_[id];
+    }
 }
 
 TileState TileManager::state(const TileId &id) const
@@ -86,23 +90,46 @@ std::size_t TileManager::activeTiles() const
     return ids.size();
 }
 
-void TileManager::finalise(const TileId &id)
+void TileManager::finalise(const TileId &id, bool defer)
 {
-    if (std::unique_ptr<DsmTile> t = dsm_.release(id))
+    const std::uint64_t        version = version_[id];
+    std::unique_ptr<DsmTile>   dsm     = dsm_.release(id);
+    std::unique_ptr<OrthoTile> ortho   = ortho_.release(id);
+    if (dsm)
     {
-        dsm_writer_.write(*t);
-        t->save(statePath("dsm", id));
-        dsm_written_ = true;
+        dsm->save(statePath("dsm", id));
     }
-    if (std::unique_ptr<OrthoTile> t = ortho_.release(id))
+    if (ortho)
     {
-        ortho_writer_.write(*t);
-        t->save(statePath("ortho", id));
-        ortho_written_ = true;
+        ortho->save(statePath("ortho", id));
     }
     changed_.erase(id);
     written_.insert(id);
     saved_.insert(id);
+    if (defer)
+    {
+        TileSnapshot::Entry e;
+        e.id      = id;
+        e.version = version;
+        e.dsm     = std::move(dsm);
+        e.ortho   = std::move(ortho);
+        deferred_.push_back(std::move(e));
+        return;
+    }
+    std::lock_guard<std::mutex> lock(disk_);
+    auto                        it      = on_disk_.find(id);
+    const bool                  current = it != on_disk_.end() && it->second >= version;
+    if (dsm && !current)
+    {
+        dsm_writer_.write(*dsm);
+        dsm_written_ = true;
+    }
+    if (ortho && !current)
+    {
+        ortho_writer_.write(*ortho);
+        ortho_written_ = true;
+    }
+    on_disk_[id] = version;
 }
 
 std::vector<TileId> TileManager::update(const Eigen::Vector2d &vehicle)
@@ -135,11 +162,11 @@ std::vector<TileId> TileManager::update(const Eigen::Vector2d &vehicle)
         {
             break;
         }
-        finalise(id);
+        finalise(id, config_.defer_writes);
         finalised.push_back(id);
         --active;
     }
-    if (!finalised.empty())
+    if (!finalised.empty() && !config_.defer_writes)
     {
         writeIndexes();
     }
@@ -148,22 +175,64 @@ std::vector<TileId> TileManager::update(const Eigen::Vector2d &vehicle)
 
 std::size_t TileManager::publish()
 {
-    std::size_t written = 0;
+    return write(snapshot());
+}
+
+TileSnapshot TileManager::snapshot()
+{
+    // Finalised tiles first: a tile reloaded and changed since comes after
+    // them in a newer version.
+    TileSnapshot s;
+    s.tiles = std::move(deferred_);
+    deferred_.clear();
     for (const TileId &id : changed_)
     {
+        TileSnapshot::Entry e;
+        e.id      = id;
+        e.version = version_[id];
         if (const DsmTile *t = dsm_.tile(id))
         {
-            dsm_writer_.write(*t);
-            dsm_written_ = true;
-            ++written;
+            e.dsm = std::make_unique<DsmTile>(*t);
         }
         if (const OrthoTile *t = ortho_.tile(id))
         {
-            ortho_writer_.write(*t);
-            ortho_written_ = true;
+            e.ortho = std::make_unique<OrthoTile>(*t);
+        }
+        if (e.dsm || e.ortho)
+        {
+            s.tiles.push_back(std::move(e));
         }
     }
     changed_.clear();
+    return s;
+}
+
+std::size_t TileManager::write(const TileSnapshot &snapshot)
+{
+    std::size_t written = 0;
+    for (const TileSnapshot::Entry &e : snapshot.tiles)
+    {
+        // One tile at a time: the owner waits at most one tile write when it
+        // finalises.
+        std::lock_guard<std::mutex> lock(disk_);
+        auto                        it = on_disk_.find(e.id);
+        if (it != on_disk_.end() && it->second >= e.version)
+        {
+            continue;  // finalised meanwhile, at least as new
+        }
+        if (e.dsm)
+        {
+            dsm_writer_.write(*e.dsm);
+            dsm_written_ = true;
+        }
+        if (e.ortho)
+        {
+            ortho_writer_.write(*e.ortho);
+            ortho_written_ = true;
+        }
+        on_disk_[e.id] = e.version;
+        ++written;
+    }
     if (written > 0)
     {
         writeIndexes();
@@ -184,17 +253,17 @@ std::size_t TileManager::finaliseAll()
     }
     for (const TileId &id : ids)
     {
-        finalise(id);
+        finalise(id, true);
     }
-    if (!ids.empty())
-    {
-        writeIndexes();
-    }
+    // The deferred tiles of earlier finalising as well; changed_ is empty.
+    write(snapshot());
+    writeIndexes();
     return ids.size();
 }
 
 void TileManager::writeIndexes()
 {
+    std::lock_guard<std::mutex> lock(disk_);
     if (dsm_written_)
     {
         dsm_writer_.writeIndex();

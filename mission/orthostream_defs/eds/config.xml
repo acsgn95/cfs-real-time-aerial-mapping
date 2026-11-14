@@ -120,6 +120,15 @@
     </Define>
   </Package>
 
+  <Package name="MAPPROD_APP" shortDescription="Sizes of MAPPROD_APP messages">
+    <Define name="MAX_TILES" value="48">
+      <LongDescription>
+        Capacity of the tile list of TILE_UPDATED: the tiles a keyframe
+        changed in the DSM and the orthomosaic (see GEOREF_APP/MAX_TILES).
+      </LongDescription>
+    </Define>
+  </Package>
+
   <Package name="CFE_ES" shortDescription="Executive Services">
     <!-- Placeholder, currently no options yet -->
   </Package>

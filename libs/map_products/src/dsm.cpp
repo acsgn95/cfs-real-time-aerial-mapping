@@ -1,4 +1,5 @@
 #include "orthostream/map_products/dsm.hpp"
+#include "orthostream/map_products/point_set.hpp"
 
 #include "depth_points.hpp"
 
@@ -167,6 +168,56 @@ FusionStats DsmFusion::addDepthMap(const DepthMapView &map, const geo::CameraMod
                 ++stats.rejected;
             }
         });
+    stats.tiles.assign(touched.begin(), touched.end());
+    return stats;
+}
+
+FusionStats DsmFusion::addPoints(const PointSetView &set)
+{
+    if ((set.count > 0 && set.points == nullptr) || (set.tile_count > 0 && set.tiles == nullptr))
+    {
+        throw MapProductsError("invalid point set");
+    }
+    const double     cs = config_.grid.cell_size;
+    const int        n  = config_.grid.tile_cells;
+    std::set<TileId> touched;
+    FusionStats      stats;
+    for (std::size_t k = 0; k < set.tile_count; ++k)
+    {
+        const TileSpan &span = set.tiles[k];
+        if (static_cast<std::size_t>(span.first) + span.count > set.count)
+        {
+            throw MapProductsError("tile span outside the point set");
+        }
+        DsmTile *tile = nullptr;
+        for (std::uint32_t j = 0; j < span.count; ++j)
+        {
+            const PointRecord &r = set.points[span.first + j];
+            if (!(r.weight > 0.0f) || r.weight < config_.min_confidence)
+            {
+                continue;
+            }
+            const Eigen::Vector3d p = set.origin + Eigen::Vector3d(r.east, r.north, r.height);
+            ++stats.points;
+            stats.extent.extend(p.head<2>());
+            if (tile == nullptr)
+            {
+                // The reference height of a new tile: its first point, as in addDepthMap.
+                tile = &tileFor(span.id, p.z());
+                touched.insert(span.id);
+            }
+            const int col = std::clamp(static_cast<int>(std::floor((p.x() - tile->originEasting()) / cs)), 0, n - 1);
+            const int row = std::clamp(static_cast<int>(std::floor((tile->originNorthing() - p.y()) / cs)), 0, n - 1);
+            if (tile->add(col, row, p.z(), r.weight, config_) == DsmTile::Update::added)
+            {
+                ++stats.added;
+            }
+            else
+            {
+                ++stats.rejected;
+            }
+        }
+    }
     stats.tiles.assign(touched.begin(), touched.end());
     return stats;
 }

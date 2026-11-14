@@ -7,6 +7,7 @@ add_library(orthostream_map_products
     src/dsm.cpp
     src/map_products_c_api.cpp
     src/point_set.cpp
+    src/products_c_api.cpp
     src/lifecycle.cpp
     src/ortho.cpp
     src/point_cloud.cpp
@@ -49,7 +50,7 @@ if(BUILD_TESTING)
     get_filename_component(OST_MP_PROJ_DATA_DIR "${ORTHOSTREAM_PROJ_DB}" DIRECTORY)
     add_executable(map_products_tests tests/test_product_frame.cpp tests/test_dsm.cpp tests/test_writer.cpp
         tests/test_ortho.cpp tests/test_point_cloud.cpp
-        tests/test_lifecycle.cpp tests/test_point_set.cpp tests/test_map_products_c_api.cpp
+        tests/test_lifecycle.cpp tests/test_point_set.cpp tests/test_map_products_c_api.cpp tests/test_products_c_api.cpp
         tests/c_api_usage.c)
     target_compile_definitions(map_products_tests PRIVATE OST_MP_TEST_PROJ_DATA_DIR="${OST_MP_PROJ_DATA_DIR}")
     if(EXISTS "${ORTHOSTREAM_PROJ_GRID_DIR}/ch_swisstopo_chgeo2004_ETRS89_LHN95.tif")

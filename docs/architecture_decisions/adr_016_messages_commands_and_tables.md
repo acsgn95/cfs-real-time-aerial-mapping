@@ -181,6 +181,18 @@ Defined under `interfaces/link/` and shared with the Python injector:
   JPEG count goes on to `MAPPROD_APP`; the working image is released), the
   tile grid and CRS used, so that `MAPPROD_APP` can check them against its
   own table, and the times of the job steps. About 1.1 KB.
+* **`TileUpdated`** (`apps/mapprod_app/eds/mapprod_app.xml`, 2026-11-14)
+  is one message per keyframe when its tiles are updated in memory: the
+  tiles changed in the DSM or the orthomosaic (at most
+  `MAPPROD_APP/MAX_TILES` = 48), points fused and rejected, orthomosaic
+  pixels, active and finalised tiles, memory, the times of the steps and
+  the latency from the capture; ADR-001 R2 is measured on it.
+  **`TilePublished`** is one message per publication: reason (periodic,
+  finalise all, stop), tiles written, write time and the publication
+  delay (the age of the oldest update included).
+* **Commands:** `MAPPROD_APP` adds "finalise all" (function code 3) for the
+  end of a flight. `tools/ground/send_command.py` sends commands without
+  parameters through `CI_LAB` without COSMOS.
 * The topic block of `DENSE_APP` moved from 96 to 192: command and
   telemetry offsets 96–99 give the message identifiers of the global cFE
   TIME topics (ADR-020).

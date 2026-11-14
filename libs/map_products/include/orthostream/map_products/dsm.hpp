@@ -20,6 +20,8 @@
 namespace orthostream::map_products
 {
 
+struct PointSetView;  // point_set.hpp
+
 struct TileGridConfig
 {
     double cell_size  = 0.26;  ///< metres; DSM resolution in P
@@ -125,6 +127,16 @@ public:
 
     /// camera: pinhole camera of the depth map; T_E_C: camera to ECEF.
     FusionStats addDepthMap(const DepthMapView &map, const geo::CameraModel &camera, const Eigen::Isometry3d &T_E_C);
+
+    /// Fuses a point set of GEOREF_APP (point_set.hpp): the same points as
+    /// addDepthMap of its depth map, and, since a point set keeps the pixel
+    /// order within a tile, in the same order per cell. The result equals
+    /// addDepthMap except for points within the float rounding of the
+    /// relative coordinates (hundredths of a millimetre) of a cell edge,
+    /// which may fall into the neighbouring cell. Records with a weight
+    /// below the minimum confidence are skipped. The set's tile grid must
+    /// be this one.
+    FusionStats addPoints(const PointSetView &set);
 
     const std::map<TileId, std::unique_ptr<DsmTile>> &tiles() const { return tiles_; }
     const DsmTile                                    *tile(const TileId &id) const;
