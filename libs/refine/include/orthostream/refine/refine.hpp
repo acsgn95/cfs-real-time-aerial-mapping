@@ -49,8 +49,9 @@ struct RefineConfig
     double huber_threshold      = 2.0;  ///< in units of pixel_sigma
     double outlier_threshold_px = 4.0;  ///< observations dropped after the first solution
     double min_triangulation_deg = 1.0; ///< largest ray angle of a track
-    std::size_t max_points      = 30000; ///< longest tracks are kept
-    int    max_iterations       = 100;
+    std::size_t max_points      = 30000; ///< chosen to cover every image, then the longest tracks
+    int    max_iterations       = 100;   ///< Levenberg-Marquardt iterations per solution
+    double relative_error_tol   = 1e-7;  ///< Levenberg-Marquardt stop criterion
 
     // Features and matching.
     int    max_features        = 4000;
@@ -126,7 +127,8 @@ std::vector<Track> buildTracks(const std::vector<std::vector<Eigen::Vector2d>> &
 
 struct AdjustmentResult
 {
-    std::vector<Eigen::Isometry3d> T_W_C;      ///< refined poses, boresight included
+    std::vector<Eigen::Isometry3d> T_W_C;      ///< refined camera poses, boresight included
+    std::vector<Eigen::Isometry3d> X_W_C;      ///< refined pose variables, without the boresight
     Eigen::Matrix3d                boresight = Eigen::Matrix3d::Identity();
     std::vector<std::size_t>       observations_per_image;
     std::size_t                    points       = 0;  ///< triangulated tie points used
@@ -136,6 +138,26 @@ struct AdjustmentResult
     double                         rms_after_px  = 0.0;
     double max_rotation_correction_deg = 0.0;  ///< largest per-image change, boresight excluded
     double max_position_correction_m   = 0.0;
+    std::vector<double> rotation_correction_deg;  ///< per image, boresight excluded
+    std::vector<double> position_correction_m;    ///< per image
+    int    iterations                  = 0;    ///< of both solutions together
+};
+
+/// Prior of one pose variable: the recorded pose (or an earlier refined
+/// one) and its one-sigma uncertainty per axis.
+struct PosePrior
+{
+    Eigen::Isometry3d X_W_C = Eigen::Isometry3d::Identity();
+    double            attitude_sigma_deg = 3.0;
+    double            position_sigma_m   = 2.0;
+};
+
+/// The shared boresight: initial value and prior sigma. Ignored when
+/// RefineConfig::estimate_boresight is false.
+struct BoresightPrior
+{
+    Eigen::Matrix3d R         = Eigen::Matrix3d::Identity();
+    double          sigma_deg = 5.0;
 };
 
 /// Bundle adjustment with GNSS/attitude priors: triangulates the tracks
@@ -143,6 +165,14 @@ struct AdjustmentResult
 /// removes outliers and solves again. The camera must have no distortion.
 AdjustmentResult adjust(const geo::CameraModel &camera, const std::vector<Eigen::Isometry3d> &priors,
                         const std::vector<Track> &tracks, const RefineConfig &config);
+
+/// The same with a prior per image and a given boresight prior (sliding
+/// window: images refined before carry tight priors, and the boresight is
+/// held once it has settled). Tracks are triangulated from the priors with
+/// the boresight applied.
+AdjustmentResult adjust(const geo::CameraModel &camera, const std::vector<PosePrior> &priors,
+                        const std::vector<Track> &tracks, const RefineConfig &config,
+                        const BoresightPrior &boresight);
 
 enum class PoseSource
 {

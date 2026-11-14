@@ -5,7 +5,7 @@
 find_package(GTSAM CONFIG REQUIRED)
 find_package(OpenCV CONFIG REQUIRED COMPONENTS core imgproc calib3d features2d flann)
 
-add_library(orthostream_refine src/adjustment.cpp src/features.cpp src/refiner.cpp)
+add_library(orthostream_refine src/adjustment.cpp src/features.cpp src/refiner.cpp src/sliding.cpp src/refine_c_api.cpp)
 add_library(OrthoStream::refine ALIAS orthostream_refine)
 set_target_properties(orthostream_refine PROPERTIES EXPORT_NAME refine)
 
@@ -14,7 +14,7 @@ target_include_directories(orthostream_refine PUBLIC
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 target_compile_features(orthostream_refine PUBLIC cxx_std_17)
 target_link_libraries(orthostream_refine
-    PUBLIC OrthoStream::geo
+    PUBLIC OrthoStream::geo OrthoStream::interfaces
     PRIVATE gtsam opencv_core opencv_imgproc opencv_calib3d opencv_features2d opencv_flann
             $<BUILD_INTERFACE:orthostream_warnings>)
 
@@ -37,7 +37,7 @@ install(FILES
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/OrthoStreamRefine)
 
 if(BUILD_TESTING)
-    add_executable(refine_tests tests/test_refine.cpp)
+    add_executable(refine_tests tests/test_refine.cpp tests/test_sliding.cpp tests/c_api_usage.c)
     target_link_libraries(refine_tests PRIVATE orthostream_refine opencv_core opencv_imgproc
                           GTest::gtest_main orthostream_warnings)
     gtest_discover_tests(refine_tests)

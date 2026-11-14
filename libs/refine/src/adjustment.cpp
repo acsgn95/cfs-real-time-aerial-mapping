@@ -61,8 +61,9 @@ struct TiePoint
 class Problem
 {
 public:
-    Problem(const geo::CameraModel &camera, const std::vector<Eigen::Isometry3d> &priors, const RefineConfig &config)
-        : cam_(camera), priors_(priors), config_(config)
+    Problem(const geo::CameraModel &camera, const std::vector<PosePrior> &priors, const RefineConfig &config,
+            const BoresightPrior &boresight)
+        : cam_(camera), priors_(priors), config_(config), boresight_(boresight)
     {
     }
 
@@ -95,17 +96,17 @@ public:
     {
         namespace nm = gtsam::noiseModel;
         gtsam::NonlinearFactorGraph graph;
-        const double                sr = config_.attitude_sigma_deg * kDeg;
-        const double st = config_.precise_position ? config_.precise_position_sigma : config_.position_sigma;
-        const auto   pose_noise = nm::Diagonal::Sigmas((gtsam::Vector6() << sr, sr, sr, st, st, st).finished());
         for (std::size_t i = 0; i < priors_.size(); ++i)
         {
-            graph.addPrior(poseKey(i), toPose3(priors_[i]), pose_noise);
+            const double sr = priors_[i].attitude_sigma_deg * kDeg;
+            const double st = priors_[i].position_sigma_m;
+            graph.addPrior(poseKey(i), toPose3(priors_[i].X_W_C),
+                           nm::Diagonal::Sigmas((gtsam::Vector6() << sr, sr, sr, st, st, st).finished()));
         }
         if (config_.estimate_boresight)
         {
-            const double sb = config_.boresight_sigma_deg * kDeg;
-            graph.addPrior(kBoresight, gtsam::Pose3(),
+            const double sb = boresight_.sigma_deg * kDeg;
+            graph.addPrior(kBoresight, gtsam::Pose3(gtsam::Rot3(boresight_.R), gtsam::Point3(0, 0, 0)),
                            nm::Diagonal::Sigmas((gtsam::Vector6() << sb, sb, sb, 1e-4, 1e-4, 1e-4).finished()));
         }
         const auto measurement_noise =
@@ -124,7 +125,7 @@ public:
         }
         gtsam::LevenbergMarquardtParams params;
         params.maxIterations    = config_.max_iterations;
-        params.relativeErrorTol = 1e-7;
+        params.relativeErrorTol = config_.relative_error_tol;
         params.absoluteErrorTol = 1e-10;
         gtsam::LevenbergMarquardtOptimizer optimizer(graph, initial, params);
         gtsam::Values                      result = optimizer.optimize();
@@ -132,26 +133,103 @@ public:
     }
 
 private:
-    const geo::CameraModel               &cam_;
-    const std::vector<Eigen::Isometry3d> &priors_;
-    const RefineConfig                   &config_;
+    const geo::CameraModel       &cam_;
+    const std::vector<PosePrior> &priors_;
+    const RefineConfig           &config_;
+    const BoresightPrior         &boresight_;
 };
+
+/// Chooses at most max_points tie points: first, in order of track length,
+/// every point that is the first in a cell of one of its images (an 8 x 8
+/// grid per image), so that all images and all parts of them are covered;
+/// then the longest of the remaining ones.
+std::vector<TiePoint> choosePoints(std::vector<TiePoint> points, const geo::CameraModel &cam, std::size_t n,
+                                   std::size_t max_points)
+{
+    std::stable_sort(points.begin(), points.end(), [](const TiePoint &a, const TiePoint &b) {
+        return a.observations.size() > b.observations.size();
+    });
+    if (points.size() <= max_points)
+    {
+        return points;
+    }
+    constexpr int     kGrid = 8;
+    std::vector<bool> occupied(n * kGrid * kGrid, false);
+    std::vector<bool> taken(points.size(), false);
+    std::vector<TiePoint> chosen;
+    auto cell = [&](const Observation &o) {
+        const int cx = std::clamp(static_cast<int>(o.pixel.x() / cam.width * kGrid), 0, kGrid - 1);
+        const int cy = std::clamp(static_cast<int>(o.pixel.y() / cam.height * kGrid), 0, kGrid - 1);
+        return (o.image * kGrid + static_cast<std::size_t>(cy)) * kGrid + static_cast<std::size_t>(cx);
+    };
+    for (std::size_t j = 0; j < points.size() && chosen.size() < max_points; ++j)
+    {
+        bool fills = false;
+        for (const Observation &o : points[j].observations)
+        {
+            fills = fills || !occupied[cell(o)];
+        }
+        if (fills)
+        {
+            for (const Observation &o : points[j].observations)
+            {
+                occupied[cell(o)] = true;
+            }
+            taken[j] = true;
+            chosen.push_back(points[j]);
+        }
+    }
+    for (std::size_t j = 0; j < points.size() && chosen.size() < max_points; ++j)
+    {
+        if (!taken[j])
+        {
+            chosen.push_back(points[j]);
+        }
+    }
+    return chosen;
+}
 
 }  // namespace
 
 AdjustmentResult adjust(const geo::CameraModel &camera, const std::vector<Eigen::Isometry3d> &priors,
                         const std::vector<Track> &tracks, const RefineConfig &config)
 {
+    std::vector<PosePrior> p;
+    const double st = config.precise_position ? config.precise_position_sigma : config.position_sigma;
+    for (const Eigen::Isometry3d &T : priors)
+    {
+        p.push_back({ T, config.attitude_sigma_deg, st });
+    }
+    BoresightPrior b;
+    b.sigma_deg = config.boresight_sigma_deg;
+    return adjust(camera, p, tracks, config, b);
+}
+
+AdjustmentResult adjust(const geo::CameraModel &camera, const std::vector<PosePrior> &prior_specs,
+                        const std::vector<Track> &tracks, const RefineConfig &config,
+                        const BoresightPrior &boresight)
+{
     if (camera.k1 != 0.0 || camera.k2 != 0.0 || camera.k3 != 0.0 || camera.p1 != 0.0 || camera.p2 != 0.0)
     {
         throw RefineError("refinement needs an undistorted camera");
     }
-    if (!(camera.fx > 0.0) || !(camera.fy > 0.0) || priors.empty())
+    if (!(camera.fx > 0.0) || !(camera.fy > 0.0) || prior_specs.empty())
     {
         throw RefineError("invalid camera or no images");
     }
-    const std::size_t n = priors.size();
-    const Problem     problem(camera, priors, config);
+    const std::size_t n = prior_specs.size();
+    const Problem     problem(camera, prior_specs, config, boresight);
+    // Camera poses at the priors, with the initial boresight applied.
+    Eigen::Isometry3d D = Eigen::Isometry3d::Identity();
+    if (config.estimate_boresight)
+    {
+        D.linear() = boresight.R;
+    }
+    std::vector<Eigen::Isometry3d> priors;
+    for (const PosePrior &p : prior_specs)
+    {
+        priors.push_back(p.X_W_C * D);
+    }
 
     // Tie points triangulated from the prior poses. Points behind a camera
     // or seen under too small an angle are left out.
@@ -201,14 +279,7 @@ AdjustmentResult adjust(const geo::CameraModel &camera, const std::vector<Eigen:
             points.push_back({ *X, t });
         }
     }
-    // Longest tracks first; they tie the most images together.
-    std::stable_sort(points.begin(), points.end(), [](const TiePoint &a, const TiePoint &b) {
-        return a.observations.size() > b.observations.size();
-    });
-    if (points.size() > config.max_points)
-    {
-        points.resize(config.max_points);
-    }
+    points = choosePoints(std::move(points), camera, n, config.max_points);
     if (points.empty())
     {
         throw RefineError("no tie points could be triangulated");
@@ -217,11 +288,11 @@ AdjustmentResult adjust(const geo::CameraModel &camera, const std::vector<Eigen:
     gtsam::Values initial;
     for (std::size_t i = 0; i < n; ++i)
     {
-        initial.insert(poseKey(i), toPose3(priors[i]));
+        initial.insert(poseKey(i), toPose3(prior_specs[i].X_W_C));
     }
     if (config.estimate_boresight)
     {
-        initial.insert(kBoresight, gtsam::Pose3());
+        initial.insert(kBoresight, gtsam::Pose3(gtsam::Rot3(boresight.R), gtsam::Point3(0, 0, 0)));
     }
     for (std::size_t j = 0; j < points.size(); ++j)
     {
@@ -293,8 +364,7 @@ AdjustmentResult adjust(const geo::CameraModel &camera, const std::vector<Eigen:
         throw RefineError("all tie points were rejected as outliers");
     }
     auto [second, it2] = problem.solve(kept, second_initial);
-    (void)it1;
-    (void)it2;
+    result.iterations = it1 + it2;
 
     result.points       = kept.size();
     result.rms_after_px = rms(second, kept, true);
@@ -316,11 +386,13 @@ AdjustmentResult adjust(const geo::CameraModel &camera, const std::vector<Eigen:
         const Eigen::Isometry3d X = toIsometry(second.at<gtsam::Pose3>(poseKey(i)));
         const Eigen::Isometry3d T = toIsometry(problem.cameraPose(second, i));
         result.T_W_C.push_back(T);
-        result.max_rotation_correction_deg =
-            std::max(result.max_rotation_correction_deg,
-                     rotationAngle(priors[i].linear().transpose() * X.linear()) / kDeg);
-        result.max_position_correction_m =
-            std::max(result.max_position_correction_m, (T.translation() - priors[i].translation()).norm());
+        result.X_W_C.push_back(X);
+        const double rot = rotationAngle(prior_specs[i].X_W_C.linear().transpose() * X.linear()) / kDeg;
+        const double pos = (X.translation() - prior_specs[i].X_W_C.translation()).norm();
+        result.rotation_correction_deg.push_back(rot);
+        result.position_correction_m.push_back(pos);
+        result.max_rotation_correction_deg = std::max(result.max_rotation_correction_deg, rot);
+        result.max_position_correction_m   = std::max(result.max_position_correction_m, pos);
     }
     return result;
 }

@@ -6,7 +6,8 @@
 * Backlog item: D18
 * Revised: 2026-11-11 (latency limit of 120 s with refinement; refinement
   waits for the next flight line); 2026-11-13 (shared boresight variable,
-  feature candidates, implementation notes and first results in section 8)
+  feature candidates, implementation notes and first results in section 8);
+  2026-11-14 (sliding window and C interface, section 9)
 * Evidence: ADR-001 section 1b (recorded attitude about 1.5° from the
   adjusted attitude, about 195 px in the image); ADR-003 section 4 (pose
   sets); ADR-010 (GTSAM 4.3.0 as the optional vcpkg feature `refine`, built
@@ -241,6 +242,59 @@ per keyframe is measured.
     errors lie at both ends of the block, where the refined poses have the
     fewest tie points. Not yet explained (open question).
 
+### 9. Sliding window (2026-11-14)
+
+* `orthostream/refine/sliding.hpp`, `SlidingRefiner`. Each batch is solved
+  in a local window around its keyframe, not in one growing problem:
+  * the images whose footprint centres lie within 1.2 footprint widths of
+    the keyframe's, the nearest first, at most 16;
+  * the pairs of images with overlapping footprints;
+  * at most 2000 tie points, chosen so that every image and every cell of
+    an 8 × 8 grid per image is covered, then the longest tracks;
+  * features are extracted once per image and pair matches are kept, so
+    each image and pair is processed once however many windows use it;
+  * images refined before enter with their refined pose as a prior of
+    0.02°;
+  * the boresight is estimated in the first four refined batches, then held
+    with a prior of 0.005°;
+  * Levenberg–Marquardt with at most 30 iterations and a relative
+    tolerance of 10⁻⁵.
+* Waiting (section 3, item 4): a batch is solved when an image of a later
+  flight line flying the other way sees its keyframe's footprint centre
+  (within 0.4 footprint widths), or after 100 s.
+* C interface `refine_c_api.h` (`OST_Refine_*`) for `REFINE_APP`: ECEF
+  poses in and out, a local ENU frame inside, results queued for polling.
+* Benchmark (`tools/refine_poses --sliding`):
+  * the batches arrive in keyframe order as from `SELECT_APP`, with 10
+    warm-up batches;
+  * non-optimized poses, `precise_position = true`, keyframes 60 to 99;
+  * time per batch = features of its new images + matching + adjustment,
+    with refinement running alone; decoding is `SELECT_APP`'s work.
+
+  | Window | Time per batch (mean / max) | Keyframe attitude (median) | DSM median | NMAD | RMSE | within 1 m |
+  | --- | --- | --- | --- | --- | --- | --- |
+  | Metashape poses (reference) | — | — | −0.007 m | 0.069 m | 0.363 m | 98.9 % |
+  | block mode (section 8) | — | 0.008° | +0.002 m | 0.079 m | 0.359 m | 98.8 % |
+  | 24 images, 4000 points | 4.37 / 6.0 s | 0.021° | +0.033 m | 0.101 m | 0.352 m | 98.8 % |
+  | **16 images, 2000 points** | **2.17 / 3.1 s** | 0.024° | +0.041 m | 0.108 m | 0.365 m | 98.7 % |
+  | recorded poses, no refinement | — | 1.45° | −2.71 m | 6.40 m | 9.47 m | 7.7 % |
+
+  * The default (bold) fits the keyframe interval of 2.9 s on average.
+  * The sliding window is worse than block mode, but by centimetres. The
+    attitude error is scatter per image, not bias: the mean rotation error
+    is below 0.005° in both modes, the scatter 0.019° against 0.011°.
+  * Earlier variants changed the time but not the accuracy:
+    * holding the boresight after 15 batches with 0.05°;
+    * a prior of 0.05° for refined images.
+  * The 100 iterations of block mode were mostly unnecessary. With 30, the
+    40-keyframe block took 38.5 s instead of 90 s, at the same accuracy.
+  * Waiting: 94 s median (data time from capture to solution), within the
+    latency limit of 120 s. Some batches are solved by the waiting limit.
+    There, the next line does not cover the keyframe's footprint centre
+    within 0.4 footprint widths.
+* Outputs: `test_outputs/refine/sliding_*`,
+  `test_outputs/offline_pipeline/sliding_v{1,2}_40kf_sgbm`.
+
 ## Rationale
 
 * Two values match the two situations an operator actually has: poses that
@@ -319,8 +373,12 @@ per keyframe is measured.
   (implemented), ORB, and the learned XFeat (Potje et al., CVPR 2024), which
   is reported faster and more robust than SIFT; XFeat needs a neural network
   runtime (for example ONNX Runtime), a new dependency to be approved.
-* Run time of the adjustment (section 8): the sliding window must fit the
-  keyframe interval on average.
+* ~~Run time of the adjustment~~: the sliding window fits the keyframe
+  interval (section 9). Open: the time per batch when `SGBM` runs on the
+  CPU at the same time, measured in the mission.
+* The accuracy gap between the sliding window and block mode (NMAD 0.108
+  against 0.079 m): candidates are a larger window for a later re-solution
+  of each batch, or a second pass before the tiles are finalised.
 * The values of the failure checks of section 5: set from the benchmark.
 * PatchMatch with refined poses is worse at the ends of a refined block
   than with the Metashape poses, SGBM is not (section 8). To be examined

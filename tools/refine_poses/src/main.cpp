@@ -7,8 +7,15 @@
 // unchanged. With --reference-poses, reports the pose errors before and
 // after refinement.
 //
-// This is block mode: all batches of the block in one adjustment, the upper
-// bound of what the sliding window of ADR-019 section 3 can reach.
+// Block mode (default): all batches of the block in one adjustment, the
+// upper bound of what the sliding window of ADR-019 section 3 can reach.
+//
+// Sliding mode (--sliding, needs --captures): the batches arrive one by one
+// in keyframe order, as from SELECT_APP, and SlidingRefiner solves each when
+// the next flight line covers it or its waiting limit expires. Warm-up
+// batches before the block let the boresight settle. Reports the time per
+// batch (features of its new images, matching, adjustment) against the
+// keyframe interval, and the pose errors of the block's batches.
 
 #include <algorithm>
 #include <chrono>
@@ -29,6 +36,7 @@
 #include "orthostream/geo/frames.hpp"
 #include "orthostream/imaging/working_image.hpp"
 #include "orthostream/refine/refine.hpp"
+#include "orthostream/refine/sliding.hpp"
 
 namespace
 {
@@ -53,6 +61,10 @@ struct Options
     int         sources     = 5;
     bool        delayed     = true;
     refine::RefineConfig refine;
+    bool        sliding     = false;
+    std::string captures;
+    int         warmup      = 10;
+    refine::SlidingConfig window;
 };
 
 const char *kUsage = R"(usage: refine_poses --poses FILE --images DIR --terrain-dem FILE --out FILE [options]
@@ -72,6 +84,18 @@ const char *kUsage = R"(usage: refine_poses --poses FILE --images DIR --terrain-
   --attitude-sigma DEG    attitude prior per image (default 3)
   --no-boresight          no shared mounting rotation
   --max-features N        features per image (default 4000)
+  --max-points N          tie points in the adjustment (default 30000)
+  --max-iterations N      Levenberg-Marquardt iterations per solution (default 100)
+  --sliding               sliding window instead of one block (needs --captures)
+  --captures FILE         capture times (tools/dataset/extract_capture_times.py)
+  --warmup N              batches before the block, for the boresight (default 10)
+  --window-images N       images of one local solution (default 16)
+  --window-points N       tie points of one local solution (default 2000)
+  --window-iterations N   iterations per solution (default 30)
+  --max-wait S            waiting limit of a batch, s (default 100)
+  --boresight-settle N    refined batches before the boresight is held (default 4)
+  --held-boresight-sigma DEG  prior of the held boresight (default 0.005)
+  --refined-sigma DEG     attitude prior of images refined before (default 0.02)
   --proj-data DIR, --grid-dir DIR
 )";
 
@@ -108,6 +132,18 @@ Options parse(int argc, char **argv)
         else if (a == "--attitude-sigma") o.refine.attitude_sigma_deg = std::stod(value());
         else if (a == "--no-boresight") o.refine.estimate_boresight = false;
         else if (a == "--max-features") o.refine.max_features = std::stoi(value());
+        else if (a == "--max-points") o.refine.max_points = static_cast<std::size_t>(std::stoul(value()));
+        else if (a == "--max-iterations") o.refine.max_iterations = std::stoi(value());
+        else if (a == "--sliding") o.sliding = true;
+        else if (a == "--captures") o.captures = value();
+        else if (a == "--warmup") o.warmup = std::stoi(value());
+        else if (a == "--window-images") o.window.max_window_images = static_cast<std::size_t>(std::stoul(value()));
+        else if (a == "--window-points") o.window.max_points = static_cast<std::size_t>(std::stoul(value()));
+        else if (a == "--window-iterations") o.window.max_iterations = std::stoi(value());
+        else if (a == "--max-wait") o.window.max_wait_s = std::stod(value());
+        else if (a == "--boresight-settle") o.window.boresight_settle_batches = std::stoi(value());
+        else if (a == "--held-boresight-sigma") o.window.held_boresight_sigma_deg = std::stod(value());
+        else if (a == "--refined-sigma") o.window.refined_attitude_sigma_deg = std::stod(value());
         else if (a == "--proj-data") o.proj_data = value();
         else if (a == "--grid-dir") o.grid_dir = value();
         else if (a == "--mode")
@@ -239,6 +275,222 @@ void writePoses(const std::string &path, const tools::Dataset &data, const std::
     }
 }
 
+std::map<std::string, std::int64_t> readCaptures(const std::string &path)
+{
+    std::ifstream                       in(path);
+    std::map<std::string, std::int64_t> t;
+    std::string                         line;
+    if (!in)
+    {
+        throw std::runtime_error("cannot open " + path);
+    }
+    while (std::getline(in, line))
+    {
+        std::istringstream ss(line);
+        std::string        tag, name;
+        long long          ms = 0;
+        if (ss >> tag >> name >> ms && tag == "capture")
+        {
+            t[name] = static_cast<std::int64_t>(ms) * 1000000;
+        }
+    }
+    return t;
+}
+
+int runSliding(const Options &o, tools::Dataset &data, const tools::Flight &flight)
+{
+    const auto  times = readCaptures(o.captures);
+    const auto &kf    = flight.keyframes();
+    const std::size_t first = std::min<std::size_t>(static_cast<std::size_t>(o.first), kf.size());
+    const std::size_t last  = std::min<std::size_t>(first + static_cast<std::size_t>(o.count), kf.size());
+    const std::size_t start = first > static_cast<std::size_t>(o.warmup) ? first - static_cast<std::size_t>(o.warmup) : 0;
+    if (first >= last)
+    {
+        throw std::runtime_error("no keyframes in the block");
+    }
+    auto timeOf = [&](std::size_t i) {
+        const auto it = times.find(data.images[i].name);
+        if (it == times.end())
+        {
+            throw std::runtime_error("no capture time for " + data.images[i].name);
+        }
+        return it->second;
+    };
+    const std::int64_t end_time = timeOf(kf[last - 1]) + static_cast<std::int64_t>(o.window.max_wait_s * 1e9);
+
+    refine::SlidingConfig cfg = o.window;
+    cfg.refine                = o.refine;
+    imaging::WorkingImageConverter converter(data.camera, o.width, 1);
+    const geo::CameraModel         wcam = converter.workingCamera();
+    refine::SlidingRefiner         sliding(wcam, cfg);
+    const geo::LocalFrame         &F = flight.frame();
+    std::vector<std::uint8_t>      img(static_cast<std::size_t>(wcam.width) * wcam.height);
+
+    struct BatchInfo
+    {
+        std::size_t              q;
+        std::vector<std::size_t> images;
+        double                   features_s = 0.0;
+    };
+    std::map<std::uint64_t, BatchInfo>     info;
+    std::set<std::size_t>                  added;
+    std::vector<refine::SlidingResult>     results;
+    double                                 decode_s = 0.0;
+    std::int64_t                           now      = 0;
+    std::size_t                            batches  = 0;
+    for (std::size_t q = start; q < kf.size(); ++q)
+    {
+        if (q >= last && timeOf(kf[q]) > end_time)
+        {
+            break;
+        }
+        BatchInfo bi { q, { kf[q] } };
+        for (const auto &sv : flight.sources(kf[q]))
+        {
+            bi.images.push_back(static_cast<std::size_t>(sv.id));
+        }
+        std::vector<std::size_t> fresh;
+        for (std::size_t i : bi.images)
+        {
+            if (added.insert(i).second)
+            {
+                fresh.push_back(i);
+            }
+        }
+        std::sort(fresh.begin(), fresh.end(), [&](std::size_t a, std::size_t b) { return timeOf(a) < timeOf(b); });
+        const double f0 = sliding.stats().features_s;
+        for (std::size_t i : fresh)
+        {
+            const auto                      t0   = Clock::now();
+            const std::vector<std::uint8_t> jpeg = readFile(o.images + "/" + data.images[i].name);
+            converter.convert(jpeg.data(), jpeg.size(),
+                              { img.data(), wcam.width, wcam.height, 1, static_cast<std::size_t>(wcam.width) });
+            decode_s += since(t0);
+            refine::SlidingImage si;
+            si.id      = i;
+            si.time_ns = timeOf(i);
+            si.image   = { img.data(), wcam.width, wcam.height, static_cast<std::size_t>(wcam.width) };
+            si.T_W_C   = flight.view(i).T_L_C;
+            sliding.addImage(si);
+            now = std::max(now, si.time_ns);
+        }
+        bi.features_s = sliding.stats().features_s - f0;
+        refine::SlidingBatch b;
+        b.id       = q;
+        b.keyframe = kf[q];
+        for (std::size_t i : bi.images)
+        {
+            b.images.push_back(i);
+        }
+        b.ground_z = flight.view(kf[q]).footprint.plane_height;
+        sliding.addBatch(b);
+        info[q] = bi;
+        ++batches;
+        for (auto &r : sliding.poll(now))
+        {
+            results.push_back(std::move(r));
+        }
+    }
+    for (auto &r : sliding.poll(now, true))
+    {
+        results.push_back(std::move(r));
+    }
+
+    // Report: block batches only (warm-up and trailing batches excluded).
+    std::ostringstream rep;
+    rep << std::fixed << std::setprecision(3);
+    rep << "refine_poses --sliding: " << o.poses << "\n"
+        << "block: keyframes " << first << " to " << last << " (warm-up from " << start << ", " << batches
+        << " batches simulated)\n"
+        << "window: " << cfg.max_window_images << " images, " << cfg.max_points << " points, " << cfg.max_iterations
+        << " iterations, wait limit " << cfg.max_wait_s << " s; precise_position "
+        << (o.refine.precise_position ? "true" : "false") << "\n";
+    rep << "batch kf  result   covered waited_s images pairs new points iter  rms_px  boresight held  features_s matching_s adjust_s total_s\n";
+    std::vector<double> totals, waits;
+    std::vector<std::string> names;
+    std::vector<Eigen::Isometry3d> kf_prior, kf_refined;
+    std::map<std::size_t, Eigen::Isometry3d> latest;
+    std::size_t refined = 0, failed = 0;
+    for (const auto &r : results)
+    {
+        const BatchInfo &bi = info.at(r.batch_id);
+        for (std::size_t k = 0; k < bi.images.size(); ++k)
+        {
+            if (r.source == refine::PoseSource::refined)
+            {
+                latest[bi.images[k]] = F.ecefFromLocal() * r.T_W_C[k];
+            }
+        }
+        if (bi.q < first || bi.q >= last)
+        {
+            continue;
+        }
+        const double total = bi.features_s + r.matching_s + r.adjustment_s;
+        totals.push_back(total);
+        waits.push_back(r.waited_s);
+        (r.source == refine::PoseSource::refined ? refined : failed) += 1;
+        names.push_back(data.images[bi.images[0]].name);
+        kf_prior.push_back(data.images[bi.images[0]].T_E_C);
+        kf_refined.push_back(F.ecefFromLocal() * r.T_W_C[0]);
+        rep << std::setw(5) << bi.q << ' ' << std::setw(4) << bi.images[0] << "  "
+            << (r.source == refine::PoseSource::refined ? "refined" : "FAILED ") << "  " << (r.covered ? "yes" : "no ")
+            << "  " << std::setw(7) << r.waited_s << ' ' << std::setw(6) << r.window_images << ' ' << std::setw(5)
+            << r.pairs << ' ' << std::setw(3) << r.new_pairs << ' ' << std::setw(6) << r.points << ' ' << std::setw(4)
+            << r.iterations << ' ' << std::setw(7) << r.rms_after_px << ' ' << std::setw(7) << r.boresight_deg << "  "
+            << (r.boresight_held ? "yes " : "no  ") << std::setw(10) << bi.features_s << ' ' << std::setw(10)
+            << r.matching_s << ' ' << std::setw(8) << r.adjustment_s << ' ' << std::setw(7) << total
+            << (r.reason.empty() ? "" : "  " + r.reason) << "\n";
+    }
+    const Summary ts = summarise(totals), ws = summarise(waits);
+    double        sum = 0;
+    for (double t : totals)
+    {
+        sum += t;
+    }
+    rep << "batches: " << refined << " refined, " << failed << " failed\n"
+        << "time per batch: mean " << (totals.empty() ? 0.0 : sum / static_cast<double>(totals.size())) << " s, median "
+        << ts.median << ", 95% " << ts.p95 << ", max " << ts.max << " (keyframe interval at the nominal point 2.9 s)\n"
+        << "waiting (data time from capture to solution): median " << ws.median << " s, max " << ws.max << "\n"
+        << "decode (SELECT_APP's work, not counted): " << decode_s << " s\n";
+
+    if (!o.reference_poses.empty())
+    {
+        const tools::Dataset                     ref_data = tools::loadPoses(o.reference_poses);
+        std::map<std::string, Eigen::Isometry3d> ref;
+        for (const auto &im : ref_data.images)
+        {
+            ref[im.name] = im.T_E_C;
+        }
+        const Eigen::Vector3d origin = kf_prior.front().translation();
+        const geo::Geodetic   g      = geo::GeodeticConverter(o.proj_data).ecefToGeodetic(origin);
+        const geo::LocalFrame L(origin, g.latitude_rad, g.longitude_rad);
+        reportErrors(rep, "keyframes, prior poses against the reference", names, kf_prior, ref, L);
+        reportErrors(rep, "keyframes, poses of their batch against the reference", names, kf_refined, ref, L);
+    }
+
+    // Pose file: keyframes of the block with the pose of their own batch,
+    // the other images of the block's batches with their latest refined pose.
+    std::map<std::size_t, Eigen::Isometry3d> out = latest;
+    for (const auto &r : results)
+    {
+        const BatchInfo &bi = info.at(r.batch_id);
+        if (bi.q >= first && bi.q < last && r.source == refine::PoseSource::refined)
+        {
+            out[bi.images[0]] = F.ecefFromLocal() * r.T_W_C[0];
+        }
+    }
+    for (const auto &[i, T] : out)
+    {
+        data.images[i].T_E_C = T;
+    }
+    std::ostringstream note;
+    note << "Sliding window, keyframes " << first << " to " << last << ": refined poses of the simulated batches; other images unchanged.";
+    writePoses(o.out, data, o.poses, note.str());
+    std::ofstream(o.out + ".report.txt") << rep.str();
+    std::cout << rep.str() << "poses: " << o.out << "\n";
+    return failed == 0 ? 0 : 2;
+}
+
 int run(const Options &o)
 {
     tools::Dataset data = tools::loadPoses(o.poses);
@@ -254,6 +506,14 @@ int run(const Options &o)
     fc.sources       = o.sources;
     fc.delayed       = o.delayed;
     const tools::Flight flight(data, fc);
+    if (o.sliding)
+    {
+        if (o.captures.empty())
+        {
+            throw std::runtime_error("--sliding needs --captures");
+        }
+        return runSliding(o, data, flight);
+    }
     const auto         &kf    = flight.keyframes();
     const std::size_t   first = std::min<std::size_t>(static_cast<std::size_t>(o.first), kf.size());
     const std::size_t   last  = std::min<std::size_t>(first + static_cast<std::size_t>(o.count), kf.size());
