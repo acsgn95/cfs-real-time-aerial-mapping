@@ -40,6 +40,9 @@ SCH_LAB_ScheduleTable_t Schedule = {
 
         /* DENSE_APP */
         {OST_SCH_CMD(DENSE_APP_SEND_HK_TOPICID), 100, 0},
+
+        /* GEOREF_APP */
+        {OST_SCH_CMD(GEOREF_APP_SEND_HK_TOPICID), 100, 0},
     }
 };
 

@@ -197,6 +197,13 @@ references.
 * Tests: lifecycle, stale references after reuse of a slot, state rules,
   quotas, fragmentation and coalescing, the object table limit, concurrent
   readers with a concurrent producer, and use of the C interface from C99.
+* **Point sets** (2026-11-14): `GEOREF_APP` allocates one per keyframe,
+  sized by the points of the depth map (20 bytes each; about 35 MB at
+  Dorfberg), and hands its count to `MAPPROD_APP` with `POINTS_READY`. It
+  writes the point cloud files after publishing, under a count of its own
+  (the publisher rule above). The layout is in
+  `apps/georef_app/README.md` and `map_products_c_api.h`. When the quota is
+  full, `GEOREF_APP` waits for `MAPPROD_APP` (ADR-015 section 3).
 * Open: which application publishes the store statistics of section 6.
   A library module has no Software Bus task of its own.
 

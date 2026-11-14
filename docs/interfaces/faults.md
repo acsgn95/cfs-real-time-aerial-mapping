@@ -44,6 +44,7 @@ LATCHED --command "clear latched faults"--> CLEARED
 | 30 | `KEYFRAMES_SKIPPED` | `DEGRADED` | latch | `DENSE_APP` | keyframes skipped because of backlog |
 | 31 | `GPU_FAILURE` | `CRITICAL` | latch | `DENSE_APP` | GPU or CUDA failure, or less free GPU memory than PatchMatch needs (it is then not started) |
 | 32 | `DEPTH_FAILED` | `ERROR` | latch | `DENSE_APP` | depth estimation failed for a keyframe |
+| 33 | `POINTS_FAILED` | `ERROR` | latch | `GEOREF_APP` | a depth set was dropped: georeferencing failed, no point set within the quota wait (ADR-015 section 3), or POINTS_READY not sent |
 | 40 | `REFINE_REJECTED` | `WARNING` | latch | `REFINE_APP` | refinement result rejected (ADR-019 section 5) |
 | 41 | `REFINE_LATENCY` | `DEGRADED` | latch | `REFINE_APP` | refinement over its latency limit |
 | 50 | `TILE_WRITE` | `ERROR` | latch | `MAPPROD_APP` | tile write failure |

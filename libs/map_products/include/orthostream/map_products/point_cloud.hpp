@@ -14,6 +14,7 @@
 
 #include "orthostream/map_products/dsm.hpp"
 #include "orthostream/map_products/ortho.hpp"
+#include "orthostream/map_products/point_set.hpp"
 
 namespace orthostream::map_products
 {
@@ -54,6 +55,11 @@ public:
     PointCloudStats write(std::uint32_t keyframe, const DepthMapView &map, const geo::CameraModel &depth_camera,
                           const RgbImageView &image, const geo::CameraModel &image_camera,
                           const Eigen::Isometry3d &T_E_C);
+
+    /// The same files from a point set (GEOREF_APP): one file per tile span,
+    /// colour and weight from the records. The minimum confidence of the
+    /// configuration is not applied again.
+    PointCloudStats write(std::uint32_t keyframe, const PointSetView &set);
 
     static std::string fileName(const TileId &id, std::uint32_t keyframe);
 

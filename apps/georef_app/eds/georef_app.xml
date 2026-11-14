@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  GEOREF_APP: georeferencing of the depth sets (ADR-007, ADR-012).
+  Consumes DENSE_APP/DEPTH_READY_TLM, converts each depth set to a point set
+  in the product frame P, publishes POINTS_READY_TLM for MAPPROD_APP and
+  writes the point cloud (LAZ). It does not drop data: when the point set
+  quota is full it waits for MAPPROD_APP (ADR-015 section 3).
+  Definitions follow ADR-020.
+-->
+<PackageFile xmlns="http://www.ccsds.org/schema/sois/seds">
+  <Package name="GEOREF_APP" shortDescription="Georeferencing of depth sets">
+    <DataTypeSet>
+      <StringDataType name="PathName" length="128" />
+      <StringDataType name="CrsName" length="32" />
+      <!-- Configuration table (ADR-016 section 5) -->
+      <ContainerDataType name="ConfigTable" shortDescription="Configuration of GEOREF_APP">
+        <EntryList>
+          <Entry name="ProjectedCrs" type="CrsName" shortDescription="CRS of P (ADR-004 section 5); MAPPROD_APP uses the same" />
+          <Entry name="VerticalCrs" type="CrsName" shortDescription="Heights of the point cloud files; empty: ellipsoidal" />
+          <Entry name="ProjDataDir" type="PathName" shortDescription="Directory of proj.db; /cf/ paths are translated" />
+          <Entry name="GridDir" type="PathName" shortDescription="Directory of the PROJ grids; empty: none" />
+          <Entry name="OutputDir" type="PathName" shortDescription="Point cloud files go to OutputDir/points" />
+          <Entry name="CellSizeM" type="BASE_TYPES/float" shortDescription="DSM cell size; the tile grid of MAPPROD_APP (ADR-007 section 1)" />
+          <Entry name="TileCells" type="BASE_TYPES/uint32" shortDescription="Cells per tile side" />
+          <Entry name="MinConfidence" type="BASE_TYPES/float" shortDescription="Depth pixels below it give no point" />
+          <Entry name="QuotaWaitMs" type="BASE_TYPES/uint32" shortDescription="Waiting for point set quota before the keyframe is dropped" />
+          <Entry name="WriteLaz" type="BASE_TYPES/uint8" shortDescription="1: write the point cloud" />
+          <Entry name="Spare1" type="BASE_TYPES/uint8" />
+          <Entry name="Spare2" type="BASE_TYPES/uint16" />
+        </EntryList>
+      </ContainerDataType>
+      <ContainerDataType name="TileSpan" shortDescription="The points of one tile in a point set">
+        <EntryList>
+          <Entry name="Tile" type="OST/TileId" />
+          <Entry name="FirstPoint" type="BASE_TYPES/uint32" shortDescription="Index of the tile's first record" />
+          <Entry name="PointCount" type="BASE_TYPES/uint32" />
+        </EntryList>
+      </ContainerDataType>
+      <ArrayDataType name="TileSpanArray" dataTypeRef="TileSpan">
+        <DimensionList>
+          <Dimension size="${GEOREF_APP/MAX_TILES}" />
+        </DimensionList>
+      </ArrayDataType>
+      <!-- Point set (ADR-013, map_products_c_api.h): records of 20 bytes,
+           native byte order: float32 east, north, height (metres from the
+           origin; height ellipsoidal), float32 weight (depth confidence),
+           uint8 red, green, blue, spare. Ordered by tile as in Tiles. -->
+      <ContainerDataType name="PointsReady_Payload" shortDescription="Point set of a keyframe">
+        <EntryList>
+          <Entry name="Header" type="OST/PayloadHeader" />
+          <Entry name="Trace" type="OST/TraceTimes" />
+          <Entry name="KeyframeId" type="BASE_TYPES/uint32" />
+          <Entry name="PoseSource" type="OST/PoseSource" />
+          <Entry name="TileCount" type="BASE_TYPES/uint8" shortDescription="Valid entries of Tiles" />
+          <Entry name="Spare" type="BASE_TYPES/uint16" />
+          <Entry name="Keyframe" type="OST/ViewRef" shortDescription="Keyframe: the JPEG count goes to the consumer; WorkImage is released (0)" />
+          <Entry name="PointSet" type="OST/ObjectRef" shortDescription="Point set; its count goes to the consumer; 0 when there are no points" />
+          <Entry name="OriginEasting" type="BASE_TYPES/double" shortDescription="Origin of the records in P: the camera centre rounded to metres" />
+          <Entry name="OriginNorthing" type="BASE_TYPES/double" />
+          <Entry name="OriginHeight" type="BASE_TYPES/double" shortDescription="Ellipsoidal" />
+          <Entry name="PointCount" type="BASE_TYPES/uint32" />
+          <Entry name="TileCells" type="BASE_TYPES/uint32" shortDescription="Tile grid of the point set" />
+          <Entry name="CellSizeM" type="BASE_TYPES/float" />
+          <Entry name="HeightMinM" type="BASE_TYPES/float" shortDescription="Ellipsoidal heights of the points" />
+          <Entry name="HeightMaxM" type="BASE_TYPES/float" />
+          <Entry name="WaitMs" type="BASE_TYPES/float" shortDescription="Entry to the start of the job (queue)" />
+          <Entry name="AllocateMs" type="BASE_TYPES/float" shortDescription="Counting the points and allocating the point set, with quota waiting" />
+          <Entry name="ConvertMs" type="BASE_TYPES/float" shortDescription="Depth to P, colours, ordering by tile" />
+          <Entry name="ProjectedCrs" type="CrsName" />
+          <Entry name="Tiles" type="TileSpanArray" />
+        </EntryList>
+      </ContainerDataType>
+      <ContainerDataType name="HkTlm_Payload" shortDescription="GEOREF_APP housekeeping">
+        <EntryList>
+          <Entry name="Common" type="OST/HkCommon" />
+          <Entry name="Ready" type="BASE_TYPES/uint8" shortDescription="1: the product frame exists" />
+          <Entry name="WriteLaz" type="BASE_TYPES/uint8" />
+          <Entry name="Spare" type="BASE_TYPES/uint16" />
+          <Entry name="DepthSetsReceived" type="BASE_TYPES/uint32" />
+          <Entry name="PointSetsPublished" type="BASE_TYPES/uint32" />
+          <Entry name="KeyframesFailed" type="BASE_TYPES/uint32" shortDescription="Dropped with an error (ADR-015 section 3)" />
+          <Entry name="QuotaWaits" type="BASE_TYPES/uint32" shortDescription="Jobs that waited for point set quota" />
+          <Entry name="MessagesRejected" type="BASE_TYPES/uint32" />
+          <Entry name="QueueDepth" type="BASE_TYPES/uint32" />
+          <Entry name="LazFiles" type="BASE_TYPES/uint32" />
+          <Entry name="LazFailures" type="BASE_TYPES/uint32" />
+          <Entry name="LastKeyframeId" type="BASE_TYPES/uint32" />
+          <Entry name="LastPointCount" type="BASE_TYPES/uint32" />
+          <Entry name="LastTileCount" type="BASE_TYPES/uint32" />
+          <Entry name="MaxTileCount" type="BASE_TYPES/uint32" />
+          <Entry name="LastWaitMs" type="BASE_TYPES/float" />
+          <Entry name="LastAllocateMs" type="BASE_TYPES/float" />
+          <Entry name="LastConvertMs" type="BASE_TYPES/float" />
+          <Entry name="MaxConvertMs" type="BASE_TYPES/float" />
+          <Entry name="LastStageMs" type="BASE_TYPES/float" shortDescription="Entry to publication" />
+          <Entry name="MaxStageMs" type="BASE_TYPES/float" />
+          <Entry name="LastLazMs" type="BASE_TYPES/float" shortDescription="Point cloud files of the last keyframe, after publication" />
+          <Entry name="MaxLazMs" type="BASE_TYPES/float" />
+          <Entry name="LastLatencyS" type="BASE_TYPES/float" shortDescription="Keyframe capture to publication" />
+          <Entry name="MaxLatencyS" type="BASE_TYPES/float" />
+        </EntryList>
+      </ContainerDataType>
+      <!-- Commands -->
+      <ContainerDataType name="CommandBase" baseType="CFE_HDR/CommandHeader" />
+      <ContainerDataType name="SendHkCmd" baseType="CFE_HDR/CommandHeader" />
+      <ContainerDataType name="NoopCmd" baseType="CommandBase">
+        <ConstraintSet><ValueConstraint entry="Sec.FunctionCode" value="0" /></ConstraintSet>
+      </ContainerDataType>
+      <ContainerDataType name="ResetCountersCmd" baseType="CommandBase">
+        <ConstraintSet><ValueConstraint entry="Sec.FunctionCode" value="1" /></ConstraintSet>
+      </ContainerDataType>
+      <ContainerDataType name="ClearLatchedFaultsCmd" baseType="CommandBase">
+        <ConstraintSet><ValueConstraint entry="Sec.FunctionCode" value="2" /></ConstraintSet>
+      </ContainerDataType>
+      <!-- Telemetry -->
+      <ContainerDataType name="HkTlm" baseType="CFE_HDR/TelemetryHeader">
+        <EntryList><Entry name="Payload" type="HkTlm_Payload" /></EntryList>
+      </ContainerDataType>
+      <ContainerDataType name="PointsReadyTlm" baseType="CFE_HDR/TelemetryHeader">
+        <EntryList><Entry name="Payload" type="PointsReady_Payload" /></EntryList>
+      </ContainerDataType>
+    </DataTypeSet>
+    <ComponentSet>
+      <Component name="Application">
+        <RequiredInterfaceSet>
+          <Interface name="ConfigTable" shortDescription="Configuration table" type="CFE_TBL/Table">
+            <GenericTypeMapSet>
+              <GenericTypeMap name="TableDataType" type="ConfigTable" />
+            </GenericTypeMapSet>
+          </Interface>
+          <Interface name="CMD" shortDescription="Ground commands" type="CFE_SB/Telecommand">
+            <GenericTypeMapSet>
+              <GenericTypeMap name="TelecommandDataType" type="CommandBase" />
+            </GenericTypeMapSet>
+          </Interface>
+          <Interface name="SEND_HK" shortDescription="Housekeeping request" type="CFE_SB/Telecommand">
+            <GenericTypeMapSet>
+              <GenericTypeMap name="TelecommandDataType" type="SendHkCmd" />
+            </GenericTypeMapSet>
+          </Interface>
+          <Interface name="HK_TLM" shortDescription="Housekeeping" type="CFE_SB/Telemetry">
+            <GenericTypeMapSet>
+              <GenericTypeMap name="TelemetryDataType" type="HkTlm" />
+            </GenericTypeMapSet>
+          </Interface>
+          <Interface name="POINTS_READY_TLM" shortDescription="Point set of a keyframe, for MAPPROD_APP" type="CFE_SB/Telemetry">
+            <GenericTypeMapSet>
+              <GenericTypeMap name="TelemetryDataType" type="PointsReadyTlm" />
+            </GenericTypeMapSet>
+          </Interface>
+        </RequiredInterfaceSet>
+        <Implementation>
+          <VariableSet>
+            <Variable type="BASE_TYPES/uint16" readOnly="true" name="CmdTopicId" initialValue="${CFE_MISSION/GEOREF_APP_CMD_TOPICID}" />
+            <Variable type="BASE_TYPES/uint16" readOnly="true" name="SendHkTopicId" initialValue="${CFE_MISSION/GEOREF_APP_SEND_HK_TOPICID}" />
+            <Variable type="BASE_TYPES/uint16" readOnly="true" name="HkTlmTopicId" initialValue="${CFE_MISSION/GEOREF_APP_HK_TLM_TOPICID}" />
+            <Variable type="BASE_TYPES/uint16" readOnly="true" name="PointsReadyTopicId" initialValue="${CFE_MISSION/GEOREF_APP_POINTS_READY_TLM_TOPICID}" />
+          </VariableSet>
+          <ParameterMapSet>
+            <ParameterMap interface="CMD" parameter="TopicId" variableRef="CmdTopicId" />
+            <ParameterMap interface="SEND_HK" parameter="TopicId" variableRef="SendHkTopicId" />
+            <ParameterMap interface="HK_TLM" parameter="TopicId" variableRef="HkTlmTopicId" />
+            <ParameterMap interface="POINTS_READY_TLM" parameter="TopicId" variableRef="PointsReadyTopicId" />
+          </ParameterMapSet>
+        </Implementation>
+      </Component>
+    </ComponentSet>
+  </Package>
+</PackageFile>

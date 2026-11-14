@@ -110,6 +110,16 @@
     </Define>
   </Package>
 
+  <Package name="GEOREF_APP" shortDescription="Sizes of GEOREF_APP messages">
+    <Define name="MAX_TILES" value="48">
+      <LongDescription>
+        Capacity of the tile list of a point set (POINTS_READY). A keyframe
+        at the nominal point covers about 530 m x 355 m, up to 24 tiles of
+        133 m; GEOREF_APP rejects a keyframe that touches more.
+      </LongDescription>
+    </Define>
+  </Package>
+
   <Package name="CFE_ES" shortDescription="Executive Services">
     <!-- Placeholder, currently no options yet -->
   </Package>

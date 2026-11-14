@@ -106,6 +106,7 @@
           <Enumeration label="KEYFRAMES_SKIPPED" value="30" shortDescription="Keyframes skipped because of backlog" />
           <Enumeration label="GPU_FAILURE" value="31" shortDescription="GPU or CUDA failure" />
           <Enumeration label="DEPTH_FAILED" value="32" shortDescription="Depth estimation failed for a keyframe" />
+          <Enumeration label="POINTS_FAILED" value="33" shortDescription="Georeferencing failed or a depth set was dropped" />
           <Enumeration label="REFINE_REJECTED" value="40" shortDescription="Refinement result rejected" />
           <Enumeration label="REFINE_LATENCY" value="41" shortDescription="Refinement over its latency limit" />
           <Enumeration label="TILE_WRITE" value="50" shortDescription="Tile write failure" />

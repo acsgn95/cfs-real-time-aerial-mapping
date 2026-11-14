@@ -36,6 +36,9 @@ set(OST_DEPS_PREFIX "${OST_REPO_ROOT}/build-deps/vcpkg_installed/x64-linux-ortho
 set(OST_DEM_DIR "${OST_REPO_ROOT}/data/raw/dem/cop30")
 install(FILES "${OST_DEPS_PREFIX}/share/proj/proj.db" DESTINATION cpu1/cf/geodata/proj OPTIONAL)
 install(FILES "${OST_REPO_ROOT}/build-deps/proj-grids/us_nga_egm08_25.tif" DESTINATION cpu1/cf/geodata/grids OPTIONAL)
+# LHN95 heights of the point cloud files (GEOREF_APP, ADR-004 section 6).
+install(FILES "${OST_REPO_ROOT}/build-deps/proj-grids/ch_swisstopo_chgeo2004_ETRS89_LHN95.tif"
+        DESTINATION cpu1/cf/geodata/grids OPTIONAL)
 install(FILES "${OST_DEM_DIR}/dorfberg.vrt" DESTINATION cpu1/cf/geodata/dem RENAME terrain.vrt OPTIONAL)
 if(EXISTS "${OST_DEM_DIR}/tiles")
     install(DIRECTORY "${OST_DEM_DIR}/tiles" DESTINATION cpu1/cf/geodata/dem)

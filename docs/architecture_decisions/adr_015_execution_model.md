@@ -159,6 +159,13 @@ recorded with every measurement.
   `RefinePose = 0` the batches come one per keyframe and a value of 1
   restores the rule of section 3. A burst of 16 adds at most about 16 s
   of queueing, against the 100 s that refinement already waits.
+* `GEOREF_APP` (2026-11-14): one child task `GEOREF_WORK` (priority level
+  3) does the conversion, the publication and then the LAZ files of
+  section 2, in this order, so that the files are not on the path of the
+  map update. On Dorfberg the conversion takes about 0.1 s and the files
+  about 0.3 s per keyframe, well within the keyframe interval; a separate
+  writer task is not needed. A ring of 16 depth sets without a drop rule;
+  a depth set finding it full is dropped with an error (section 3).
 
 ## Open Questions
 

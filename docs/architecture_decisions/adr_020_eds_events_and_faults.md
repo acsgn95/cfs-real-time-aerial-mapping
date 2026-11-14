@@ -131,9 +131,11 @@ It is not visible to COSMOS.
   | data store quota exhausted | any user of the data store | `ERROR` |
   | keyframes skipped (backlog) | `DENSE_APP` | `DEGRADED` |
   | GPU failure | `DENSE_APP` | `CRITICAL` |
+  | depth estimation failed (2026-11-14) | `DENSE_APP` | `ERROR` |
+  | depth set dropped by georeferencing (2026-11-14) | `GEOREF_APP` | `ERROR` |
   | refinement rejected (ADR-019 section 5) | `REFINE_APP` | `WARNING` |
   | refinement over its latency limit | `REFINE_APP` | `DEGRADED` |
-  | tile write failure | `MAPPROD_APP` | `ERROR` |
+  | tile write failure | `MAPPROD_APP`, `GEOREF_APP` (point cloud files) | `ERROR` |
   | output disk space low | `MAPPROD_APP`, `RECORDER_APP` | `WARNING` |
   | configuration table rejected | any application | `ERROR` |
   | library internal error | any application | `ERROR` |

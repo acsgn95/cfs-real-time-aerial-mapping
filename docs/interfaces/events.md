@@ -187,3 +187,34 @@ the housekeeping.
 
 Filtered events are sent for the first 8 occurrences; the counts are in
 the housekeeping and in `DENSE_STATUS`.
+
+### `GEOREF_APP`
+
+| Id | Name | Type | Meaning |
+| --- | --- | --- | --- |
+| 1 | `GEOREF_APP_INIT_INF_EID` | INFORMATION | initialised: product CRS, tile grid, point cloud on or off |
+| 2 | `GEOREF_APP_NOOP_INF_EID` | INFORMATION | no-op command |
+| 3 | `GEOREF_APP_RESET_INF_EID` | INFORMATION | counters reset |
+| 4 | `GEOREF_APP_MID_ERR_EID` | ERROR | message with an unknown message identifier |
+| 5 | `GEOREF_APP_CMD_LEN_ERR_EID` | ERROR | command of wrong length |
+| 6 | `GEOREF_APP_CC_ERR_EID` | ERROR | unknown command code |
+| 7 | `GEOREF_APP_PIPE_ERR_EID` | ERROR | Software Bus pipe read error; the application stops |
+| 8 | `GEOREF_APP_TBL_ERR_EID` | ERROR | configuration table rejected or not loaded |
+| 9 | `GEOREF_APP_CLEAR_INF_EID` | INFORMATION | latched faults cleared |
+| 10 | `GEOREF_APP_INIT_ERR_EID` | ERROR | initialisation failed |
+| 20 | `GEOREF_APP_FAILED_EID` | ERROR | keyframe dropped: no table or product frame, unreadable depth set, georeferencing error, no point set within the quota wait, full queue, or `POINTS_READY` not sent (filtered) |
+| 21 | `GEOREF_APP_QUOTA_EID` | ERROR | no point set within `QuotaWaitMs` (filtered) |
+| 22 | `GEOREF_APP_MSG_LEN_ERR_EID` | ERROR | input message of wrong length (filtered) |
+| 23 | `GEOREF_APP_LIB_ERR_EID` | ERROR | the product frame or the point cloud output could not be created (filtered) |
+| 24 | `GEOREF_APP_DATASTORE_ERR_EID` | ERROR | data store reference not released (filtered) |
+| 25 | `GEOREF_APP_POINTS_DBG_EID` | DEBUG | point set published: points, tiles, heights, conversion and LAZ times |
+| 26 | `GEOREF_APP_LAZ_ERR_EID` | ERROR | point cloud files of a keyframe not written; the point set was published (filtered) |
+| 27 | `GEOREF_APP_READY_INF_EID` | INFORMATION | product frame created: CRS, point cloud directory |
+| 60 | fault `POINTS_FAILED` | | a depth set was dropped |
+| 61 | fault `DATASTORE_QUOTA` | | no point set within the quota waiting limit |
+| 62 | fault `TILE_WRITE` | | a point cloud file could not be written |
+| 63 | fault `TABLE_REJECTED` | | the configuration table was not loaded |
+| 64 | fault `LIBRARY_ERROR` | | the product frame or the output directory is not usable |
+
+Filtered events are sent for the first 8 occurrences; the counts are in
+the housekeeping.

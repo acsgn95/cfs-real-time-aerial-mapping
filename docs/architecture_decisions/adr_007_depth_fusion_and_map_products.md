@@ -4,7 +4,7 @@
 * Date: 2026-11-10
 * Decided by: Ahmet Coşgun
 * Backlog item: D07
-* Revised: 2026-11-12 (implementation notes, section 8)
+* Revised: 2026-11-12 (implementation notes, section 8); 2026-11-14 (point sets, section 8)
 * Evidence: thesis proposal (FB_YL-01) sections 2, 4.2 and 4.3; ADR-001
   (R2, R4, R5, product resolutions); ADR-004 (product frame `P`, working
   frames `L_k`); ADR-005 (depth, normal and confidence maps; no
@@ -157,6 +157,18 @@ change the decisions.
   and viewing angles); a tile that a later keyframe touches is reloaded from
   it. Products alone could not be reloaded, because they lack the weights,
   counts and viewing angles.
+* **Point sets (2026-11-14).** `GEOREF_APP` (ADR-012) performs the
+  conversion of section 2, depth pixel to `L_k` to ECEF to `P`, once per
+  keyframe and hands the result to `MAPPROD_APP` as a point set in the data
+  store: 20-byte records (east, north and ellipsoidal height as float32
+  metres from the set's origin, the depth confidence as the weight, the
+  colour of the working image), ordered by tile. The origin is the camera
+  centre in `P` rounded to metres; relative single precision holds a point
+  to 0.06 mm at 1 km. The point cloud of section 4 is written from the
+  point set; its files equal those written straight from the depth map
+  (the offline pipeline's path) within one millimetre step of the LAZ
+  coordinates. DSM fusion in `MAPPROD_APP` takes the same point sets, so
+  the mission and the offline pipeline fuse the same points.
 
 ## Rationale
 

@@ -174,6 +174,13 @@ Defined under `interfaces/link/` and shared with the Python injector:
 * **`DenseStatus`** is one message per batch: keyframe, outcome (done,
   skipped, failed), reason, queue depth and totals. It gives the recorder
   every dropped keyframe with its reason (ADR-001 R3, ADR-015 section 3).
+* **`PointsReady`** (`apps/georef_app/eds/georef_app.xml`, 2026-11-14)
+  carries the point set reference, its origin in `P` and the list of
+  affected tiles of section 3 as tile spans (tile, first record, count; at
+  most `GEOREF_APP/MAX_TILES` = 48), the keyframe as `OST/ViewRef` (its
+  JPEG count goes on to `MAPPROD_APP`; the working image is released), the
+  tile grid and CRS used, so that `MAPPROD_APP` can check them against its
+  own table, and the times of the job steps. About 1.1 KB.
 * The topic block of `DENSE_APP` moved from 96 to 192: command and
   telemetry offsets 96–99 give the message identifiers of the global cFE
   TIME topics (ADR-020).

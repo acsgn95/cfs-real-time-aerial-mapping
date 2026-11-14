@@ -227,4 +227,67 @@ PointCloudStats PointCloudWriter::write(std::uint32_t keyframe, const DepthMapVi
     return stats;
 }
 
+PointCloudStats PointCloudWriter::write(std::uint32_t keyframe, const PointSetView &set)
+{
+    if ((set.count > 0 && set.points == nullptr) || (set.tile_count > 0 && set.tiles == nullptr))
+    {
+        throw MapProductsError("invalid point set");
+    }
+    PointCloudStats stats;
+    TileFile        f;
+    try
+    {
+        for (std::size_t k = 0; k < set.tile_count; ++k)
+        {
+            const TileSpan &span = set.tiles[k];
+            if (span.count == 0)
+            {
+                continue;
+            }
+            if (static_cast<std::size_t>(span.first) + span.count > set.count)
+            {
+                throw MapProductsError("tile span outside the point set");
+            }
+            const PointRecord *r = set.points + span.first;
+            f                    = impl_->open(span.id, keyframe, set.origin.z() + r->height);
+            for (std::uint32_t j = 0; j < span.count; ++j, ++r)
+            {
+                const double  e  = set.origin.x() + r->east;
+                const double  n  = set.origin.y() + r->north;
+                const double  z  = set.origin.z() + r->height + f.offsets.at(e, n);
+                laszip_point &pt = *f.point;
+                pt.X             = static_cast<laszip_I32>(std::lround((e - f.x0) / kScale));
+                pt.Y             = static_cast<laszip_I32>(std::lround((n - f.y0) / kScale));
+                pt.Z             = static_cast<laszip_I32>(std::lround((z - f.z0) / kScale));
+                pt.intensity     = static_cast<laszip_U16>(std::lround(std::clamp(r->weight, 0.0f, 1.0f) * 65535.0f));
+                pt.return_number     = 1;
+                pt.number_of_returns = 1;
+                pt.point_source_ID   = static_cast<laszip_U16>(keyframe & 0xFFFF);
+                for (int c = 0; c < 3; ++c)
+                {
+                    pt.rgb[c] = static_cast<laszip_U16>(r->rgb[c] * 257);  // 8 to 16 bit
+                }
+                if (laszip_write_point(f.writer) != 0 || laszip_update_inventory(f.writer) != 0)
+                {
+                    throw MapProductsError("writing a point failed: " + laszipError(f.writer));
+                }
+            }
+            impl_->close(f);
+            stats.points += span.count;
+            stats.files.push_back(f.path.string());
+        }
+    }
+    catch (...)
+    {
+        if (f.writer != nullptr)
+        {
+            laszip_close_writer(f.writer);
+            laszip_destroy(f.writer);
+            fs::remove(f.tmp);
+        }
+        throw;
+    }
+    return stats;
+}
+
 }  // namespace orthostream::map_products
