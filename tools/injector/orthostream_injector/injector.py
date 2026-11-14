@@ -127,9 +127,9 @@ def _image_thread(opts, flight, q_b_c, images, clock, report, stop, images_sent,
         seq += 1
         for frame in images:
             t_capture = clock.emulated(frame.recorded_ns)
+            data = frame.path.read_bytes()  # before the capture time, so disk time does not delay sending
             if not Clock.wait_until(t_capture, stop):
                 return
-            data = frame.path.read_bytes()
             img = link.Image(opts.session_id, frame.image_seq, t_capture + opts.image_time_offset_ns,
                              frame.recorded_ns, data)
             t0 = time.time_ns()

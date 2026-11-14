@@ -1,7 +1,7 @@
 # ADR-003: Data Source and Injector Interface
 
 * Status: Accepted; section 4 amended 2026-11-13 (heights of the
-  `non-optimized` set)
+  `non-optimized` set); implementation notes added 2026-11-14
 * Date: 2026-11-10
 * Decided by: Ahmet Coşgun
 * Backlog item: D03
@@ -103,6 +103,33 @@ lever arm.
   of ADR-001 is dropped. The evaluation uses the recorded flights as they are
   (24 min for the nominal flight). Requirement R4 of ADR-001 still holds; it
   is shown by recording RAM and GPU memory use over the whole nominal flight.
+
+## Implementation Notes (2026-11-14)
+
+* **Injector:** `tools/injector` (Python, standard library only), link
+  format in `interfaces/link` and `docs/interfaces/link.md`.
+* **Capture times:** the PPK event marks of the WingtraHub project file
+  (`tools/dataset/extract_capture_times.py`), the instants at which the
+  positions hold. The autopilot's trigger log is 70 to 190 ms later
+  (median 120 ms). At the median speed of 18 m/s this is 2.2 m along the
+  track, so it is not used.
+* **Trajectory (section 3):** the per-image poses are joined by a cubic
+  Hermite curve, for the position in ECEF and for the attitude as a
+  rotation vector. The curve passes through every image pose and has a
+  continuous velocity and angular rate.
+  * Linear segments would change the angular rate abruptly at every image.
+    `ALIGN_APP`, interpolating linearly between 10 Hz samples (ADR-014),
+    would then be 0.042° off at the capture times (median, 0.45° at most).
+    That error comes from the emulation, not from an aircraft.
+  * With the curve the error is 0.0038° (median, 0.048° at most, in the
+    turns).
+  * `--capture-samples` adds a sample at each capture time, as an autopilot
+    with camera trigger feedback does. The error is then zero.
+* **Body frame:** the nominal camera mounting of the aircraft gives `q_B_C`
+  and the camera is the body origin (`t_B_C = 0`). The recorded positions
+  are camera positions.
+* **Not yet implemented:** the controlled errors of section 6 and the link
+  profiles of section 5.
 
 ## Rationale
 

@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  INGEST_APP: receives the injector link (ADR-003, ADR-016 section 7) and
+  publishes the OrthoStream input messages (ADR-012 section 1a, ADR-016
+  section 3). Definitions follow ADR-020.
+-->
+<PackageFile xmlns="http://www.ccsds.org/schema/sois/seds">
+  <Package name="INGEST_APP" shortDescription="Source adapter for the injector link">
+
+    <DataTypeSet>
+
+      <EnumeratedDataType name="SessionState" shortDescription="State of the link session">
+        <IntegerDataEncoding sizeInBits="8" encoding="unsigned" />
+        <EnumerationList>
+          <Enumeration label="STOPPED" value="0" shortDescription="Sockets closed" />
+          <Enumeration label="LISTENING" value="1" shortDescription="Waiting for the image connection" />
+          <Enumeration label="CONNECTED" value="2" shortDescription="Image connection open, waiting for SESSION_START" />
+          <Enumeration label="ACTIVE" value="3" shortDescription="Session started, images arriving" />
+        </EnumerationList>
+      </EnumeratedDataType>
+
+      <StringDataType name="CameraName" length="32" />
+
+      <!-- Configuration table (ADR-016 section 5) -->
+
+      <ContainerDataType name="ConfigTable" shortDescription="Configuration of INGEST_APP">
+        <EntryList>
+          <Entry name="UdpPort" type="BASE_TYPES/uint16" shortDescription="Telemetry channel, all interfaces" />
+          <Entry name="TcpPort" type="BASE_TYPES/uint16" shortDescription="Image channel, all interfaces" />
+          <Entry name="TelemetryStaleMs" type="BASE_TYPES/uint32" shortDescription="Telemetry gap that raises TELEMETRY_STALE during a session" />
+          <Entry name="ImageStaleMs" type="BASE_TYPES/uint32" shortDescription="Image gap that raises IMAGE_STREAM_STALE during a session" />
+          <Entry name="AutoStart" type="BASE_TYPES/uint8" shortDescription="1: open the sockets at startup" />
+          <Entry name="Spare1" type="BASE_TYPES/uint8" />
+          <Entry name="Spare2" type="BASE_TYPES/uint16" />
+        </EntryList>
+      </ContainerDataType>
+
+      <!-- Data path messages (ADR-016 section 3) -->
+
+      <ContainerDataType name="TelemetrySample_Payload" shortDescription="One autopilot pose sample, as received">
+        <EntryList>
+          <Entry name="Header" type="OST/PayloadHeader" />
+          <Entry name="Trace" type="OST/TraceTimes" />
+          <Entry name="MeasurementUtc" type="OST/UtcTimeNs" shortDescription="Time of the measurement (data time)" />
+          <Entry name="RecordedUtc" type="OST/UtcTimeNs" shortDescription="Same instant in the recording" />
+          <Entry name="SessionId" type="BASE_TYPES/uint32" />
+          <Entry name="LinkSequence" type="BASE_TYPES/uint32" shortDescription="Sequence number of the datagram" />
+          <Entry name="Latitude" type="BASE_TYPES/double" shortDescription="WGS 84, deg" />
+          <Entry name="Longitude" type="BASE_TYPES/double" shortDescription="WGS 84, deg" />
+          <Entry name="Height" type="BASE_TYPES/double" shortDescription="Ellipsoidal, m" />
+          <Entry name="AttitudeNedFromBody" type="OST/Quaternion" shortDescription="q_N_B" />
+          <Entry name="Accuracy" type="OST/PoseAccuracy" />
+        </EntryList>
+      </ContainerDataType>
+
+      <ContainerDataType name="ImageArrived_Payload" shortDescription="A complete image in the data store">
+        <EntryList>
+          <Entry name="Header" type="OST/PayloadHeader" />
+          <Entry name="Trace" type="OST/TraceTimes" shortDescription="Entry: frame header received; exit: published" />
+          <Entry name="CaptureUtc" type="OST/UtcTimeNs" shortDescription="Capture time (data time)" />
+          <Entry name="RecordedUtc" type="OST/UtcTimeNs" shortDescription="Capture time in the recording" />
+          <Entry name="SessionId" type="BASE_TYPES/uint32" />
+          <Entry name="ImageSeq" type="BASE_TYPES/uint32" />
+          <Entry name="Jpeg" type="OST/ObjectRef" shortDescription="JPEG data; one reference count for the consumer" />
+          <Entry name="JpegSize" type="BASE_TYPES/uint32" shortDescription="Bytes" />
+          <Entry name="Spare" type="BASE_TYPES/uint32" />
+        </EntryList>
+      </ContainerDataType>
+
+      <ContainerDataType name="SessionCalibration_Payload" shortDescription="Camera calibration of the session">
+        <EntryList>
+          <Entry name="Header" type="OST/PayloadHeader" />
+          <Entry name="SessionId" type="BASE_TYPES/uint32" />
+          <Entry name="Spare" type="BASE_TYPES/uint32" />
+          <Entry name="StartUtc" type="OST/UtcTimeNs" shortDescription="Data time of the recording start" />
+          <Entry name="RecordedStartUtc" type="OST/UtcTimeNs" />
+          <Entry name="TimeFactor" type="BASE_TYPES/double" />
+          <Entry name="Width" type="BASE_TYPES/uint32" shortDescription="px" />
+          <Entry name="Height" type="BASE_TYPES/uint32" shortDescription="px" />
+          <Entry name="Fx" type="BASE_TYPES/double" shortDescription="px" />
+          <Entry name="Fy" type="BASE_TYPES/double" shortDescription="px" />
+          <Entry name="Cx" type="BASE_TYPES/double" shortDescription="px, centre of the top-left pixel at 0" />
+          <Entry name="Cy" type="BASE_TYPES/double" shortDescription="px" />
+          <Entry name="K1" type="BASE_TYPES/double" />
+          <Entry name="K2" type="BASE_TYPES/double" />
+          <Entry name="K3" type="BASE_TYPES/double" />
+          <Entry name="P1" type="BASE_TYPES/double" />
+          <Entry name="P2" type="BASE_TYPES/double" />
+          <Entry name="BodyFromCamera" type="OST/Quaternion" shortDescription="q_B_C" />
+          <Entry name="CameraInBody" type="OST/Vector3" shortDescription="Camera position in the body frame, m" />
+          <Entry name="CameraName" type="CameraName" />
+        </EntryList>
+      </ContainerDataType>
+
+      <ContainerDataType name="HkTlm_Payload" shortDescription="INGEST_APP housekeeping">
+        <EntryList>
+          <Entry name="Common" type="OST/HkCommon" />
+          <Entry name="State" type="SessionState" />
+          <Entry name="Spare1" type="BASE_TYPES/uint8" />
+          <Entry name="Spare2" type="BASE_TYPES/uint16" />
+          <Entry name="SessionId" type="BASE_TYPES/uint32" />
+          <Entry name="TelemetryReceived" type="BASE_TYPES/uint32" shortDescription="Valid samples published" />
+          <Entry name="TelemetryRejected" type="BASE_TYPES/uint32" shortDescription="Datagrams rejected by libs/link" />
+          <Entry name="TelemetryLost" type="BASE_TYPES/uint32" shortDescription="Gaps in the datagram sequence numbers" />
+          <Entry name="HeartbeatsReceived" type="BASE_TYPES/uint32" />
+          <Entry name="InjectorSamplesSent" type="BASE_TYPES/uint32" shortDescription="From the last heartbeat" />
+          <Entry name="InjectorImagesSent" type="BASE_TYPES/uint32" shortDescription="From the last heartbeat" />
+          <Entry name="ImagesReceived" type="BASE_TYPES/uint32" shortDescription="Images published" />
+          <Entry name="ImagesDropped" type="BASE_TYPES/uint32" shortDescription="Images received but not stored" />
+          <Entry name="FramesRejected" type="BASE_TYPES/uint32" shortDescription="TCP frames rejected by libs/link" />
+          <Entry name="Connections" type="BASE_TYPES/uint32" shortDescription="Image connections accepted" />
+          <Entry name="ImageBytes" type="BASE_TYPES/uint64" shortDescription="Image data received" />
+          <Entry name="TelemetryAgeMs" type="BASE_TYPES/uint32" shortDescription="Since the last valid sample; 0xFFFFFFFF if none" />
+          <Entry name="ImageAgeMs" type="BASE_TYPES/uint32" shortDescription="Since the last image; 0xFFFFFFFF if none" />
+        </EntryList>
+      </ContainerDataType>
+
+      <!-- Commands -->
+
+      <ContainerDataType name="CommandBase" baseType="CFE_HDR/CommandHeader" />
+      <ContainerDataType name="SendHkCmd" baseType="CFE_HDR/CommandHeader" />
+      <ContainerDataType name="WakeupCmd" baseType="CFE_HDR/CommandHeader" />
+
+      <ContainerDataType name="NoopCmd" baseType="CommandBase">
+        <ConstraintSet><ValueConstraint entry="Sec.FunctionCode" value="0" /></ConstraintSet>
+      </ContainerDataType>
+      <ContainerDataType name="ResetCountersCmd" baseType="CommandBase">
+        <ConstraintSet><ValueConstraint entry="Sec.FunctionCode" value="1" /></ConstraintSet>
+      </ContainerDataType>
+      <ContainerDataType name="ClearLatchedFaultsCmd" baseType="CommandBase">
+        <ConstraintSet><ValueConstraint entry="Sec.FunctionCode" value="2" /></ConstraintSet>
+      </ContainerDataType>
+      <ContainerDataType name="StartSessionCmd" baseType="CommandBase" shortDescription="Open the sockets">
+        <ConstraintSet><ValueConstraint entry="Sec.FunctionCode" value="3" /></ConstraintSet>
+      </ContainerDataType>
+      <ContainerDataType name="StopSessionCmd" baseType="CommandBase" shortDescription="Close the sockets">
+        <ConstraintSet><ValueConstraint entry="Sec.FunctionCode" value="4" /></ConstraintSet>
+      </ContainerDataType>
+
+      <!-- Telemetry -->
+
+      <ContainerDataType name="HkTlm" baseType="CFE_HDR/TelemetryHeader">
+        <EntryList><Entry name="Payload" type="HkTlm_Payload" /></EntryList>
+      </ContainerDataType>
+      <ContainerDataType name="TelemetrySampleTlm" baseType="CFE_HDR/TelemetryHeader">
+        <EntryList><Entry name="Payload" type="TelemetrySample_Payload" /></EntryList>
+      </ContainerDataType>
+      <ContainerDataType name="ImageArrivedTlm" baseType="CFE_HDR/TelemetryHeader">
+        <EntryList><Entry name="Payload" type="ImageArrived_Payload" /></EntryList>
+      </ContainerDataType>
+      <ContainerDataType name="SessionCalibrationTlm" baseType="CFE_HDR/TelemetryHeader">
+        <EntryList><Entry name="Payload" type="SessionCalibration_Payload" /></EntryList>
+      </ContainerDataType>
+
+    </DataTypeSet>
+
+    <ComponentSet>
+      <Component name="Application">
+        <RequiredInterfaceSet>
+          <Interface name="ConfigTable" shortDescription="Configuration table" type="CFE_TBL/Table">
+            <GenericTypeMapSet>
+              <GenericTypeMap name="TableDataType" type="ConfigTable" />
+            </GenericTypeMapSet>
+          </Interface>
+          <Interface name="CMD" shortDescription="Ground commands" type="CFE_SB/Telecommand">
+            <GenericTypeMapSet>
+              <GenericTypeMap name="TelecommandDataType" type="CommandBase" />
+            </GenericTypeMapSet>
+          </Interface>
+          <Interface name="SEND_HK" shortDescription="Housekeeping request" type="CFE_SB/Telecommand">
+            <GenericTypeMapSet>
+              <GenericTypeMap name="TelecommandDataType" type="SendHkCmd" />
+            </GenericTypeMapSet>
+          </Interface>
+          <Interface name="WAKEUP" shortDescription="1 Hz wake-up (ADR-015 section 1)" type="CFE_SB/Telecommand">
+            <GenericTypeMapSet>
+              <GenericTypeMap name="TelecommandDataType" type="WakeupCmd" />
+            </GenericTypeMapSet>
+          </Interface>
+          <Interface name="HK_TLM" shortDescription="Housekeeping" type="CFE_SB/Telemetry">
+            <GenericTypeMapSet>
+              <GenericTypeMap name="TelemetryDataType" type="HkTlm" />
+            </GenericTypeMapSet>
+          </Interface>
+          <Interface name="TELEMETRY_SAMPLE_TLM" shortDescription="Autopilot pose sample" type="CFE_SB/Telemetry">
+            <GenericTypeMapSet>
+              <GenericTypeMap name="TelemetryDataType" type="TelemetrySampleTlm" />
+            </GenericTypeMapSet>
+          </Interface>
+          <Interface name="IMAGE_ARRIVED_TLM" shortDescription="Image stored" type="CFE_SB/Telemetry">
+            <GenericTypeMapSet>
+              <GenericTypeMap name="TelemetryDataType" type="ImageArrivedTlm" />
+            </GenericTypeMapSet>
+          </Interface>
+          <Interface name="SESSION_CALIBRATION_TLM" shortDescription="Camera calibration" type="CFE_SB/Telemetry">
+            <GenericTypeMapSet>
+              <GenericTypeMap name="TelemetryDataType" type="SessionCalibrationTlm" />
+            </GenericTypeMapSet>
+          </Interface>
+        </RequiredInterfaceSet>
+        <Implementation>
+          <VariableSet>
+            <Variable type="BASE_TYPES/uint16" readOnly="true" name="CmdTopicId" initialValue="${CFE_MISSION/INGEST_APP_CMD_TOPICID}" />
+            <Variable type="BASE_TYPES/uint16" readOnly="true" name="SendHkTopicId" initialValue="${CFE_MISSION/INGEST_APP_SEND_HK_TOPICID}" />
+            <Variable type="BASE_TYPES/uint16" readOnly="true" name="WakeupTopicId" initialValue="${CFE_MISSION/INGEST_APP_WAKEUP_TOPICID}" />
+            <Variable type="BASE_TYPES/uint16" readOnly="true" name="HkTlmTopicId" initialValue="${CFE_MISSION/INGEST_APP_HK_TLM_TOPICID}" />
+            <Variable type="BASE_TYPES/uint16" readOnly="true" name="TelemetrySampleTopicId" initialValue="${CFE_MISSION/INGEST_APP_TELEMETRY_SAMPLE_TLM_TOPICID}" />
+            <Variable type="BASE_TYPES/uint16" readOnly="true" name="ImageArrivedTopicId" initialValue="${CFE_MISSION/INGEST_APP_IMAGE_ARRIVED_TLM_TOPICID}" />
+            <Variable type="BASE_TYPES/uint16" readOnly="true" name="SessionCalibrationTopicId" initialValue="${CFE_MISSION/INGEST_APP_SESSION_CALIBRATION_TLM_TOPICID}" />
+          </VariableSet>
+          <ParameterMapSet>
+            <ParameterMap interface="CMD" parameter="TopicId" variableRef="CmdTopicId" />
+            <ParameterMap interface="SEND_HK" parameter="TopicId" variableRef="SendHkTopicId" />
+            <ParameterMap interface="WAKEUP" parameter="TopicId" variableRef="WakeupTopicId" />
+            <ParameterMap interface="HK_TLM" parameter="TopicId" variableRef="HkTlmTopicId" />
+            <ParameterMap interface="TELEMETRY_SAMPLE_TLM" parameter="TopicId" variableRef="TelemetrySampleTopicId" />
+            <ParameterMap interface="IMAGE_ARRIVED_TLM" parameter="TopicId" variableRef="ImageArrivedTopicId" />
+            <ParameterMap interface="SESSION_CALIBRATION_TLM" parameter="TopicId" variableRef="SessionCalibrationTopicId" />
+          </ParameterMapSet>
+        </Implementation>
+      </Component>
+    </ComponentSet>
+
+  </Package>
+</PackageFile>
