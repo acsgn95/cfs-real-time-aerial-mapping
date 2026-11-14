@@ -27,6 +27,24 @@ typedef struct
     OST_Pose_t      Pose;
 } SELECT_APP_PoolEntry_t;
 
+/* A keyframe whose batch is being sent, or waits for its sources
+ * (DelayedSources). Its working image and JPEG counts are the batch's. */
+typedef struct
+{
+    bool            Active;
+    uint64          Id;
+    uint32          ImageSeq;
+    int64           CaptureUtc;
+    OST_ObjectRef_t Work;
+    OST_ObjectRef_t Jpeg;
+    OST_Pose_t      Pose;
+    double          PlaneHeight;
+    double          Overlap;
+    int32           Line;
+    int64           EntryMono;
+    int64           SinceMono; /* waiting since */
+} SELECT_APP_Keyframe_t;
+
 typedef struct
 {
     OST_Select_t                   *Select;
@@ -42,11 +60,14 @@ typedef struct
     char DemCrs[32 + 1];
 
     SELECT_APP_PoolEntry_t Pool[SELECT_APP_MAX_POOL];
+    SELECT_APP_Keyframe_t  Waiting;
     OST_KeyframeBatchTlm_t Batch;
     SELECT_APP_Item_t      Item;
 } SELECT_APP_Worker_t;
 
 static SELECT_APP_Worker_t W;
+
+static void SELECT_APP_FlushWaiting(void);
 
 static uint32 SELECT_APP_Ms(int64 Ns)
 {
@@ -168,7 +189,9 @@ static void SELECT_APP_OnCalibration(const INGEST_APP_SessionCalibration_Payload
     OST_Select_Terrain_t            Terrain;
     OST_Status_t                    Status;
 
-    /* A new session or a new calibration: the pool belongs to the old one. */
+    /* A new session or a new calibration: the waiting keyframe is completed
+     * with the old pool, then the pool is cleared. */
+    SELECT_APP_FlushWaiting();
     SELECT_APP_ClearPool();
     W.SessionId                        = P->SessionId;
     W.Calibrated                       = false;
@@ -231,6 +254,7 @@ static void SELECT_APP_OnCalibration(const INGEST_APP_SessionCalibration_Payload
         C.line_turn_deg                     = T->LineTurnDeg;
         C.pool_distance_m                   = T->PoolDistanceM;
         C.max_pool_images                   = T->MaxPoolImages;
+        C.delayed                           = T->DelayedSources;
         C.terrain_radius_m                  = T->TerrainRadiusM;
         Terrain.dem_path                    = W.DemPath;
         Terrain.dem_crs                     = W.DemCrs;
@@ -287,6 +311,109 @@ static void SELECT_APP_ReleaseBatch(const OST_KeyframeBatch_Payload_t *P)
     }
 }
 
+/* Starts the batch message and gives its sources their batch counts,
+ * before anything can evict them. CFE_MSG_Init clears the whole message. */
+static void SELECT_APP_TakeSources(const OST_Select_Source_t *S, uint32 Count)
+{
+    OST_KeyframeBatch_Payload_t *B = &W.Batch.Payload;
+    SELECT_APP_PoolEntry_t      *E;
+    const void                  *Unused     = NULL;
+    uint64                       UnusedSize = 0;
+    uint32                       i;
+
+    CFE_MSG_Init(CFE_MSG_PTR(W.Batch.TelemetryHeader),
+                 SELECT_APP_Data.Config.RefinePose ? OST_BatchSelectedMsgId() : OST_BatchReadyMsgId(),
+                 sizeof(W.Batch));
+    for (i = 0; i < Count && B->SourceCount < EdsParam_OST_MAX_SOURCE_VIEWS; ++i)
+    {
+        E = SELECT_APP_FindEntry(S[i].id);
+        if (E == NULL || OST_DS_Acquire(&E->Work, &Unused, &UnusedSize) != OST_SUCCESS)
+        {
+            continue;
+        }
+        SELECT_APP_FillView(&B->Sources[B->SourceCount], E->ImageSeq, E->CaptureUtc, &E->Work, NULL, &E->Pose);
+        ++B->SourceCount;
+    }
+}
+
+/* Sends the batch of keyframe K with the sources taken before; all its
+ * counts go to the consumer (ADR-013 section 3). */
+static void SELECT_APP_SendBatch(const SELECT_APP_Keyframe_t *K, const OST_Select_Source_t *S, uint32 Count)
+{
+    SELECT_APP_Counters_t       *Cnt = &SELECT_APP_Data.Counters;
+    OST_KeyframeBatch_Payload_t *B   = &W.Batch.Payload;
+    const uint32                 Seq = W.KeyframeId++;
+    uint32                       i;
+
+    B->Header.SchemaVersion = OST_KEYFRAME_BATCH_SCHEMA_VERSION;
+    B->Header.Sequence      = Seq + 1;
+    B->Trace.EntryMono      = K->EntryMono;
+    B->KeyframeId           = Seq + 1;
+    B->PoseSource           = OST_PoseSource_TELEMETRY;
+    B->FootprintPlaneHeight = K->PlaneHeight;
+    B->Intrinsics.Fx        = W.WorkCamera.fx;
+    B->Intrinsics.Fy        = W.WorkCamera.fy;
+    B->Intrinsics.Cx        = W.WorkCamera.cx;
+    B->Intrinsics.Cy        = W.WorkCamera.cy;
+    B->Intrinsics.Width     = (uint16)W.WorkCamera.width;
+    B->Intrinsics.Height    = (uint16)W.WorkCamera.height;
+    SELECT_APP_FillView(&B->Keyframe, K->ImageSeq, K->CaptureUtc, &K->Work, &K->Jpeg, &K->Pose);
+    B->Trace.ExitMono   = OST_TimeMonoNs();
+    B->Trace.PublishUtc = OST_TimeUtcNs();
+    CFE_SB_TimeStampMsg(CFE_MSG_PTR(W.Batch.TelemetryHeader));
+    if (CFE_SB_TransmitMsg(CFE_MSG_PTR(W.Batch.TelemetryHeader), true) != CFE_SUCCESS)
+    {
+        SELECT_APP_ReleaseBatch(B);
+    }
+    else
+    {
+        ++Cnt->BatchesPublished;
+        Cnt->SourcesPublished += B->SourceCount;
+        for (i = 0; i < Count; ++i)
+        {
+            if (S[i].other_line)
+            {
+                ++Cnt->BatchesWithOtherLine;
+                break;
+            }
+        }
+    }
+    CFE_EVS_SendEvent(SELECT_APP_KEYFRAME_DBG_EID, CFE_EVS_EventType_DEBUG,
+                      "keyframe %lu: image %lu, line %ld, overlap %.2f, %lu sources, plane %.1f m",
+                      (unsigned long)(Seq + 1), (unsigned long)K->ImageSeq, (long)K->Line, K->Overlap,
+                      (unsigned long)B->SourceCount, K->PlaneHeight);
+}
+
+/* Publishes the waiting keyframe with its completed sources. */
+static void SELECT_APP_PublishWaiting(const OST_Select_Completed_t *Cpl)
+{
+    SELECT_APP_TakeSources(Cpl->sources, Cpl->source_count);
+    SELECT_APP_SendBatch(&W.Waiting, Cpl->sources, Cpl->source_count);
+    memset(&W.Waiting, 0, sizeof(W.Waiting));
+    SELECT_APP_Data.Counters.KeyframeWaiting = false;
+}
+
+/* Completes the waiting keyframe with the pool now: no next keyframe in
+ * MaxDelayS, or a session change. */
+static void SELECT_APP_FlushWaiting(void)
+{
+    static OST_Select_Completed_t Cpl; /* worker only */
+    int                           Found = 0;
+
+    if (!W.Waiting.Active)
+    {
+        return;
+    }
+    memset(&Cpl, 0, sizeof(Cpl));
+    if (W.Select == NULL || OST_Select_Flush(W.Select, &Cpl, &Found) != OST_SUCCESS || !Found ||
+        Cpl.id != W.Waiting.Id)
+    {
+        memset(&Cpl, 0, sizeof(Cpl)); /* published without sources */
+    }
+    ++SELECT_APP_Data.Counters.BatchesByTimeout;
+    SELECT_APP_PublishWaiting(&Cpl);
+}
+
 /* ----------------------------------------------------------------- image */
 
 /* Allocates the working image, evicting the oldest pool images while the
@@ -336,14 +463,13 @@ static void SELECT_APP_OnImage(const ALIGN_APP_ImagePose_Payload_t *P, int64 Ent
     uint64                    WorkSize;
     OST_Status_t              Status;
     SELECT_APP_PoolEntry_t   *E;
-    uint32                    i;
     int                       Found;
     const void               *Unused   = NULL;
     uint64                    UnusedSize = 0;
     int64                     T0;
     int64                     T1;
     uint32                    Ms;
-    uint32                    Seq;
+    SELECT_APP_Keyframe_t     K;
     char                      Text[64];
 
     if (P->SessionId != W.SessionId || !W.Calibrated)
@@ -388,24 +514,14 @@ static void SELECT_APP_OnImage(const ALIGN_APP_ImagePose_Payload_t *P, int64 Ent
         return;
     }
 
-    /* A keyframe's sources get their batch counts before anything can
-     * evict them. CFE_MSG_Init clears the whole message. */
-    CFE_MSG_Init(CFE_MSG_PTR(W.Batch.TelemetryHeader),
-                 SELECT_APP_Data.Config.RefinePose ? OST_BatchSelectedMsgId() : OST_BatchReadyMsgId(),
-                 sizeof(W.Batch));
-    if (D.keyframe)
+    /* Delayed mode: this keyframe completes the waiting one, whose batch
+     * goes out first. Then the batch of an immediate keyframe takes its
+     * sources, before anything can evict them. */
+    if (D.has_completed && W.Waiting.Active && D.completed.id == W.Waiting.Id)
     {
-        for (i = 0; i < D.source_count && B->SourceCount < EdsParam_OST_MAX_SOURCE_VIEWS; ++i)
-        {
-            E = SELECT_APP_FindEntry(D.sources[i].id);
-            if (E == NULL || OST_DS_Acquire(&E->Work, &Unused, &UnusedSize) != OST_SUCCESS)
-            {
-                continue;
-            }
-            SELECT_APP_FillView(&B->Sources[B->SourceCount], E->ImageSeq, E->CaptureUtc, &E->Work, NULL, &E->Pose);
-            ++B->SourceCount;
-        }
+        SELECT_APP_PublishWaiting(&D.completed);
     }
+    SELECT_APP_TakeSources(D.sources, (D.keyframe && !D.deferred) ? D.source_count : 0u);
 
     /* Working image. */
     T0       = OST_TimeMonoNs();
@@ -487,47 +603,36 @@ static void SELECT_APP_OnImage(const ALIGN_APP_ImagePose_Payload_t *P, int64 Ent
     }
     else
     {
-        /* The batch: its counts go to the consumer (ADR-013 section 3). */
-        Seq = W.KeyframeId++;
-        B->Header.SchemaVersion   = OST_KEYFRAME_BATCH_SCHEMA_VERSION;
-        B->Header.Sequence        = Seq + 1;
-        B->Trace.EntryMono        = EntryMono;
-        B->KeyframeId             = Seq + 1;
-        B->PoseSource             = OST_PoseSource_TELEMETRY;
-        B->FootprintPlaneHeight   = D.plane_height_m;
-        B->Intrinsics.Fx          = W.WorkCamera.fx;
-        B->Intrinsics.Fy          = W.WorkCamera.fy;
-        B->Intrinsics.Cx          = W.WorkCamera.cx;
-        B->Intrinsics.Cy          = W.WorkCamera.cy;
-        B->Intrinsics.Width       = (uint16)W.WorkCamera.width;
-        B->Intrinsics.Height      = (uint16)W.WorkCamera.height;
-        SELECT_APP_FillView(&B->Keyframe, P->ImageSeq, P->CaptureUtc, &Work, &P->Jpeg, &P->Pose);
-        B->Trace.ExitMono   = OST_TimeMonoNs();
-        B->Trace.PublishUtc = OST_TimeUtcNs();
-        CFE_SB_TimeStampMsg(CFE_MSG_PTR(W.Batch.TelemetryHeader));
-        if (CFE_SB_TransmitMsg(CFE_MSG_PTR(W.Batch.TelemetryHeader), true) != CFE_SUCCESS)
+        /* The keyframe holds a working image count and the JPEG count of
+         * the message for its batch. */
+        memset(&K, 0, sizeof(K));
+        K.Active      = true;
+        K.Id          = Id;
+        K.ImageSeq    = P->ImageSeq;
+        K.CaptureUtc  = P->CaptureUtc;
+        K.Work        = Work;
+        K.Jpeg        = P->Jpeg;
+        K.Pose        = P->Pose;
+        K.PlaneHeight = D.plane_height_m;
+        K.Overlap     = D.overlap_last;
+        K.Line        = D.flight_line;
+        K.EntryMono   = EntryMono;
+        K.SinceMono   = OST_TimeMonoNs();
+        ++Cnt->Keyframes;
+        Cnt->LastOverlap = (float)D.overlap_last;
+        if (D.deferred)
         {
-            SELECT_APP_ReleaseBatch(B);
+            if (W.Waiting.Active)
+            {
+                SELECT_APP_FlushWaiting(); /* not completed by the library: should not happen */
+            }
+            W.Waiting            = K;
+            Cnt->KeyframeWaiting = true;
         }
         else
         {
-            ++Cnt->BatchesPublished;
-            Cnt->SourcesPublished += B->SourceCount;
-            for (i = 0; i < D.source_count; ++i)
-            {
-                if (D.sources[i].other_line)
-                {
-                    ++Cnt->BatchesWithOtherLine;
-                    break;
-                }
-            }
+            SELECT_APP_SendBatch(&K, D.sources, D.source_count);
         }
-        ++Cnt->Keyframes;
-        Cnt->LastOverlap = (float)D.overlap_last;
-        CFE_EVS_SendEvent(SELECT_APP_KEYFRAME_DBG_EID, CFE_EVS_EventType_DEBUG,
-                          "keyframe %lu: image %lu, line %ld, overlap %.2f, %lu sources, plane %.1f m",
-                          (unsigned long)(Seq + 1), (unsigned long)P->ImageSeq, (long)D.flight_line, D.overlap_last,
-                          (unsigned long)B->SourceCount, D.plane_height_m);
     }
 
     SELECT_APP_EvictPool();
@@ -548,20 +653,31 @@ void SELECT_APP_WorkerTask(void)
 
     while (SELECT_APP_Data.RunStatus == CFE_ES_RunStatus_APP_RUN)
     {
-        if (!SELECT_APP_Dequeue(&W.Item, SELECT_APP_WORKER_TIMEOUT_MS))
+        if (SELECT_APP_Dequeue(&W.Item, SELECT_APP_WORKER_TIMEOUT_MS))
         {
-            continue;
+            if (W.Item.Type == SELECT_APP_ITEM_CALIBRATION)
+            {
+                SELECT_APP_OnCalibration(&W.Item.u.Calibration);
+            }
+            else if (W.Item.Type == SELECT_APP_ITEM_IMAGE)
+            {
+                SELECT_APP_OnImage(&W.Item.u.Image, W.Item.EntryMono);
+            }
         }
-        if (W.Item.Type == SELECT_APP_ITEM_CALIBRATION)
+        /* No next keyframe in time (end of the flight, a long turn). */
+        if (W.Waiting.Active &&
+            OST_TimeMonoNs() - W.Waiting.SinceMono > (int64)(T->MaxDelayS * 1e9f))
         {
-            SELECT_APP_OnCalibration(&W.Item.u.Calibration);
-        }
-        else if (W.Item.Type == SELECT_APP_ITEM_IMAGE)
-        {
-            SELECT_APP_OnImage(&W.Item.u.Image, W.Item.EntryMono);
+            SELECT_APP_FlushWaiting();
         }
     }
 
+    /* Stopping: the waiting keyframe's counts are released. */
+    if (W.Waiting.Active)
+    {
+        SELECT_APP_Release(&W.Waiting.Work);
+        SELECT_APP_Release(&W.Waiting.Jpeg);
+    }
     SELECT_APP_ClearPool();
     OST_Select_Destroy(W.Select);
     OST_Imaging_WorkingConverterDestroy(W.Converter);

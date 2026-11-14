@@ -459,3 +459,7 @@ PatchMatch the alternative.
   sources causally only (ADR-006). With pose refinement the batches wait
   about 100 s anyway, so a delay of one keyframe in `SELECT_APP` costs
   nothing there; to be implemented (found 2026-11-14 with `DENSE_APP`).
+  * Resolved 2026-11-14: `libs/selection` and `SELECT_APP` have the
+    delayed mode (`DelayedSources`, default on); see ADR-006. With it the
+    valid share of `DENSE_APP` matches the offline run (mean −0.8 points
+    instead of −5.9).

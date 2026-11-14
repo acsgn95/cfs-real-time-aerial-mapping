@@ -63,7 +63,35 @@ sel::SelectorConfig toConfig(const OST_Select_Config_t &c)
     s.line_turn_deg                             = c.line_turn_deg;
     s.pool_distance_m                           = c.pool_distance_m;
     s.max_pool                                  = c.max_pool_images;
+    s.delayed                                   = c.delayed != 0;
     return s;
+}
+
+uint32_t copySources(const std::vector<sel::SourceView> &in, OST_Select_Source_t *out)
+{
+    uint32_t n = 0;
+    for (const sel::SourceView &s : in)
+    {
+        if (n == OST_SELECT_MAX_SOURCES)
+        {
+            break;
+        }
+        OST_Select_Source_t &o    = out[n++];
+        o.id                      = s.id;
+        o.overlap                 = s.overlap;
+        o.baseline_ratio          = s.baseline_ratio;
+        o.triangulation_angle_deg = s.triangulation_angle_deg;
+        o.score                   = s.score;
+        o.other_line              = s.other_line ? 1 : 0;
+    }
+    return n;
+}
+
+void copyCompleted(const sel::CompletedKeyframe &c, OST_Select_Completed_t &out)
+{
+    std::memset(&out, 0, sizeof(out));
+    out.id           = c.id;
+    out.source_count = copySources(c.sources, out.sources);
 }
 
 template <typename F>
@@ -121,6 +149,7 @@ void OST_Select_DefaultConfig(OST_Select_Config_t *config)
     config->line_turn_deg                     = d.line_turn_deg;
     config->pool_distance_m                   = d.pool_distance_m;
     config->max_pool_images                   = static_cast<uint32_t>(d.max_pool);
+    config->delayed                           = d.delayed ? 1 : 0;
     config->terrain_radius_m                  = 20000.0;
 }
 
@@ -224,6 +253,7 @@ OST_Status_t OST_Select_AddImage(OST_Select_t *handle, uint64_t id, const double
         const sel::Decision d       = handle->selector->add(id, T_E_C);
         decision->footprint         = d.footprint ? 1 : 0;
         decision->keyframe          = d.keyframe ? 1 : 0;
+        decision->deferred          = d.deferred ? 1 : 0;
         decision->terrain_available = terrain_ok ? 1 : 0;
         decision->flight_line       = d.flight_line;
         decision->tilt_deg          = d.tilt_deg;
@@ -236,20 +266,28 @@ OST_Status_t OST_Select_AddImage(OST_Select_t *handle, uint64_t id, const double
         {
             decision->centre_ecef[i] = d.centre_E[i];
         }
-        decision->source_count = 0;
-        for (const sel::SourceView &s : d.sources)
+        decision->source_count = copySources(d.sources, decision->sources);
+        if (d.completed)
         {
-            if (decision->source_count == OST_SELECT_MAX_SOURCES)
-            {
-                break;
-            }
-            OST_Select_Source_t &o    = decision->sources[decision->source_count++];
-            o.id                      = s.id;
-            o.overlap                 = s.overlap;
-            o.baseline_ratio          = s.baseline_ratio;
-            o.triangulation_angle_deg = s.triangulation_angle_deg;
-            o.score                   = s.score;
-            o.other_line              = s.other_line ? 1 : 0;
+            decision->has_completed = 1;
+            copyCompleted(*d.completed, decision->completed);
+        }
+        return OST_SUCCESS;
+    });
+}
+
+OST_Status_t OST_Select_Flush(OST_Select_t *handle, OST_Select_Completed_t *completed, int *found)
+{
+    if (handle == nullptr || completed == nullptr || found == nullptr)
+    {
+        return OST_ERR_INVALID_ARGUMENT;
+    }
+    *found = 0;
+    return guarded(handle, [&] {
+        if (const std::optional<sel::CompletedKeyframe> c = handle->selector->flush())
+        {
+            copyCompleted(*c, *completed);
+            *found = 1;
         }
         return OST_SUCCESS;
     });

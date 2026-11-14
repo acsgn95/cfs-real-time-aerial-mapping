@@ -3,8 +3,11 @@
 //
 // For each image: footprint on the terrain prior, flight line, keyframe
 // decision, and for a keyframe its source views among the images in the
-// pool (causal: only images that arrived before it). Images with a
-// footprint join the pool. The pool is bounded by a distance from the
+// pool. Causal mode: only images that arrived before it. Delayed mode
+// (ADR-005 section 2, the default there): the keyframe waits until the
+// next keyframe arrives, and its sources are chosen among all images
+// before that one, also those after the keyframe. Images with a footprint
+// join the pool. The pool is bounded by a distance from the
 // current position and by a number of images; evicted images are returned
 // to the caller, who owns their data (SELECT_APP: the working images in
 // the data store).
@@ -49,6 +52,14 @@ struct SelectorConfig
     double           line_turn_deg   = 45.0;   ///< a new flight line after this change of direction
     double           pool_distance_m = 600.0;  ///< footprint centres farther from the current position leave the pool
     std::size_t      max_pool        = 200;    ///< images in the pool
+    bool             delayed         = false;  ///< sources also from images up to the next keyframe
+};
+
+/// The sources of a keyframe whose selection waited (delayed mode).
+struct CompletedKeyframe
+{
+    std::uint64_t           id = 0;
+    std::vector<SourceView> sources;
 };
 
 struct Decision
@@ -63,7 +74,11 @@ struct Decision
     double      width_m      = 0.0;
     double      height_m     = 0.0;
     Eigen::Vector3d centre_E = Eigen::Vector3d::Zero();  ///< footprint centre, ECEF
-    std::vector<SourceView> sources;  ///< keyframes only
+    std::vector<SourceView> sources;  ///< keyframes only; empty for a deferred keyframe
+    bool deferred = false;  ///< delayed mode: a keyframe whose sources come with the next keyframe or flush()
+    /// Delayed mode: the waiting keyframe completed by this image (the image
+    /// is the next keyframe).
+    std::optional<CompletedKeyframe> completed;
 };
 
 struct SelectorStats
@@ -85,6 +100,14 @@ public:
     /// Decides an image with pose T_E_C (camera to ECEF). Ids must be unique.
     Decision add(std::uint64_t id, const Eigen::Isometry3d &T_E_C);
 
+    /// Delayed mode: completes the waiting keyframe with the images in the
+    /// pool now (end of a flight, or no next keyframe in time). Nothing if no
+    /// keyframe is waiting.
+    std::optional<CompletedKeyframe> flush();
+
+    /// Delayed mode: whether a keyframe is waiting, and its id.
+    std::optional<std::uint64_t> waitingKeyframe() const;
+
     /// Pool images whose footprint centre is farther than pool_distance_m
     /// from the latest camera position, and the oldest beyond max_pool.
     std::vector<std::uint64_t> evict();
@@ -96,8 +119,8 @@ public:
     /// be stored). Returns false if it is not in the pool.
     bool remove(std::uint64_t id);
 
-    /// New session: empties the pool, forgets the frame, the flight lines
-    /// and the last keyframe, and uses the given camera.
+    /// New session: empties the pool, forgets the frame, the flight lines,
+    /// the last and the waiting keyframe, and uses the given camera.
     void reset(const geo::CameraModel &camera);
 
     bool               hasFrame() const { return frame_ != nullptr; }
@@ -106,6 +129,7 @@ public:
 
 private:
     std::optional<double> terrainHeight(double x, double y) const;
+    CompletedKeyframe     complete(const View &keyframe) const;
 
     geo::CameraModel                 camera_;
     SelectorConfig                   config_;
@@ -115,6 +139,7 @@ private:
     KeyframeSelector                 keyframes_;
     std::optional<Footprint>         last_keyframe_;
     std::deque<View>                 pool_;  ///< oldest first
+    std::optional<View>              waiting_;  ///< delayed mode: keyframe without sources yet
     std::optional<Eigen::Vector3d>   last_position_;     ///< local frame
     std::optional<Eigen::Vector2d>   line_direction_;
     int                              line_            = 0;

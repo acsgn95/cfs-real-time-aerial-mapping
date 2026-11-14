@@ -216,6 +216,16 @@ ADR-005 benchmark.
 * **Verification:** on Dorfberg images 42–122 `SELECT_APP` chose the same
   keyframes as `tools/offline_pipeline` (36 of 36, apart from the first
   of the session); 20 of 36 batches had a source of the neighbouring line.
+* **Delayed sources** (ADR-005 section 2, added 2026-11-14 after the first
+  `DENSE_APP` runs): with `delayed` (`SELECT_APP` table `DelayedSources`,
+  default on) a keyframe waits for the next keyframe, and its sources are
+  chosen among the pool images up to it, as in `tools/offline_pipeline`.
+  The batch is published when the next keyframe is decided, after
+  `MaxDelayS` (10 s) without one, or at a session change. On Dorfberg
+  images 40–120 every keyframe got sources (the first one too), and the
+  SGBM valid share rose from 56.6 % to 61.6 % on average; at the start of
+  a flight line, where all earlier images belong to the previous line,
+  keyframe 106 went from 0 % to 75 % (`test_outputs/dense_app/run4`).
 
 ## Open Questions
 

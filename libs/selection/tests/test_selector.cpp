@@ -142,6 +142,58 @@ TEST(Selector, KeyframesSourcesAndLines)
     EXPECT_EQ(st.pool, points.size());
 }
 
+TEST(Selector, DelayedModeAlsoUsesImagesUpToTheNextKeyframe)
+{
+    const Scene         scene;
+    sel::SelectorConfig config;
+    config.delayed = true;
+    sel::Selector s(sel::test::camera(), config, scene.surface(), scene.geodeticFn());
+
+    const auto                 points = twoLines();
+    std::vector<std::uint64_t> keyframes;
+    std::size_t                completed = 0, with_later = 0;
+    for (std::size_t i = 0; i < points.size(); ++i)
+    {
+        const sel::Decision d = s.add(i, scene.pose(points[i].x(), points[i].y()));
+        if (d.keyframe)
+        {
+            EXPECT_TRUE(d.deferred);
+            EXPECT_TRUE(d.sources.empty());
+            ASSERT_EQ(d.completed.has_value(), !keyframes.empty()) << i;
+            if (d.completed)
+            {
+                // The previous keyframe, with sources before this image.
+                EXPECT_EQ(d.completed->id, keyframes.back());
+                bool later = false;
+                for (const sel::SourceView &v : d.completed->sources)
+                {
+                    EXPECT_LT(v.id, i);
+                    EXPECT_NE(v.id, d.completed->id);
+                    later = later || v.id > d.completed->id;
+                }
+                with_later += later ? 1 : 0;
+                ++completed;
+            }
+            keyframes.push_back(i);
+            EXPECT_EQ(s.waitingKeyframe(), std::optional<std::uint64_t>(i));
+        }
+        else
+        {
+            EXPECT_FALSE(d.completed.has_value());
+        }
+    }
+    EXPECT_EQ(completed + 1, keyframes.size());
+    EXPECT_GT(with_later, completed / 2);  // most keyframes get a later image
+
+    // The last keyframe waits until the flush.
+    const std::optional<sel::CompletedKeyframe> last = s.flush();
+    ASSERT_TRUE(last.has_value());
+    EXPECT_EQ(last->id, keyframes.back());
+    EXPECT_FALSE(last->sources.empty());
+    EXPECT_FALSE(s.flush().has_value());
+    EXPECT_FALSE(s.waitingKeyframe().has_value());
+}
+
 TEST(Selector, ImagesWithoutTerrainStayOutOfThePool)
 {
     const Scene   scene;
@@ -277,6 +329,61 @@ TEST(SelectCApi, SelectsWithADemFile)
     OST_Select_Decision_t d;
     EXPECT_EQ(OST_Select_AddImage(h, 1, p0, bad_q, &d), OST_ERR_INVALID_ARGUMENT);
     EXPECT_STRNE(OST_Select_LastError(h), "");
+    OST_Select_Destroy(h);
+    fs::remove_all(dir);
+}
+
+TEST(SelectCApi, DelayedModeCompletesTheWaitingKeyframe)
+{
+    const fs::path dir = fs::temp_directory_path() / "ost_select_c_api_delayed";
+    fs::create_directories(dir);
+    const std::string   dem = writeFlatDem(dir);
+    const Scene         scene;
+    OST_Select_Config_t c;
+    OST_Select_DefaultConfig(&c);
+    EXPECT_EQ(c.delayed, 0);
+    c.delayed          = 1;
+    c.terrain_radius_m = 3000.0;
+    OST_Select_Terrain_t   t{dem.c_str(), "EPSG:4979", OST_SELECTION_TEST_PROJ_DATA_DIR, ""};
+    OST_Geo_Camera_t       cam{};
+    const geo::CameraModel m = sel::test::camera();
+    cam.width = m.width, cam.height = m.height, cam.fx = m.fx, cam.fy = m.fy, cam.cx = m.cx, cam.cy = m.cy;
+    OST_Select_t *h = nullptr;
+    ASSERT_EQ(OST_Select_Create(&c, &t, &cam, &h), OST_SUCCESS);
+
+    const auto points    = twoLines();
+    uint64_t   waiting   = 0;
+    uint32_t   keyframes = 0, completed = 0;
+    for (std::size_t i = 0; i < points.size(); ++i)
+    {
+        const Eigen::Isometry3d  T = scene.pose(points[i].x(), points[i].y());
+        const Eigen::Quaterniond q(T.linear());
+        const double             p[3]  = {T.translation().x(), T.translation().y(), T.translation().z()};
+        const double             qq[4] = {q.w(), q.x(), q.y(), q.z()};
+        OST_Select_Decision_t    d;
+        ASSERT_EQ(OST_Select_AddImage(h, 100 + i, p, qq, &d), OST_SUCCESS);
+        if (d.has_completed)
+        {
+            EXPECT_EQ(d.completed.id, waiting);
+            EXPECT_GT(d.completed.source_count, 0u);
+            ++completed;
+        }
+        if (d.keyframe)
+        {
+            EXPECT_EQ(d.deferred, 1);
+            EXPECT_EQ(d.source_count, 0u);
+            waiting = 100 + i;
+            ++keyframes;
+        }
+    }
+    EXPECT_EQ(completed + 1, keyframes);
+    OST_Select_Completed_t last;
+    int                    found = 0;
+    ASSERT_EQ(OST_Select_Flush(h, &last, &found), OST_SUCCESS);
+    EXPECT_EQ(found, 1);
+    EXPECT_EQ(last.id, waiting);
+    ASSERT_EQ(OST_Select_Flush(h, &last, &found), OST_SUCCESS);
+    EXPECT_EQ(found, 0);
     OST_Select_Destroy(h);
     fs::remove_all(dir);
 }

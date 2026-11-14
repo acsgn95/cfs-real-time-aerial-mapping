@@ -95,7 +95,7 @@ and Meaning; the fault events list the application's faults in order.
 
 | Id | Name | Type | Meaning |
 | --- | --- | --- | --- |
-| 1 | `SELECT_APP_INIT_INF_EID` | INFORMATION | initialised: working image size, K, destination of the batches |
+| 1 | `SELECT_APP_INIT_INF_EID` | INFORMATION | initialised: working image size, K, causal or delayed sources, destination of the batches |
 | 2 | `SELECT_APP_NOOP_INF_EID` | INFORMATION | no-op command |
 | 3 | `SELECT_APP_RESET_INF_EID` | INFORMATION | counters reset |
 | 4 | `SELECT_APP_MID_ERR_EID` | ERROR | message with an unknown message identifier |

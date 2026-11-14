@@ -18,6 +18,19 @@ algorithms are `libs/selection` (with `libs/terrain`) and `libs/imaging`.
 
 Commands: no-op (0), reset counters (1), clear latched faults (2).
 
+## Delayed sources (ADR-005 section 2)
+
+With `DelayedSources` (default 1) a keyframe waits for the next keyframe:
+its sources are chosen among the pool images up to the next keyframe, so
+also among the images after it. This matters at the start of a flight
+line, where the images before a keyframe all belong to the previous line.
+The batch goes out when the next keyframe is decided, after `MaxDelayS`
+(10 s) without one (end of the flight, a long turn), or at a session
+change (`BatchesByTimeout`). It adds one keyframe interval (about 2.9 s at
+the nominal point) to the latency. While it waits, the keyframe holds its
+working image and JPEG counts for its batch (`KeyframeWaiting` in the
+housekeeping).
+
 ## Data store references (ADR-013 section 3)
 
 * The pool holds one count of each working image.
@@ -74,6 +87,7 @@ at startup; the defaults are those of ADR-006:
 | Field | Default |
 | --- | --- |
 | `RefinePose` | 1 (batches to `REFINE_APP`) |
+| `DelayedSources`, `MaxDelayS` | 1, 10 s |
 | `WorkWidth`, `WorkChannels` | 2048 px, 3 (RGB) |
 | `NominalHeightAglM`, `FootprintIterations` | 250 m, 3 |
 | `MaxTiltDeg`, `TargetOverlap` | 25°, 0.7 |

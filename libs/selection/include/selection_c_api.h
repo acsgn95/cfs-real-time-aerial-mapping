@@ -7,7 +7,10 @@
  *                          and the camera of the session (with distortion)
  *   OST_Select_AddImage    each image with a valid pose, in arrival order:
  *                          footprint, flight line, keyframe decision, and
- *                          for a keyframe its source views from the pool
+ *                          for a keyframe its source views from the pool;
+ *                          in delayed mode the keyframe is deferred and the
+ *                          previous keyframe completed (ADR-005 section 2)
+ *   OST_Select_Flush       delayed mode: completes the waiting keyframe
  *   OST_Select_Evict       pool images to release after each image
  *   OST_Select_EvictOldest one more image when memory is short
  *   OST_Select_Reset       at a session change
@@ -67,7 +70,8 @@ typedef struct
     double   line_turn_deg;
     double   pool_distance_m;
     uint32_t max_pool_images;
-    uint32_t spare;
+    uint8_t  delayed; /* 1: sources also from images up to the next keyframe */
+    uint8_t  spare[3];
     double   terrain_radius_m;
 } OST_Select_Config_t;
 
@@ -90,12 +94,21 @@ typedef struct
     uint8_t  spare[7];
 } OST_Select_Source_t;
 
+/* Sources of a keyframe whose selection waited (delayed mode). */
+typedef struct
+{
+    uint64_t            id;
+    uint32_t            source_count;
+    uint32_t            spare;
+    OST_Select_Source_t sources[OST_SELECT_MAX_SOURCES];
+} OST_Select_Completed_t;
+
 typedef struct
 {
     uint8_t  footprint;         /* 1: footprint computed; the image joined the pool */
     uint8_t  keyframe;
     uint8_t  terrain_available; /* 0: no terrain window covers the image */
-    uint8_t  spare;
+    uint8_t  deferred;          /* delayed mode: a keyframe whose sources come later */
     int32_t  flight_line;
     double   tilt_deg;
     double   overlap_last;      /* with the last keyframe; -1 if none */
@@ -104,9 +117,11 @@ typedef struct
     double   width_m;
     double   height_m;
     double   centre_ecef[3];    /* footprint centre */
-    uint32_t source_count;
-    uint32_t spare2;
+    uint32_t source_count;      /* 0 for a deferred keyframe */
+    uint8_t  has_completed;     /* delayed mode: this image completed the waiting keyframe */
+    uint8_t  spare2[3];
     OST_Select_Source_t sources[OST_SELECT_MAX_SOURCES];
+    OST_Select_Completed_t completed;
 } OST_Select_Decision_t;
 
 typedef struct
@@ -132,6 +147,11 @@ const char  *OST_Select_LastError(const OST_Select_t *handle);
 
 OST_Status_t OST_Select_AddImage(OST_Select_t *handle, uint64_t id, const double position_ecef[3],
                                  const double q_ecef_from_camera[4], OST_Select_Decision_t *decision);
+
+/* Delayed mode: completes the waiting keyframe with the pool images now
+ * (end of the flight, or no next keyframe in time). found = 0 if no
+ * keyframe is waiting. */
+OST_Status_t OST_Select_Flush(OST_Select_t *handle, OST_Select_Completed_t *completed, int *found);
 
 /* Returns up to capacity pool images to release; the others stay queued
  * for the next call. */

@@ -9,6 +9,7 @@
 SELECT_APP_ConfigTable_t ConfigTable = {
     .RefinePose                     = 1,    /* ADR-019 */
     .WorkChannels                   = 3,    /* RGB: also the orthomosaic source */
+    .DelayedSources                 = 1,    /* ADR-005 section 2: delayed mode */
     .Spare                          = 0,
     .WorkWidth                      = 2048, /* ADR-006 revision of 2026-11-11 */
     .FootprintIterations            = 3,
@@ -25,6 +26,7 @@ SELECT_APP_ConfigTable_t ConfigTable = {
     .LineTurnDeg                    = 45.0f,
     .PoolDistanceM                  = 600.0f,
     .TerrainRadiusM                 = 20000.0f,
+    .MaxDelayS                      = 10.0f, /* about three keyframe intervals */
     .DemPath                        = "/cf/geodata/dem/terrain.vrt",
     .DemCrs                         = "EPSG:4326+3855", /* Copernicus GLO-30, EGM2008 heights */
     .ProjDataDir                    = "/cf/geodata/proj",

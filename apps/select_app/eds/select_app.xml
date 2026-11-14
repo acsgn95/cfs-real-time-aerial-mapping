@@ -20,7 +20,8 @@
         <EntryList>
           <Entry name="RefinePose" type="BASE_TYPES/uint8" shortDescription="1: batches go to REFINE_APP (BATCH_SELECTED); 0: to DENSE_APP (BATCH_READY)" />
           <Entry name="WorkChannels" type="BASE_TYPES/uint8" shortDescription="1: grey, 3: RGB working images" />
-          <Entry name="Spare" type="BASE_TYPES/uint16" />
+          <Entry name="DelayedSources" type="BASE_TYPES/uint8" shortDescription="1: a keyframe waits for the next one; its sources include the images up to it (ADR-005 section 2)" />
+          <Entry name="Spare" type="BASE_TYPES/uint8" />
           <Entry name="WorkWidth" type="BASE_TYPES/uint32" shortDescription="Working image width, px; the height keeps the aspect ratio" />
           <Entry name="FootprintIterations" type="BASE_TYPES/uint32" shortDescription="Fixed-point iterations of the footprint plane" />
           <Entry name="MaxSources" type="BASE_TYPES/uint32" shortDescription="K source views, at most OST MAX_SOURCE_VIEWS" />
@@ -36,6 +37,7 @@
           <Entry name="LineTurnDeg" type="BASE_TYPES/float" shortDescription="A new flight line after this change of direction" />
           <Entry name="PoolDistanceM" type="BASE_TYPES/float" shortDescription="Pool images whose footprint centre is farther from the current position leave the pool" />
           <Entry name="TerrainRadiusM" type="BASE_TYPES/float" shortDescription="Radius of the terrain window held in memory" />
+          <Entry name="MaxDelayS" type="BASE_TYPES/float" shortDescription="DelayedSources: a waiting keyframe is completed after this time without a next keyframe" />
           <Entry name="DemPath" type="PathName" shortDescription="Elevation model (GDAL); /cf/ paths are translated" />
           <Entry name="DemCrs" type="CrsName" shortDescription="CRS of the model with heights" />
           <Entry name="ProjDataDir" type="PathName" shortDescription="Directory of proj.db" />
@@ -50,7 +52,7 @@
           <Entry name="Calibrated" type="BASE_TYPES/uint8" shortDescription="1: camera and working image converter of the session ready" />
           <Entry name="TerrainLoaded" type="BASE_TYPES/uint8" />
           <Entry name="RefinePose" type="BASE_TYPES/uint8" />
-          <Entry name="Spare" type="BASE_TYPES/uint8" />
+          <Entry name="KeyframeWaiting" type="BASE_TYPES/uint8" shortDescription="DelayedSources: 1 while a keyframe waits for the next one" />
           <Entry name="ImagesReceived" type="BASE_TYPES/uint32" shortDescription="ImagePose messages" />
           <Entry name="ImagesInvalidPose" type="BASE_TYPES/uint32" shortDescription="ImagePose without a valid pose" />
           <Entry name="ImagesNoCalibration" type="BASE_TYPES/uint32" shortDescription="Valid pose, but no calibration of its session" />
@@ -62,6 +64,7 @@
           <Entry name="QueueOverflows" type="BASE_TYPES/uint32" shortDescription="Images dropped because the worker queue was full" />
           <Entry name="Keyframes" type="BASE_TYPES/uint32" />
           <Entry name="BatchesPublished" type="BASE_TYPES/uint32" />
+          <Entry name="BatchesByTimeout" type="BASE_TYPES/uint32" shortDescription="DelayedSources: completed after MaxDelayS or at a session change" />
           <Entry name="SourcesPublished" type="BASE_TYPES/uint32" />
           <Entry name="BatchesWithOtherLine" type="BASE_TYPES/uint32" shortDescription="Batches with a source of another flight line" />
           <Entry name="PoolImages" type="BASE_TYPES/uint32" />

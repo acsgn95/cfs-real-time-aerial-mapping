@@ -101,7 +101,8 @@ static CFE_Status_t SELECT_APP_ValidateConfig(void *TblData)
     const float                     F[] = {T->NominalHeightAglM, T->MaxTiltDeg,         T->TargetOverlap,
                                            T->MinOverlap,        T->MinBaselineRatio,   T->MaxBaselineRatio,
                                            T->MaxViewAngleDeg,   T->PreferredTriangulationAngleDeg,
-                                           T->LineTurnDeg,       T->PoolDistanceM,      T->TerrainRadiusM};
+                                           T->LineTurnDeg,       T->PoolDistanceM,      T->TerrainRadiusM,
+                                           T->MaxDelayS};
     uint32                          i;
 
     for (i = 0; i < sizeof(F) / sizeof(F[0]); ++i)
@@ -113,7 +114,7 @@ static CFE_Status_t SELECT_APP_ValidateConfig(void *TblData)
             return CFE_STATUS_VALIDATION_FAILURE;
         }
     }
-    if (T->RefinePose > 1 || (T->WorkChannels != 1 && T->WorkChannels != 3) || T->WorkWidth < 64 ||
+    if (T->RefinePose > 1 || T->DelayedSources > 1 || (T->WorkChannels != 1 && T->WorkChannels != 3) || T->WorkWidth < 64 ||
         T->WorkWidth > 8192 || T->MaxSources == 0 || T->MaxSources > EdsParam_OST_MAX_SOURCE_VIEWS ||
         T->MaxPoolImages == 0 || T->MaxPoolImages >= SELECT_APP_MAX_POOL || T->FootprintIterations > 20 ||
         T->TargetOverlap <= 0.0f || T->TargetOverlap >= 1.0f || T->MaxBaselineRatio <= T->MinBaselineRatio ||
@@ -354,9 +355,10 @@ static CFE_Status_t SELECT_APP_Init(void)
     CFE_Config_GetVersionString(VersionString, SELECT_APP_MAX_VERSION_STR_LEN, "SELECT_APP", SELECT_APP_VERSION,
                                 SELECT_APP_BUILD_CODENAME, SELECT_APP_LAST_OFFICIAL);
     CFE_EVS_SendEvent(SELECT_APP_INIT_INF_EID, CFE_EVS_EventType_INFORMATION,
-                      "SELECT_APP initialised: %u px %s, K %lu, batches to %s. %s",
+                      "SELECT_APP initialised: %u px %s, K %lu %s, batches to %s. %s",
                       (unsigned)SELECT_APP_Data.Config.WorkWidth, SELECT_APP_Data.Config.WorkChannels == 3 ? "RGB" : "grey",
                       (unsigned long)SELECT_APP_Data.Config.MaxSources,
+                      SELECT_APP_Data.Config.DelayedSources ? "delayed" : "causal",
                       SELECT_APP_Data.Config.RefinePose ? "REFINE_APP" : "DENSE_APP", VersionString);
     return CFE_SUCCESS;
 }
@@ -413,7 +415,7 @@ CFE_Status_t SELECT_APP_ResetCountersCmd(const SELECT_APP_ResetCountersCmd_t *Ms
      * update racing with this reset may survive it. */
     C->ImagesReceived = C->ImagesInvalidPose = C->QueueOverflows = C->MessagesRejected = 0;
     C->ImagesNoCalibration = C->ImagesNoFootprint = C->ImagesNoTerrain = C->ImagesDecoded = 0;
-    C->DecodeErrors = C->QuotaFailures = C->Keyframes = C->BatchesPublished = 0;
+    C->DecodeErrors = C->QuotaFailures = C->Keyframes = C->BatchesPublished = C->BatchesByTimeout = 0;
     C->SourcesPublished = C->BatchesWithOtherLine = C->PoolEvicted = C->QuotaEvictions = 0;
     C->MaxDecodeMs = C->MaxSelectMs = 0;
     CFE_EVS_SendEvent(SELECT_APP_RESET_INF_EID, CFE_EVS_EventType_INFORMATION, "counters reset");
@@ -449,6 +451,7 @@ CFE_Status_t SELECT_APP_SendHkCmd(const SELECT_APP_SendHkCmd_t *Msg)
     P->Calibrated           = C->Calibrated ? 1 : 0;
     P->TerrainLoaded        = C->TerrainLoaded ? 1 : 0;
     P->RefinePose           = SELECT_APP_Data.Config.RefinePose;
+    P->KeyframeWaiting      = C->KeyframeWaiting ? 1 : 0;
     P->ImagesReceived       = C->ImagesReceived;
     P->ImagesInvalidPose    = C->ImagesInvalidPose;
     P->ImagesNoCalibration  = C->ImagesNoCalibration;
@@ -460,6 +463,7 @@ CFE_Status_t SELECT_APP_SendHkCmd(const SELECT_APP_SendHkCmd_t *Msg)
     P->QueueOverflows       = C->QueueOverflows;
     P->Keyframes            = C->Keyframes;
     P->BatchesPublished     = C->BatchesPublished;
+    P->BatchesByTimeout     = C->BatchesByTimeout;
     P->SourcesPublished     = C->SourcesPublished;
     P->BatchesWithOtherLine = C->BatchesWithOtherLine;
     P->PoolImages           = C->PoolImages;

@@ -118,8 +118,20 @@ Decision Selector::add(std::uint64_t id, const Eigen::Isometry3d &T_E_C)
     {
         last_keyframe_ = fp;
         ++stats_.keyframes;
-        const std::vector<View> candidates(pool_.begin(), pool_.end());
-        d.sources = selectSourceViews(view, candidates, config_.sources);
+        if (config_.delayed)
+        {
+            // The waiting keyframe gets the images before this one.
+            if (waiting_)
+            {
+                d.completed = complete(*waiting_);
+            }
+            waiting_   = view;
+            d.deferred = true;
+        }
+        else
+        {
+            d.sources = complete(view).sources;
+        }
     }
     if (fp)
     {
@@ -127,6 +139,35 @@ Decision Selector::add(std::uint64_t id, const Eigen::Isometry3d &T_E_C)
     }
     stats_.flight_lines = line_ + 1;
     return d;
+}
+
+CompletedKeyframe Selector::complete(const View &keyframe) const
+{
+    const std::vector<View> candidates(pool_.begin(), pool_.end());
+    CompletedKeyframe       c;
+    c.id      = keyframe.id;
+    c.sources = selectSourceViews(keyframe, candidates, config_.sources);
+    return c;
+}
+
+std::optional<CompletedKeyframe> Selector::flush()
+{
+    if (!waiting_)
+    {
+        return std::nullopt;
+    }
+    const CompletedKeyframe c = complete(*waiting_);
+    waiting_.reset();
+    return c;
+}
+
+std::optional<std::uint64_t> Selector::waitingKeyframe() const
+{
+    if (!waiting_)
+    {
+        return std::nullopt;
+    }
+    return waiting_->id;
 }
 
 std::vector<std::uint64_t> Selector::evict()
@@ -191,6 +232,7 @@ void Selector::reset(const geo::CameraModel &camera)
     frame_.reset();
     keyframes_.reset();
     last_keyframe_.reset();
+    waiting_.reset();
     pool_.clear();
     last_position_.reset();
     line_direction_.reset();

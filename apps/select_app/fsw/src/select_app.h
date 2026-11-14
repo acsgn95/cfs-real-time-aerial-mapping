@@ -69,6 +69,7 @@ typedef struct
     uint32 QuotaFailures;
     uint32 Keyframes;
     uint32 BatchesPublished;
+    uint32 BatchesByTimeout;
     uint32 SourcesPublished;
     uint32 BatchesWithOtherLine;
     uint32 PoolImages;
@@ -84,6 +85,7 @@ typedef struct
     volatile uint32 SessionId;
     volatile bool   Calibrated;
     volatile bool   TerrainLoaded;
+    volatile bool   KeyframeWaiting;
 } SELECT_APP_Counters_t;
 
 typedef struct
