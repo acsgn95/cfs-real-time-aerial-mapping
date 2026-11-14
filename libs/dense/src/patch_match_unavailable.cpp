@@ -11,6 +11,11 @@ bool patchMatchAvailable()
     return false;
 }
 
+std::optional<std::size_t> gpuFreeMemory(int)
+{
+    return std::nullopt;
+}
+
 PatchMatchEstimator::PatchMatchEstimator(const PatchMatchConfig &config) : config_(config)
 {
     throw NotAvailableError("PatchMatch is not available: built without COLMAP");

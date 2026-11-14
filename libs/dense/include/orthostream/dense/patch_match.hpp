@@ -4,6 +4,9 @@
 #ifndef ORTHOSTREAM_DENSE_PATCH_MATCH_HPP
 #define ORTHOSTREAM_DENSE_PATCH_MATCH_HPP
 
+#include <cstddef>
+#include <optional>
+
 #include "orthostream/dense/depth_estimator.hpp"
 
 namespace orthostream::dense
@@ -37,6 +40,12 @@ struct PatchMatchConfig
 
 /// True if this build contains PatchMatch (ORTHOSTREAM_WITH_COLMAP).
 bool patchMatchAvailable();
+
+/// Free memory of a GPU in bytes, through the CUDA runtime; nothing in a
+/// build without PatchMatch or when the GPU cannot be queried. Used to
+/// avoid starting PatchMatch without enough GPU memory, since COLMAP ends
+/// the process on CUDA errors.
+std::optional<std::size_t> gpuFreeMemory(int gpu_index);
 
 /// Depth estimation with COLMAP's CUDA PatchMatch stereo. Confidence is the
 /// share of source views that are photometrically consistent at a pixel.

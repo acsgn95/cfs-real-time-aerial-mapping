@@ -159,6 +159,25 @@ Defined under `interfaces/link/` and shared with the Python injector:
   status messages for development.
 * **D16:** housekeeping and status contents.
 
+## Implementation Notes (2026-11-14)
+
+* **`DepthReady`** (`apps/dense_app/eds/dense_app.xml`) carries, besides
+  the depth set reference and the origin of `L_k` of section 3: the
+  keyframe as `OST/ViewRef` (capture time, image, working image and JPEG
+  references, pose), the working camera, the depth range, valid and
+  gated pixels, the SGBM partner image and the times of the job steps.
+  `GEOREF_APP` needs the keyframe pose and camera to turn depth into
+  points, and `MAPPROD_APP` the JPEG for the orthomosaic, so the keyframe's
+  counts travel with the depth set (ADR-013 section 3). The depth set
+  layout (depth, confidence, optionally normals; float32) is described in
+  the EDS file and in `apps/dense_app/README.md`.
+* **`DenseStatus`** is one message per batch: keyframe, outcome (done,
+  skipped, failed), reason, queue depth and totals. It gives the recorder
+  every dropped keyframe with its reason (ADR-001 R3, ADR-015 section 3).
+* The topic block of `DENSE_APP` moved from 96 to 192: command and
+  telemetry offsets 96–99 give the message identifiers of the global cFE
+  TIME topics (ADR-020).
+
 ## Open Questions
 
 None.

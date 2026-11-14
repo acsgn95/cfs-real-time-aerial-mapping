@@ -8,7 +8,8 @@
   unique, lie in the ranges of ADR-020 section 3, and are listed in
   docs/interfaces/events.md under the application's section.
 * Topic identifiers: the OrthoStream topic identifiers of the reference
-  mission are unique and stay inside their application's block.
+  mission are unique, stay inside their application's block and do not
+  map to the message identifiers of the global TIME topics.
 * Link format: the sizes, field offsets, message types and magic word of
   interfaces/link/ost_link_format.h match the Python encoder of the
   injector (tools/injector/orthostream_injector/link.py).
@@ -38,12 +39,16 @@ TOPIC_BLOCKS = {
     "ALIGN_APP": 48,
     "SELECT_APP": 64,
     "REFINE_APP": 80,
-    "DENSE_APP": 96,
+    "DENSE_APP": 192,  # 96-99: MsgIds of the global cFE TIME topics
     "GEOREF_APP": 112,
     "MAPPROD_APP": 144,
     "RECORDER_APP": 160,
     "OST": 176,
 }
+
+# Offsets whose message identifiers (0x1800/0x0800 + offset) are those of the
+# global cFE TIME topics (0x1860-0x1863, 0x0860-0x0863).
+GLOBAL_TIME_OFFSETS = range(96, 100)
 
 
 class Checker:
@@ -159,6 +164,8 @@ class Checker:
             if key in seen:
                 self.error(f"topic {name} shares {kind} offset {offset} with {seen[key]}")
             seen[key] = name
+            if offset in GLOBAL_TIME_OFFSETS:
+                self.error(f"topic {name} = {offset} maps to the message identifier of a global TIME topic")
             base = TOPIC_BLOCKS[owner]
             if not base <= offset < base + 16:
                 self.error(f"topic {name} = {offset} is outside the block {base}-{base + 15} of {owner}")

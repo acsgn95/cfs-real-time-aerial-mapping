@@ -152,3 +152,38 @@ and Meaning; the fault events list the application's faults in order.
 
 Filtered events are sent for the first 8 occurrences; the counts are in
 the housekeeping.
+
+### `DENSE_APP`
+
+| Id | Name | Type | Meaning |
+| --- | --- | --- | --- |
+| 1 | `DENSE_APP_INIT_INF_EID` | INFORMATION | initialised: method, waiting batches, terrain gate |
+| 2 | `DENSE_APP_NOOP_INF_EID` | INFORMATION | no-op command |
+| 3 | `DENSE_APP_RESET_INF_EID` | INFORMATION | counters reset |
+| 4 | `DENSE_APP_MID_ERR_EID` | ERROR | message with an unknown message identifier |
+| 5 | `DENSE_APP_CMD_LEN_ERR_EID` | ERROR | command of wrong length |
+| 6 | `DENSE_APP_CC_ERR_EID` | ERROR | unknown command code |
+| 7 | `DENSE_APP_PIPE_ERR_EID` | ERROR | Software Bus pipe read error; the application stops |
+| 8 | `DENSE_APP_TBL_ERR_EID` | ERROR | configuration table rejected or not loaded |
+| 9 | `DENSE_APP_CLEAR_INF_EID` | INFORMATION | latched faults cleared |
+| 10 | `DENSE_APP_INIT_ERR_EID` | ERROR | initialisation failed |
+| 20 | `DENSE_APP_SKIPPED_EID` | ERROR / INFORMATION | batch skipped: replaced by a newer batch (newest wins) or no depth set; INFORMATION for a batch without sources, the first keyframe of a flight (filtered) |
+| 21 | `DENSE_APP_FAILED_EID` | ERROR | batch failed: no estimator, invalid batch, estimation error, or `DEPTH_READY` not sent (filtered) |
+| 22 | `DENSE_APP_QUOTA_EID` | ERROR | no depth set within `QuotaWaitMs` (filtered) |
+| 23 | `DENSE_APP_MSG_LEN_ERR_EID` | ERROR | input message of wrong length (filtered) |
+| 24 | `DENSE_APP_LIB_ERR_EID` | ERROR | the estimator could not be created (filtered) |
+| 25 | `DENSE_APP_DATASTORE_ERR_EID` | ERROR | data store reference not released (filtered) |
+| 26 | `DENSE_APP_BATCH_DBG_EID` | DEBUG | depth set published: valid and gated share, depth range, times |
+| 27 | `DENSE_APP_TERRAIN_EID` | ERROR | terrain prior not usable, or none under a keyframe: depth range from the footprint plane, no gate (filtered) |
+| 28 | `DENSE_APP_GPU_EID` | ERROR | PatchMatch not started: GPU not available or not enough free memory (filtered) |
+| 29 | `DENSE_APP_READY_INF_EID` | INFORMATION | estimator created: method, threads, terrain prior |
+| 60 | fault `KEYFRAMES_SKIPPED` | | a keyframe was skipped because of backlog |
+| 61 | fault `DEPTH_FAILED` | | depth estimation failed for a keyframe |
+| 62 | fault `GPU_FAILURE` | | GPU not available or not enough free GPU memory |
+| 63 | fault `DATASTORE_QUOTA` | | no depth set within the quota waiting limit |
+| 64 | fault `TERRAIN_UNAVAILABLE` | | no terrain prior (files, or under the keyframe) |
+| 65 | fault `TABLE_REJECTED` | | the configuration table was not loaded, or names a method that is not built |
+| 66 | fault `LIBRARY_ERROR` | | the estimator could not be created |
+
+Filtered events are sent for the first 8 occurrences; the counts are in
+the housekeeping and in `DENSE_STATUS`.

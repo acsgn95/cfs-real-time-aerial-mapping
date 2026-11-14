@@ -5,6 +5,8 @@
 #include <string>
 #include <vector>
 
+#include <cuda_runtime_api.h>
+
 #include <colmap/mvs/consistency_graph.h>
 #include <colmap/mvs/image.h>
 #include <colmap/mvs/patch_match.h>
@@ -19,6 +21,24 @@ namespace orthostream::dense
 bool patchMatchAvailable()
 {
     return true;
+}
+
+std::optional<std::size_t> gpuFreeMemory(int gpu_index)
+{
+    int count = 0;
+    if (cudaGetDeviceCount(&count) != cudaSuccess || gpu_index < 0 || gpu_index >= count
+        || cudaSetDevice(gpu_index) != cudaSuccess)
+    {
+        cudaGetLastError();  // clear the error state
+        return std::nullopt;
+    }
+    std::size_t free_bytes = 0, total_bytes = 0;
+    if (cudaMemGetInfo(&free_bytes, &total_bytes) != cudaSuccess)
+    {
+        cudaGetLastError();
+        return std::nullopt;
+    }
+    return free_bytes;
 }
 
 namespace

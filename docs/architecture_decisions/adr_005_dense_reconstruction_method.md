@@ -394,6 +394,37 @@ PatchMatch the alternative.
   * Geometric consistency is a PatchMatch question; SGBM uses its own
     left-right check (`disp12_max_diff`).
 
+## Implementation Notes (2026-11-14)
+
+* **C interface.** `libs/dense/include/dense_c_api.h` (`OST_Dense_*`)
+  gives `DENSE_APP` one call per keyframe batch: the batch frame `L_k`
+  (east-north-up at the keyframe's camera centre), a terrain grid over the
+  footprint (section 5a), the depth range from the terrain heights under
+  the footprint ± 50 m, the estimator and the terrain gate. The library
+  reads the terrain prior itself (`libs/terrain`, privately, as
+  `libs/selection` does), so `DENSE_APP` needs no terrain code. Without
+  terrain under a keyframe the range follows the footprint plane height of
+  the batch and the gate is skipped.
+* **SGBM source of the other flight line.** A source turned by more than
+  90° about the viewing axis is turned by 180° before rectification
+  (image rotated, principal point mirrored). On Dorfberg keyframe 56, whose
+  causal sources all belong to the previous line, this doubles the valid
+  share (0.16 → 0.32, RMSE 0.23 → 0.11 m; `dense_benchmark`, causal mode);
+  keyframes with a same-line partner are unchanged.
+* **`DENSE_APP` on Dorfberg images 40–120** (80 images, two lines, telemetry
+  poses, `REFINE_APP` on, SGBM, release build;
+  `test_outputs/dense_app/run2`): 36 of 36 batches with sources done, the
+  first keyframe has no source and is skipped (`NO_SOURCES`). Estimation
+  median 0.85 s, max 1.26 s, the same as `offline_pipeline` on the same
+  keyframes (ratio 0.99) while `REFINE_APP` runs alongside; the job steps
+  around it take about 40 ms (grey copies 13 ms, frame and range 3 ms,
+  gate 22 ms). Valid share median 59.7 %, the same as offline in the
+  median; lower (mean −5.9 points) at keyframes where the offline run, in
+  delayed mode, used a later image of the same line. `SELECT_APP` selects
+  causally only (open question below).
+* With pose refinement the batches arrive in bursts; the waiting limit of
+  `DENSE_APP` is a table value (ADR-015 implementation notes).
+
 ## Open Questions
 
 * Final parameter values: from the benchmark of section 6; section 6a gives
@@ -410,6 +441,13 @@ PatchMatch the alternative.
   COLMAP through an overlay port to raise an exception instead; or run the
   GPU work in a separate process. To be decided before `DENSE_APP` is
   written (found 2026-11-11).
+  * Partly resolved 2026-11-14 with `DENSE_APP`: the first option. Before
+    each PatchMatch job the library checks the free GPU memory
+    (`cudaMemGetInfo`) against a table value (`PmMinFreeGpuMb`, 1024 MB,
+    peak use 0.6 GB) and does not start COLMAP below it (`GPU_FAILURE`).
+    Other CUDA errors still end the process. Since SGBM is the default,
+    this concerns PatchMatch runs only; a separate process remains the
+    option if PatchMatch becomes the method of a result.
 * The −8 cm bias of PatchMatch (section 6b): COLMAP settings or the window
   radius of 3; to be explained if PatchMatch is used for results.
 * Geometric consistency needs depth and normal maps of every source view
@@ -417,3 +455,7 @@ PatchMatch the alternative.
   not keyframes have no depth maps (ADR-006). Either geometric consistency
   uses only keyframe sources, or it is dropped; to be decided with the
   benchmark.
+* Delayed mode (section 2) is the default, but `SELECT_APP` selects
+  sources causally only (ADR-006). With pose refinement the batches wait
+  about 100 s anyway, so a delay of one keyframe in `SELECT_APP` costs
+  nothing there; to be implemented (found 2026-11-14 with `DENSE_APP`).

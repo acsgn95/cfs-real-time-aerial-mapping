@@ -30,7 +30,10 @@ struct SgbmConfig
 /// Rectifies the reference view with one source view using the known poses,
 /// matches them with StereoSGBM and converts the disparities to depth in the
 /// reference camera. Epipolar lines along the image columns are handled by
-/// transposing the rectified images. Confidence is 1 for matched pixels;
+/// transposing the rectified images. A source turned by more than 90 degrees
+/// about the viewing axis (the neighbouring flight line, flown the other
+/// way) is turned by 180 degrees first, so that rectification sees a small
+/// rotation. Confidence is 1 for matched pixels;
 /// normals point towards the camera (SGBM gives no surface orientation).
 class SgbmEstimator : public DepthEstimator
 {

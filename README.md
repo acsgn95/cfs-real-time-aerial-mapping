@@ -51,7 +51,7 @@ The mapping workflow is planned as a collection of independent cFS applications 
 | `ALIGN_APP` | Associates each image with the corresponding camera state |
 | `SELECT_APP` | Selects keyframes and source views using overlap and viewing geometry |
 | `REFINE_APP` | Optional: refines the camera poses of each keyframe batch from the imagery (`refine_pose`); with PPK or RTK positions only the attitude (`precise_position`) |
-| `DENSE_APP` | Computes depth maps with multi-view stereo |
+| `DENSE_APP` | Computes depth maps per keyframe: two-view SGBM by default, multi-view PatchMatch stereo as an alternative |
 | `GEOREF_APP` | Transforms depth maps into georeferenced points and writes the point cloud |
 | `MAPPROD_APP` | Incrementally updates the DSM and orthomosaic |
 | `RECORDER_APP` | Stores status, timing, and performance measurements |

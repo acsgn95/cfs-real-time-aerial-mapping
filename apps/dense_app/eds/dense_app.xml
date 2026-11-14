@@ -1,0 +1,261 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  DENSE_APP: depth maps of the keyframe batches (ADR-005, ADR-012).
+  Consumes OST/BATCH_READY_TLM, computes a depth set per keyframe with SGBM
+  (default) or PatchMatch, and publishes DEPTH_READY_TLM for GEOREF_APP.
+  The input is the one controlled drop point of the mission (ADR-015
+  section 3): DENSE_STATUS_TLM reports the outcome of every batch.
+  Definitions follow ADR-020.
+-->
+<PackageFile xmlns="http://www.ccsds.org/schema/sois/seds">
+  <Package name="DENSE_APP" shortDescription="Dense reconstruction of keyframe batches">
+
+    <DataTypeSet>
+
+      <StringDataType name="PathName" length="128" />
+      <StringDataType name="CrsName" length="32" />
+
+      <EnumeratedDataType name="Method" shortDescription="Depth estimation method (ADR-005)">
+        <IntegerDataEncoding sizeInBits="8" encoding="unsigned" />
+        <EnumerationList>
+          <Enumeration label="SGBM" value="0" shortDescription="Two-view semi-global matching on the CPU (default)" />
+          <Enumeration label="PATCHMATCH" value="1" shortDescription="COLMAP PatchMatch stereo on the GPU" />
+        </EnumerationList>
+      </EnumeratedDataType>
+
+      <EnumeratedDataType name="Outcome" shortDescription="What happened to a keyframe batch">
+        <IntegerDataEncoding sizeInBits="8" encoding="unsigned" />
+        <EnumerationList>
+          <Enumeration label="DONE" value="1" shortDescription="Depth set published on DEPTH_READY" />
+          <Enumeration label="SKIPPED" value="2" shortDescription="Not processed; see the reason" />
+          <Enumeration label="FAILED" value="3" shortDescription="Processing failed; see the reason" />
+        </EnumerationList>
+      </EnumeratedDataType>
+
+      <EnumeratedDataType name="Reason" shortDescription="Reason of a skipped or failed batch">
+        <IntegerDataEncoding sizeInBits="8" encoding="unsigned" />
+        <EnumerationList>
+          <Enumeration label="NONE" value="0" />
+          <Enumeration label="NEWER_BATCH" value="1" shortDescription="Replaced in the queue by a newer batch (newest wins, ADR-015 section 3)" />
+          <Enumeration label="QUOTA" value="2" shortDescription="No depth set within the quota waiting limit" />
+          <Enumeration label="NOT_READY" value="3" shortDescription="No configuration table or no estimator" />
+          <Enumeration label="INVALID_BATCH" value="4" shortDescription="Too many sources, unreadable image or invalid geometry" />
+          <Enumeration label="ESTIMATION" value="5" shortDescription="The depth estimator failed" />
+          <Enumeration label="GPU" value="6" shortDescription="GPU not available or not enough free GPU memory" />
+          <Enumeration label="NOT_SENT" value="7" shortDescription="DEPTH_READY could not be sent" />
+          <Enumeration label="STOPPED" value="8" shortDescription="The application stopped with the batch queued" />
+          <Enumeration label="NO_SOURCES" value="9" shortDescription="The batch has no source views (the first keyframe of a flight)" />
+        </EnumerationList>
+      </EnumeratedDataType>
+
+      <!-- Configuration table (ADR-016 section 5); defaults of ADR-005 -->
+
+      <ContainerDataType name="ConfigTable" shortDescription="Configuration of DENSE_APP">
+        <EntryList>
+          <Entry name="Method" type="Method" />
+          <Entry name="StoreNormals" type="BASE_TYPES/uint8" shortDescription="1: the depth set also holds the normal map" />
+          <Entry name="MaxWaitingBatches" type="BASE_TYPES/uint8" shortDescription="Batches waiting behind the running job; a newer batch replaces the oldest" />
+          <Entry name="Spare" type="BASE_TYPES/uint8" />
+          <Entry name="Threads" type="BASE_TYPES/uint32" shortDescription="OpenCV worker threads; 0: OpenCV's default (ADR-015 section 5)" />
+          <Entry name="QuotaWaitMs" type="BASE_TYPES/uint32" shortDescription="Waiting for depth set quota before the batch is skipped" />
+          <Entry name="SgbmTargetBaselineRatio" type="BASE_TYPES/float" shortDescription="Source with the baseline / mid depth closest to it" />
+          <Entry name="SgbmBlockSize" type="BASE_TYPES/uint32" shortDescription="Odd, px" />
+          <Entry name="SgbmP1Factor" type="BASE_TYPES/uint32" shortDescription="P1 = factor x block size squared" />
+          <Entry name="SgbmP2Factor" type="BASE_TYPES/uint32" shortDescription="P2 = factor x block size squared" />
+          <Entry name="SgbmUniquenessRatio" type="BASE_TYPES/uint32" shortDescription="%" />
+          <Entry name="SgbmDisp12MaxDiff" type="BASE_TYPES/uint32" shortDescription="Left-right check, px" />
+          <Entry name="SgbmSpeckleWindow" type="BASE_TYPES/uint32" shortDescription="px; 0: no speckle filter" />
+          <Entry name="SgbmSpeckleRange" type="BASE_TYPES/uint32" />
+          <Entry name="SgbmMaxDisparities" type="BASE_TYPES/uint32" />
+          <Entry name="PmGpuIndex" type="BASE_TYPES/uint32" />
+          <Entry name="PmIterations" type="BASE_TYPES/uint32" />
+          <Entry name="PmWindowRadius" type="BASE_TYPES/uint32" />
+          <Entry name="PmWindowStep" type="BASE_TYPES/uint32" />
+          <Entry name="PmSamples" type="BASE_TYPES/uint32" />
+          <Entry name="PmFilterMinConsistent" type="BASE_TYPES/uint32" />
+          <Entry name="PmFilterMinNcc" type="BASE_TYPES/float" />
+          <Entry name="PmFilterMinAngleDeg" type="BASE_TYPES/float" />
+          <Entry name="PmMinFreeGpuMb" type="BASE_TYPES/float" shortDescription="PatchMatch is not started with less free GPU memory; 0: no check" />
+          <Entry name="DepthMarginM" type="BASE_TYPES/float" shortDescription="Depth range: terrain heights under the footprint widened by it" />
+          <Entry name="TerrainGateM" type="BASE_TYPES/float" shortDescription="Terrain gate tolerance (ADR-005 section 5a); 0: off" />
+          <Entry name="GateSpacingM" type="BASE_TYPES/float" shortDescription="Height grid spacing" />
+          <Entry name="GateMarginM" type="BASE_TYPES/float" shortDescription="Height grid margin around the footprint" />
+          <Entry name="TerrainRadiusM" type="BASE_TYPES/float" shortDescription="Radius of the terrain window held in memory" />
+          <Entry name="DemPath" type="PathName" shortDescription="Elevation model (GDAL); /cf/ paths are translated" />
+          <Entry name="DemCrs" type="CrsName" shortDescription="CRS of the model with heights" />
+          <Entry name="ProjDataDir" type="PathName" shortDescription="Directory of proj.db" />
+          <Entry name="GridDir" type="PathName" shortDescription="Directory of the PROJ grids; empty: none" />
+        </EntryList>
+      </ContainerDataType>
+
+      <!-- Depth set (ADR-013): float32 maps of Intrinsics.Width x Height
+           pixels, row-major, native byte order, one after the other:
+           depth (z in the keyframe camera, m; 0: invalid), confidence
+           (0-1), and with HasNormals the normals (x, y, z per pixel, unit
+           vectors in the keyframe camera). -->
+
+      <ContainerDataType name="DepthReady_Payload" shortDescription="Depth set of a keyframe">
+        <EntryList>
+          <Entry name="Header" type="OST/PayloadHeader" />
+          <Entry name="Trace" type="OST/TraceTimes" />
+          <Entry name="KeyframeId" type="BASE_TYPES/uint32" />
+          <Entry name="PoseSource" type="OST/PoseSource" />
+          <Entry name="Method" type="Method" />
+          <Entry name="HasNormals" type="BASE_TYPES/uint8" />
+          <Entry name="GateApplied" type="BASE_TYPES/uint8" shortDescription="1: terrain gate applied; 0: no terrain under the keyframe or gate off" />
+          <Entry name="Intrinsics" type="OST/WorkIntrinsics" shortDescription="Camera of the depth maps (the working images)" />
+          <Entry name="Keyframe" type="OST/ViewRef" shortDescription="Keyframe: working image and JPEG counts go to the consumer" />
+          <Entry name="DepthSet" type="OST/ObjectRef" shortDescription="Depth set; its count goes to the consumer" />
+          <Entry name="FrameOriginEcef" type="OST/Vector3" shortDescription="Origin of the batch frame L_k: the keyframe camera centre" />
+          <Entry name="FrameLatitude" type="BASE_TYPES/double" shortDescription="rad; L_k is east-north-up at the origin" />
+          <Entry name="FrameLongitude" type="BASE_TYPES/double" shortDescription="rad" />
+          <Entry name="DepthMinM" type="BASE_TYPES/float" shortDescription="Depth range searched" />
+          <Entry name="DepthMaxM" type="BASE_TYPES/float" />
+          <Entry name="ValidPixels" type="BASE_TYPES/uint32" />
+          <Entry name="GatedPixels" type="BASE_TYPES/uint32" shortDescription="Removed by the terrain gate" />
+          <Entry name="PartnerImageSeq" type="BASE_TYPES/uint32" shortDescription="SGBM: the source image used; 0: all sources (PatchMatch)" />
+          <Entry name="SourceCount" type="BASE_TYPES/uint8" />
+          <Entry name="Spare1" type="BASE_TYPES/uint8" />
+          <Entry name="Spare2" type="BASE_TYPES/uint16" />
+          <Entry name="WaitMs" type="BASE_TYPES/float" shortDescription="Entry to the start of the job (queue)" />
+          <Entry name="ReadMs" type="BASE_TYPES/float" shortDescription="Working images to grey" />
+          <Entry name="SetupMs" type="BASE_TYPES/float" shortDescription="Batch frame, terrain grid and depth range" />
+          <Entry name="EstimateMs" type="BASE_TYPES/float" />
+          <Entry name="GateMs" type="BASE_TYPES/float" />
+        </EntryList>
+      </ContainerDataType>
+
+      <ContainerDataType name="DenseStatus_Payload" shortDescription="Outcome of one keyframe batch (ADR-015 section 3, ADR-017)">
+        <EntryList>
+          <Entry name="Header" type="OST/PayloadHeader" />
+          <Entry name="Time" type="OST/UtcTimeNs" />
+          <Entry name="KeyframeId" type="BASE_TYPES/uint32" />
+          <Entry name="ImageSeq" type="BASE_TYPES/uint32" shortDescription="Keyframe image" />
+          <Entry name="Outcome" type="Outcome" />
+          <Entry name="Reason" type="Reason" />
+          <Entry name="QueueDepth" type="BASE_TYPES/uint8" shortDescription="Batches waiting after this one" />
+          <Entry name="Spare" type="BASE_TYPES/uint8" />
+          <Entry name="BatchesDone" type="BASE_TYPES/uint32" />
+          <Entry name="BatchesSkipped" type="BASE_TYPES/uint32" />
+          <Entry name="BatchesFailed" type="BASE_TYPES/uint32" />
+          <Entry name="TotalMs" type="BASE_TYPES/float" shortDescription="Entry to the outcome" />
+        </EntryList>
+      </ContainerDataType>
+
+      <ContainerDataType name="HkTlm_Payload" shortDescription="DENSE_APP housekeeping">
+        <EntryList>
+          <Entry name="Common" type="OST/HkCommon" />
+          <Entry name="Method" type="Method" />
+          <Entry name="Ready" type="BASE_TYPES/uint8" shortDescription="1: an estimator exists" />
+          <Entry name="LastTerrain" type="BASE_TYPES/uint8" shortDescription="1: the last keyframe had terrain under it" />
+          <Entry name="Spare" type="BASE_TYPES/uint8" />
+          <Entry name="BatchesReceived" type="BASE_TYPES/uint32" />
+          <Entry name="BatchesDone" type="BASE_TYPES/uint32" />
+          <Entry name="BatchesSkipped" type="BASE_TYPES/uint32" shortDescription="Newest wins and quota" />
+          <Entry name="BatchesFailed" type="BASE_TYPES/uint32" />
+          <Entry name="QuotaWaits" type="BASE_TYPES/uint32" shortDescription="Jobs that waited for depth set quota" />
+          <Entry name="MessagesRejected" type="BASE_TYPES/uint32" />
+          <Entry name="QueueDepth" type="BASE_TYPES/uint32" />
+          <Entry name="TerrainLoads" type="BASE_TYPES/uint32" />
+          <Entry name="LastKeyframeId" type="BASE_TYPES/uint32" />
+          <Entry name="LastValidFraction" type="BASE_TYPES/float" />
+          <Entry name="LastGatedFraction" type="BASE_TYPES/float" />
+          <Entry name="LastDepthMinM" type="BASE_TYPES/float" />
+          <Entry name="LastDepthMaxM" type="BASE_TYPES/float" />
+          <Entry name="LastWaitMs" type="BASE_TYPES/float" />
+          <Entry name="LastReadMs" type="BASE_TYPES/float" />
+          <Entry name="LastSetupMs" type="BASE_TYPES/float" />
+          <Entry name="LastEstimateMs" type="BASE_TYPES/float" />
+          <Entry name="MaxEstimateMs" type="BASE_TYPES/float" />
+          <Entry name="LastGateMs" type="BASE_TYPES/float" />
+          <Entry name="LastJobMs" type="BASE_TYPES/float" shortDescription="Start of the job to publication" />
+          <Entry name="MaxJobMs" type="BASE_TYPES/float" />
+          <Entry name="LastLatencyS" type="BASE_TYPES/float" shortDescription="Keyframe capture to publication" />
+          <Entry name="MaxLatencyS" type="BASE_TYPES/float" />
+        </EntryList>
+      </ContainerDataType>
+
+      <!-- Commands -->
+
+      <ContainerDataType name="CommandBase" baseType="CFE_HDR/CommandHeader" />
+      <ContainerDataType name="SendHkCmd" baseType="CFE_HDR/CommandHeader" />
+
+      <ContainerDataType name="NoopCmd" baseType="CommandBase">
+        <ConstraintSet><ValueConstraint entry="Sec.FunctionCode" value="0" /></ConstraintSet>
+      </ContainerDataType>
+      <ContainerDataType name="ResetCountersCmd" baseType="CommandBase">
+        <ConstraintSet><ValueConstraint entry="Sec.FunctionCode" value="1" /></ConstraintSet>
+      </ContainerDataType>
+      <ContainerDataType name="ClearLatchedFaultsCmd" baseType="CommandBase">
+        <ConstraintSet><ValueConstraint entry="Sec.FunctionCode" value="2" /></ConstraintSet>
+      </ContainerDataType>
+
+      <!-- Telemetry -->
+
+      <ContainerDataType name="HkTlm" baseType="CFE_HDR/TelemetryHeader">
+        <EntryList><Entry name="Payload" type="HkTlm_Payload" /></EntryList>
+      </ContainerDataType>
+      <ContainerDataType name="DepthReadyTlm" baseType="CFE_HDR/TelemetryHeader">
+        <EntryList><Entry name="Payload" type="DepthReady_Payload" /></EntryList>
+      </ContainerDataType>
+      <ContainerDataType name="DenseStatusTlm" baseType="CFE_HDR/TelemetryHeader">
+        <EntryList><Entry name="Payload" type="DenseStatus_Payload" /></EntryList>
+      </ContainerDataType>
+
+    </DataTypeSet>
+
+    <ComponentSet>
+      <Component name="Application">
+        <RequiredInterfaceSet>
+          <Interface name="ConfigTable" shortDescription="Configuration table" type="CFE_TBL/Table">
+            <GenericTypeMapSet>
+              <GenericTypeMap name="TableDataType" type="ConfigTable" />
+            </GenericTypeMapSet>
+          </Interface>
+          <Interface name="CMD" shortDescription="Ground commands" type="CFE_SB/Telecommand">
+            <GenericTypeMapSet>
+              <GenericTypeMap name="TelecommandDataType" type="CommandBase" />
+            </GenericTypeMapSet>
+          </Interface>
+          <Interface name="SEND_HK" shortDescription="Housekeeping request" type="CFE_SB/Telecommand">
+            <GenericTypeMapSet>
+              <GenericTypeMap name="TelecommandDataType" type="SendHkCmd" />
+            </GenericTypeMapSet>
+          </Interface>
+          <Interface name="HK_TLM" shortDescription="Housekeeping" type="CFE_SB/Telemetry">
+            <GenericTypeMapSet>
+              <GenericTypeMap name="TelemetryDataType" type="HkTlm" />
+            </GenericTypeMapSet>
+          </Interface>
+          <Interface name="DEPTH_READY_TLM" shortDescription="Depth set of a keyframe, for GEOREF_APP" type="CFE_SB/Telemetry">
+            <GenericTypeMapSet>
+              <GenericTypeMap name="TelemetryDataType" type="DepthReadyTlm" />
+            </GenericTypeMapSet>
+          </Interface>
+          <Interface name="DENSE_STATUS_TLM" shortDescription="Outcome of every keyframe batch" type="CFE_SB/Telemetry">
+            <GenericTypeMapSet>
+              <GenericTypeMap name="TelemetryDataType" type="DenseStatusTlm" />
+            </GenericTypeMapSet>
+          </Interface>
+        </RequiredInterfaceSet>
+        <Implementation>
+          <VariableSet>
+            <Variable type="BASE_TYPES/uint16" readOnly="true" name="CmdTopicId" initialValue="${CFE_MISSION/DENSE_APP_CMD_TOPICID}" />
+            <Variable type="BASE_TYPES/uint16" readOnly="true" name="SendHkTopicId" initialValue="${CFE_MISSION/DENSE_APP_SEND_HK_TOPICID}" />
+            <Variable type="BASE_TYPES/uint16" readOnly="true" name="HkTlmTopicId" initialValue="${CFE_MISSION/DENSE_APP_HK_TLM_TOPICID}" />
+            <Variable type="BASE_TYPES/uint16" readOnly="true" name="DepthReadyTopicId" initialValue="${CFE_MISSION/DENSE_APP_DEPTH_READY_TLM_TOPICID}" />
+            <Variable type="BASE_TYPES/uint16" readOnly="true" name="DenseStatusTopicId" initialValue="${CFE_MISSION/DENSE_APP_DENSE_STATUS_TLM_TOPICID}" />
+          </VariableSet>
+          <ParameterMapSet>
+            <ParameterMap interface="CMD" parameter="TopicId" variableRef="CmdTopicId" />
+            <ParameterMap interface="SEND_HK" parameter="TopicId" variableRef="SendHkTopicId" />
+            <ParameterMap interface="HK_TLM" parameter="TopicId" variableRef="HkTlmTopicId" />
+            <ParameterMap interface="DEPTH_READY_TLM" parameter="TopicId" variableRef="DepthReadyTopicId" />
+            <ParameterMap interface="DENSE_STATUS_TLM" parameter="TopicId" variableRef="DenseStatusTopicId" />
+          </ParameterMapSet>
+        </Implementation>
+      </Component>
+    </ComponentSet>
+
+  </Package>
+</PackageFile>

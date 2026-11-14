@@ -277,7 +277,9 @@ decision left open:
   `FAULT_EVENT_TLM`, `BATCH_SELECTED_TLM` and `BATCH_READY_TLM`. The
   keyframe batch type belongs to `OST` for the same reason.
 * **Topic blocks of the reference mission** (offsets in the command and in
-  the telemetry range; 128–143 belongs to the lab and sample applications):
+  the telemetry range; 128–143 belongs to the lab and sample applications;
+  96–99 are the message identifiers of the global cFE TIME topics,
+  `0x1860`–`0x1863` and `0x0860`–`0x0863`, so block 96 is not used):
 
   | Block | Owner |
   | --- | --- |
@@ -285,11 +287,11 @@ decision left open:
   | 48 | `ALIGN_APP` |
   | 64 | `SELECT_APP` |
   | 80 | `REFINE_APP` |
-  | 96 | `DENSE_APP` |
   | 112 | `GEOREF_APP` |
   | 144 | `MAPPROD_APP` |
   | 160 | `RECORDER_APP` |
   | 176 | `OST` (shared topics) |
+  | 192 | `DENSE_APP` (moved from 96 on 2026-11-14) |
 
   Commands: +0 command, +1 housekeeping request, +2 1 Hz wake-up.
   Telemetry: +0 housekeeping, then the data path messages.

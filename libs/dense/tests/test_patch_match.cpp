@@ -188,7 +188,7 @@ struct PlaneScene
     std::vector<std::vector<std::uint8_t>> images;
 };
 
-PlaneScene planeScene(const std::vector<Eigen::Vector3d> &source_centres)
+PlaneScene planeScene(const std::vector<Eigen::Vector3d> &source_centres, double source_yaw_deg = 0.0)
 {
     const geo::CameraModel cam = testCamera();
     PlaneScene             s;
@@ -201,6 +201,8 @@ PlaneScene planeScene(const std::vector<Eigen::Vector3d> &source_centres)
     {
         BatchView v;
         v.T_L_C = nadirPose(c);
+        v.T_L_C.linear() =
+            v.T_L_C.linear() * Eigen::AngleAxisd(source_yaw_deg * 3.14159265358979323846 / 180.0, Eigen::Vector3d::UnitZ()).toRotationMatrix();
         s.images.push_back(render(cam, v.T_L_C));
         s.batch.sources.push_back(v);
     }
@@ -253,6 +255,31 @@ TEST(Sgbm, RecoversASlopedPlaneInEveryBaselineDirection)
         const auto [valid, median] = centralError(s.batch, depth);
         EXPECT_GT(valid, 0.7) << c.transpose();
         EXPECT_LT(median, 0.01) << c.transpose();  // 1 % of the depth, 1 m at 100 m
+    }
+}
+
+TEST(Sgbm, RecoversThePlaneFromASourceFlownTheOtherWay)
+{
+    // The neighbouring flight line: the source camera is turned by about
+    // 180 degrees around its viewing axis. On this ideal scene rectification
+    // alone copes; on Dorfberg keyframe 56 (sources of the previous line
+    // only) turning the source image doubles the valid share (0.16 to 0.32,
+    // 2026-11-14). The test keeps the turned path exact.
+    for (const double yaw : { 180.0, 175.0, 185.0 })
+    {
+        for (const Eigen::Vector3d c : { Eigen::Vector3d(0, 20, 100), Eigen::Vector3d(20, 0, 100) })
+        {
+            PlaneScene         s = planeScene({ c }, yaw);
+            const std::size_t  n = 320 * 240;
+            std::vector<float> depth(n), normals(3 * n), confidence(n);
+            const std::vector<std::uint8_t> before = s.images[1];
+            SgbmEstimator      sgbm;
+            sgbm.estimate(s.batch, { depth.data(), normals.data(), confidence.data() });
+            const auto [valid, median] = centralError(s.batch, depth);
+            EXPECT_GT(valid, 0.7) << yaw << " " << c.transpose();
+            EXPECT_LT(median, 0.01) << yaw << " " << c.transpose();
+            EXPECT_EQ(s.images[1], before);  // the source image is not changed
+        }
     }
 }
 

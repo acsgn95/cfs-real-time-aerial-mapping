@@ -54,14 +54,29 @@ void SgbmEstimator::estimate(const DepthBatch &batch, const DepthOutput &out)
         out.normals[3 * i + 2] = -1.0f;
     }
 
+    // A source of the neighbouring flight line looks the other way: about
+    // 180 degrees around the viewing axis, which rectification cannot
+    // handle. Its image is turned by 180 degrees instead: the camera turns
+    // about its z axis and the principal point is mirrored.
+    const BatchView  &src       = batch.sources[chooseSource(batch)];
+    Eigen::Isometry3d T_L_S     = src.T_L_C;
+    const bool        turned    = (batch.reference.T_L_C.linear().transpose() * src.T_L_C.linear())(0, 0) < 0.0;
+    double            src_cx    = cam.cx, src_cy = cam.cy;
+    if (turned)
+    {
+        T_L_S.linear() = T_L_S.linear() * Eigen::Vector3d(-1.0, -1.0, 1.0).asDiagonal();
+        src_cx         = (cam.width - 1) - cam.cx;
+        src_cy         = (cam.height - 1) - cam.cy;
+    }
+
     // Relative pose in OpenCV's convention: x_src = R x_ref + T.
-    const BatchView        &src     = batch.sources[chooseSource(batch)];
-    const Eigen::Isometry3d T_s_r   = src.T_L_C.inverse() * batch.reference.T_L_C;
+    const Eigen::Isometry3d T_s_r = T_L_S.inverse() * batch.reference.T_L_C;
     if (T_s_r.translation().norm() < 1e-6)
     {
         throw DenseError("SGBM source view has no baseline");
     }
     const cv::Matx33d K(cam.fx, 0, cam.cx, 0, cam.fy, cam.cy, 0, 0, 1);
+    const cv::Matx33d K_s(cam.fx, 0, src_cx, 0, cam.fy, src_cy, 0, 0, 1);
     cv::Matx33d       R;
     cv::Vec3d         T;
     for (int r = 0; r < 3; ++r)
@@ -73,7 +88,7 @@ void SgbmEstimator::estimate(const DepthBatch &batch, const DepthOutput &out)
         T[r] = T_s_r.translation()(r);
     }
     cv::Mat R1, R2, P1, P2, Q;
-    cv::stereoRectify(K, cv::noArray(), K, cv::noArray(), size, R, T, R1, R2, P1, P2, Q, cv::CALIB_ZERO_DISPARITY, -1,
+    cv::stereoRectify(K, cv::noArray(), K_s, cv::noArray(), size, R, T, R1, R2, P1, P2, Q, cv::CALIB_ZERO_DISPARITY, -1,
                       size);
 
     // Epipolar lines along columns: transpose. Source on the left of the
@@ -87,10 +102,19 @@ void SgbmEstimator::estimate(const DepthBatch &batch, const DepthOutput &out)
 
     cv::Mat map_rx, map_ry, map_sx, map_sy;
     cv::initUndistortRectifyMap(K, cv::noArray(), R1, P1, size, CV_16SC2, map_rx, map_ry);
-    cv::initUndistortRectifyMap(K, cv::noArray(), R2, P2, size, CV_16SC2, map_sx, map_sy);
+    cv::initUndistortRectifyMap(K_s, cv::noArray(), R2, P2, size, CV_16SC2, map_sx, map_sy);
     const cv::Mat ref_img(size, CV_8UC1, const_cast<std::uint8_t *>(batch.reference.image.data),
                           batch.reference.image.stride);
-    const cv::Mat src_img(size, CV_8UC1, const_cast<std::uint8_t *>(src.image.data), src.image.stride);
+    const cv::Mat src_view(size, CV_8UC1, const_cast<std::uint8_t *>(src.image.data), src.image.stride);
+    cv::Mat       src_img;  // empty: rotate() allocates, the caller's image stays as it is
+    if (turned)
+    {
+        cv::rotate(src_view, src_img, cv::ROTATE_180);
+    }
+    else
+    {
+        src_img = src_view;
+    }
     cv::Mat       left, right;
     cv::remap(ref_img, left, map_rx, map_ry, cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar(0));
     cv::remap(src_img, right, map_sx, map_sy, cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar(0));

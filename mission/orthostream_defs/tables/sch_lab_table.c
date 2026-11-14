@@ -37,6 +37,9 @@ SCH_LAB_ScheduleTable_t Schedule = {
 
         /* REFINE_APP */
         {OST_SCH_CMD(REFINE_APP_SEND_HK_TOPICID), 100, 0},
+
+        /* DENSE_APP */
+        {OST_SCH_CMD(DENSE_APP_SEND_HK_TOPICID), 100, 0},
     }
 };
 

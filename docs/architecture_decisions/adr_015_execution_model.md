@@ -144,6 +144,21 @@ recorded with every measurement.
   data path message lost to a full pipe also loses the data store counts
   it carries, so the per-message limits of the subscriptions are set
   generously.
+* `DENSE_APP` (2026-11-14): one child task `DENSE_WORK` (priority level
+  4), a ring of the application with the drop rule of section 3, and one
+  `DENSE_STATUS` message per batch (done, skipped or failed, with the
+  reason).
+* **Bursts with pose refinement.** `REFINE_APP` publishes together all
+  batches that one window solution covers. On Dorfberg up to 7 batches
+  arrive within a millisecond, although on average one batch arrives per
+  keyframe interval (2.9 s) and `DENSE_APP` needs about 1 s per batch. With
+  one waiting batch, as section 3 first set it, 8 of 30 keyframes were
+  skipped in the first run. The number of waiting batches is therefore a
+  table value (`MaxWaitingBatches`, platform limit 16) with default 16:
+  newest wins only applies when the backlog exceeds a burst. With
+  `RefinePose = 0` the batches come one per keyframe and a value of 1
+  restores the rule of section 3. A burst of 16 adds at most about 16 s
+  of queueing, against the 100 s that refinement already waits.
 
 ## Open Questions
 

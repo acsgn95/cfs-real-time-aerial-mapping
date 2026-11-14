@@ -38,11 +38,12 @@ LATCHED --command "clear latched faults"--> CLEARED
 | 3 | `LINK_FORMAT` | `CRITICAL` | latch | `INGEST_APP` | link format or version mismatch |
 | 10 | `POSE_NO_TELEMETRY` | `WARNING` | latch | `ALIGN_APP` | no telemetry around an image (no pose) |
 | 11 | `POSE_ACCURACY_LOW` | `DEGRADED` | auto-clear | `ALIGN_APP` | pose accuracy below the configured limit |
-| 15 | `TERRAIN_UNAVAILABLE` | `ERROR` | auto-clear | `SELECT_APP` | no terrain prior at the image position: the elevation model or PROJ data could not be opened, or does not cover the flight (no footprints) |
+| 15 | `TERRAIN_UNAVAILABLE` | `ERROR` | auto-clear | `SELECT_APP`, `DENSE_APP` | no terrain prior at the image position: the elevation model or PROJ data could not be opened, or does not cover the flight (no footprints; in `DENSE_APP` no terrain gate) |
 | 16 | `IMAGE_DECODE` | `ERROR` | latch | `SELECT_APP` | an image could not be decoded to the working resolution |
 | 20 | `DATASTORE_QUOTA` | `ERROR` | latch | any user of the data store | data store quota exhausted |
 | 30 | `KEYFRAMES_SKIPPED` | `DEGRADED` | latch | `DENSE_APP` | keyframes skipped because of backlog |
-| 31 | `GPU_FAILURE` | `CRITICAL` | latch | `DENSE_APP` | GPU or CUDA failure |
+| 31 | `GPU_FAILURE` | `CRITICAL` | latch | `DENSE_APP` | GPU or CUDA failure, or less free GPU memory than PatchMatch needs (it is then not started) |
+| 32 | `DEPTH_FAILED` | `ERROR` | latch | `DENSE_APP` | depth estimation failed for a keyframe |
 | 40 | `REFINE_REJECTED` | `WARNING` | latch | `REFINE_APP` | refinement result rejected (ADR-019 section 5) |
 | 41 | `REFINE_LATENCY` | `DEGRADED` | latch | `REFINE_APP` | refinement over its latency limit |
 | 50 | `TILE_WRITE` | `ERROR` | latch | `MAPPROD_APP` | tile write failure |
