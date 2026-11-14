@@ -9,11 +9,16 @@
   docs/interfaces/events.md under the application's section.
 * Topic identifiers: the OrthoStream topic identifiers of the reference
   mission are unique and stay inside their application's block.
+* Link format: the sizes, field offsets, message types and magic word of
+  interfaces/link/ost_link_format.h match the Python encoder of the
+  injector (tools/injector/orthostream_injector/link.py).
 
 Standard library only. Exit status 0 when all checks pass.
 Usage: tests/interfaces/check_interfaces.py [repository root]
 """
+import importlib.util
 import re
+import struct
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -159,20 +164,65 @@ class Checker:
                 self.error(f"topic {name} = {offset} is outside the block {base}-{base + 15} of {owner}")
         return count
 
+    # -------------------------------------------------------------- link
+    @staticmethod
+    def struct_offsets(fmt):
+        """Byte offset of every field of a packed struct format; a repeated
+        field ("4d", "32s") counts once, padding ("3x") counts as a field."""
+        offsets, prefix = [], fmt[0]
+        for count, code in re.findall(r"(\d*)([a-zA-Z?])", fmt[1:]):
+            offsets.append(struct.calcsize(prefix))
+            prefix += count + code
+        return offsets
+
+    def check_link(self):
+        header = (self.root / "interfaces/link/ost_link_format.h").read_text()
+        defines = {k: int(v, 0) for k, v in re.findall(r"#define OST_LINK_(\w+)\s+(0x[0-9A-Fa-f]+|\d+)u", header)}
+        spec = importlib.util.spec_from_file_location(
+            "ost_link", self.root / "tools/injector/orthostream_injector/link.py")
+        link = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(link)
+
+        checked = 0
+        messages = {"HEADER": link.HEADER, "TELEMETRY": link.TELEMETRY, "HEARTBEAT": link.HEARTBEAT,
+                    "SESSION_START": link.SESSION_START, "IMAGE": link.IMAGE, "SESSION_END": link.SESSION_END}
+        for name, st in messages.items():
+            checked += 1
+            if defines.get(f"{name}_SIZE") != st.size:
+                self.error(f"link {name}: size {defines.get(name + '_SIZE')} in C, {st.size} in Python")
+            c_offsets = sorted(v for k, v in defines.items() if k.startswith(f"{name}_OFF_"))
+            py_offsets = self.struct_offsets(st.format)
+            if c_offsets != py_offsets:
+                self.error(f"link {name}: offsets {c_offsets} in C, {py_offsets} in Python")
+        for k, v in vars(link).items():
+            if k.startswith("TYPE_"):
+                checked += 1
+                if defines.get(k) != v:
+                    self.error(f"link {k}: {defines.get(k)} in C, {v} in Python")
+        magic = bytes(defines.get(f"MAGIC_{i}", 0) for i in range(4))
+        if magic != link.MAGIC or defines.get("VERSION") != link.VERSION:
+            self.error("link: magic word or version differ between C and Python")
+        if defines.get("IMAGE_FORMAT_JPEG") != link.IMAGE_FORMAT_JPEG or \
+                defines.get("CAMERA_NAME_LEN") != link.CAMERA_NAME_LEN:
+            self.error("link: image format or camera name length differ between C and Python")
+        return checked
+
     def run(self):
         faults = self.check_faults()
         events = self.check_events()
         topics = self.check_topics()
-        return faults, events, topics
+        link = self.check_link()
+        return faults, events, topics, link
 
 
 def main():
     root = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(__file__).resolve().parents[2]
     checker = Checker(root)
-    faults, events, topics = checker.run()
+    faults, events, topics, link = checker.run()
     for text in checker.errors:
         print("error:", text)
-    print(f"checked {faults} faults, {events} event identifiers, {topics} topic identifiers: "
+    print(f"checked {faults} faults, {events} event identifiers, {topics} topic identifiers, "
+          f"{link} link definitions: "
           f"{len(checker.errors)} error(s)")
     return 1 if checker.errors else 0
 

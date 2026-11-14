@@ -42,6 +42,7 @@ endif()
 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../interfaces ${CMAKE_CURRENT_BINARY_DIR}/interfaces)
 add_subdirectory(datastore)
+add_subdirectory(link)
 add_subdirectory(geo)
 add_subdirectory(imaging)
 add_subdirectory(selection)
@@ -49,6 +50,24 @@ add_subdirectory(dense)
 add_subdirectory(map_products)
 if(ORTHOSTREAM_WITH_REFINE)
     add_subdirectory(refine)
+endif()
+
+# Interface consistency (ADR-020) and the injector (ADR-003). Python is only
+# a test and tool dependency; nothing of it is linked into the flight software.
+if(BUILD_TESTING)
+    find_package(Python3 COMPONENTS Interpreter)
+    if(Python3_Interpreter_FOUND)
+        add_test(NAME interface_consistency
+            COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../tests/interfaces/check_interfaces.py)
+        set(OST_INJECTOR_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../tools/injector)
+        add_test(NAME injector_tests
+            COMMAND ${Python3_EXECUTABLE} -m unittest discover -s tests
+            WORKING_DIRECTORY ${OST_INJECTOR_DIR})
+        set_tests_properties(injector_tests PROPERTIES
+            ENVIRONMENT "PYTHONPATH=${OST_INJECTOR_DIR}:${OST_INJECTOR_DIR}/tests;PYTHONDONTWRITEBYTECODE=1")
+    else()
+        message(STATUS "Python 3 not found: interface and injector tests not added")
+    endif()
 endif()
 
 if(ORTHOSTREAM_BUILD_TOOLS)

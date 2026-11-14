@@ -1,5 +1,6 @@
 # Shared C headers of the OrthoStream libraries and applications without a
-# cFE dependency (ADR-020 section 5 and 6): status codes and diagnostics.
+# cFE dependency (ADR-020 section 5 and 6): status codes and diagnostics, and
+# the wire format of the injector link (link/, ADR-016 section 7).
 # Built as part of libs/ (libs/CMakeLists.txt adds this directory); the cFS
 # library module apps/ost_common uses the same headers.
 
@@ -8,10 +9,11 @@ add_library(OrthoStream::interfaces ALIAS orthostream_interfaces)
 set_target_properties(orthostream_interfaces PROPERTIES EXPORT_NAME interfaces)
 target_include_directories(orthostream_interfaces INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/link>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 
 install(TARGETS orthostream_interfaces EXPORT OrthoStreamInterfacesTargets)
-install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+install(DIRECTORY include/ link/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 install(EXPORT OrthoStreamInterfacesTargets
     NAMESPACE OrthoStream::
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/OrthoStreamInterfaces)

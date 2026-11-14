@@ -1,0 +1,7 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+find_dependency(OrthoStreamInterfaces)
+
+include("${CMAKE_CURRENT_LIST_DIR}/OrthoStreamLinkTargets.cmake")
+check_required_components(OrthoStreamLink)
