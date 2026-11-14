@@ -1,6 +1,6 @@
 # ADR-014: Time Model
 
-* Status: Accepted
+* Status: Accepted; implementation notes added 2026-11-14 (`libs/time_align`, `ALIGN_APP`)
 * Date: 2026-11-11
 * Decided by: Ahmet Coşgun
 * Backlog item: D13
@@ -118,6 +118,37 @@ record.
 * **D15:** timestamps are 64-bit nanoseconds; alignment limits are table
   values.
 * **D16:** per-stage monotonic timings and UTC latency are recorded.
+
+## Implementation Notes (2026-11-14)
+
+* **Library:** `libs/time_align` (C++ with the C interface
+  `time_align_c_api.h`), used by `ALIGN_APP`. It depends on Eigen only: the
+  geodetic-to-ECEF conversion is the closed form, so `ALIGN_APP` does not
+  carry PROJ.
+* **Interpolation frame:** both samples are converted to ECEF before
+  interpolating, the body position linearly and `q_E_B` with slerp; then
+  the mounting (`q_B_C`, `t_B_C` of the session calibration) gives the
+  camera pose. Section 4 does not name the frame; interpolating `q_N_B`
+  would mix the NED frames of two positions.
+* **Waiting time** is measured on `CLOCK_MONOTONIC` from the arrival of
+  `ImageArrived`, so a stopped telemetry stream still ends the wait. The
+  limits of section 4 are the defaults of the `ALIGN_APP` table.
+* **Buffer:** besides the samples of the last 10 s, the last sample before
+  that limit is kept, so that an image in a long telemetry gap is
+  reported as a gap and not as older than the buffer.
+* **Results:** valid, no sample before, gap too large, wait expired, and
+  three that section 4 does not list: no calibration (no mounting within
+  the waiting limit), queue full, cleared (the session changed while the
+  image waited). Samples without a position fix are discarded with the
+  invalid ones.
+* **Order:** `ImagePose` messages come out in the order of `ImageArrived`.
+* **Verification** (Dorfberg keyframe region 60, 30 images, 10 Hz,
+  injector → `INGEST_APP` → `ALIGN_APP`): attitude error median 0.0062°,
+  max 0.0283°; position median 0.84 mm, max 3.5 mm against the poses given
+  to the injector, the same as the injector's own check of linear
+  interpolation and slerp (`--dry-run`). Cubic interpolation (rejected
+  alternative) stays unnecessary: the remaining error is below the
+  attitude error of the refinement in block mode (0.008°).
 
 ## Open Questions
 

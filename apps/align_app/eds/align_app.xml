@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ALIGN_APP: time alignment of the images with the telemetry stream
+  (ADR-012, ADR-014 section 4). Consumes TelemetrySample, ImageArrived and
+  SessionCalibration and publishes one ImagePose per image. Definitions
+  follow ADR-020.
+-->
+<PackageFile xmlns="http://www.ccsds.org/schema/sois/seds">
+  <Package name="ALIGN_APP" shortDescription="Time alignment of images and telemetry">
+
+    <DataTypeSet>
+
+      <EnumeratedDataType name="AlignResult" shortDescription="Outcome of the association of an image (ADR-014 section 4)">
+        <IntegerDataEncoding sizeInBits="8" encoding="unsigned" />
+        <EnumerationList>
+          <Enumeration label="VALID" value="0" shortDescription="Pose interpolated between two samples" />
+          <Enumeration label="NO_SAMPLE_BEFORE" value="1" shortDescription="Captured before the oldest buffered sample" />
+          <Enumeration label="GAP_TOO_LARGE" value="2" shortDescription="The samples around it are more than MaxGapMs apart" />
+          <Enumeration label="WAIT_EXPIRED" value="3" shortDescription="No sample after it within MaxWaitMs" />
+          <Enumeration label="NO_CALIBRATION" value="4" shortDescription="No session calibration within MaxWaitMs" />
+          <Enumeration label="QUEUE_FULL" value="5" shortDescription="Too many images waiting" />
+          <Enumeration label="CLEARED" value="6" shortDescription="Waiting when the session changed" />
+        </EnumerationList>
+      </EnumeratedDataType>
+
+      <!-- Configuration table (ADR-016 section 5) -->
+
+      <ContainerDataType name="ConfigTable" shortDescription="Configuration of ALIGN_APP">
+        <EntryList>
+          <Entry name="MaxGapMs" type="BASE_TYPES/uint32" shortDescription="Gap between the two samples around an image" />
+          <Entry name="MaxWaitMs" type="BASE_TYPES/uint32" shortDescription="Waiting time for the next sample" />
+          <Entry name="BufferMs" type="BASE_TYPES/uint32" shortDescription="Telemetry kept, back from the newest sample" />
+          <Entry name="MaxPendingImages" type="BASE_TYPES/uint32" shortDescription="Images waiting at the same time" />
+          <Entry name="MaxPositionStdM" type="BASE_TYPES/float" shortDescription="Largest position deviation before POSE_ACCURACY_LOW; 0: no check" />
+          <Entry name="MaxAttitudeStdDeg" type="BASE_TYPES/float" shortDescription="Largest attitude deviation before POSE_ACCURACY_LOW; 0: no check" />
+        </EntryList>
+      </ContainerDataType>
+
+      <!-- Data path message (ADR-016 section 3) -->
+
+      <ContainerDataType name="ImagePose_Payload" shortDescription="An image with its pose at the capture time">
+        <EntryList>
+          <Entry name="Header" type="OST/PayloadHeader" />
+          <Entry name="Trace" type="OST/TraceTimes" shortDescription="Entry: ImageArrived received; exit: published" />
+          <Entry name="CaptureUtc" type="OST/UtcTimeNs" shortDescription="Capture time (data time)" />
+          <Entry name="RecordedUtc" type="OST/UtcTimeNs" shortDescription="Capture time in the recording" />
+          <Entry name="SessionId" type="BASE_TYPES/uint32" />
+          <Entry name="ImageSeq" type="BASE_TYPES/uint32" />
+          <Entry name="Jpeg" type="OST/ObjectRef" shortDescription="JPEG data, one reference count for the consumer; none if not valid" />
+          <Entry name="JpegSize" type="BASE_TYPES/uint32" shortDescription="Bytes" />
+          <Entry name="Result" type="AlignResult" />
+          <Entry name="PoseSource" type="OST/PoseSource" shortDescription="TELEMETRY" />
+          <Entry name="AccuracyLow" type="BASE_TYPES/uint8" shortDescription="1: accuracy beyond the configured limits" />
+          <Entry name="Spare" type="BASE_TYPES/uint8" />
+          <Entry name="SampleBeforeUtc" type="OST/UtcTimeNs" shortDescription="Telemetry sample before the capture; 0 if none" />
+          <Entry name="SampleAfterUtc" type="OST/UtcTimeNs" shortDescription="Telemetry sample after the capture; 0 if none" />
+          <Entry name="WaitedMs" type="BASE_TYPES/uint32" shortDescription="Time the image waited for telemetry" />
+          <Entry name="Spare2" type="BASE_TYPES/uint32" />
+          <Entry name="Pose" type="OST/Pose" shortDescription="Camera pose; valid only with Result VALID" />
+        </EntryList>
+      </ContainerDataType>
+
+      <ContainerDataType name="HkTlm_Payload" shortDescription="ALIGN_APP housekeeping">
+        <EntryList>
+          <Entry name="Common" type="OST/HkCommon" />
+          <Entry name="SessionId" type="BASE_TYPES/uint32" />
+          <Entry name="Calibrated" type="BASE_TYPES/uint8" shortDescription="1: camera mounting of the session known" />
+          <Entry name="Spare1" type="BASE_TYPES/uint8" />
+          <Entry name="Spare2" type="BASE_TYPES/uint16" />
+          <Entry name="SamplesAccepted" type="BASE_TYPES/uint32" />
+          <Entry name="SamplesOutOfOrder" type="BASE_TYPES/uint32" />
+          <Entry name="SamplesDuplicate" type="BASE_TYPES/uint32" />
+          <Entry name="SamplesInvalid" type="BASE_TYPES/uint32" shortDescription="Not finite, not a unit quaternion, or no position fix" />
+          <Entry name="ImagesReceived" type="BASE_TYPES/uint32" />
+          <Entry name="PosesValid" type="BASE_TYPES/uint32" />
+          <Entry name="RejectedNoSampleBefore" type="BASE_TYPES/uint32" />
+          <Entry name="RejectedGap" type="BASE_TYPES/uint32" />
+          <Entry name="RejectedWait" type="BASE_TYPES/uint32" />
+          <Entry name="RejectedNoCalibration" type="BASE_TYPES/uint32" />
+          <Entry name="RejectedQueueFull" type="BASE_TYPES/uint32" />
+          <Entry name="RejectedCleared" type="BASE_TYPES/uint32" />
+          <Entry name="AccuracyLow" type="BASE_TYPES/uint32" shortDescription="Valid poses beyond the accuracy limits" />
+          <Entry name="MessagesRejected" type="BASE_TYPES/uint32" shortDescription="Input messages of wrong length" />
+          <Entry name="BufferedSamples" type="BASE_TYPES/uint32" />
+          <Entry name="BufferSpanMs" type="BASE_TYPES/uint32" />
+          <Entry name="PendingImages" type="BASE_TYPES/uint32" />
+          <Entry name="LastWaitedMs" type="BASE_TYPES/uint32" shortDescription="Waiting time of the last image" />
+          <Entry name="MaxWaitedMs" type="BASE_TYPES/uint32" shortDescription="Largest waiting time since the counters were reset" />
+        </EntryList>
+      </ContainerDataType>
+
+      <!-- Commands -->
+
+      <ContainerDataType name="CommandBase" baseType="CFE_HDR/CommandHeader" />
+      <ContainerDataType name="SendHkCmd" baseType="CFE_HDR/CommandHeader" />
+
+      <ContainerDataType name="NoopCmd" baseType="CommandBase">
+        <ConstraintSet><ValueConstraint entry="Sec.FunctionCode" value="0" /></ConstraintSet>
+      </ContainerDataType>
+      <ContainerDataType name="ResetCountersCmd" baseType="CommandBase">
+        <ConstraintSet><ValueConstraint entry="Sec.FunctionCode" value="1" /></ConstraintSet>
+      </ContainerDataType>
+      <ContainerDataType name="ClearLatchedFaultsCmd" baseType="CommandBase">
+        <ConstraintSet><ValueConstraint entry="Sec.FunctionCode" value="2" /></ConstraintSet>
+      </ContainerDataType>
+
+      <!-- Telemetry -->
+
+      <ContainerDataType name="HkTlm" baseType="CFE_HDR/TelemetryHeader">
+        <EntryList><Entry name="Payload" type="HkTlm_Payload" /></EntryList>
+      </ContainerDataType>
+      <ContainerDataType name="ImagePoseTlm" baseType="CFE_HDR/TelemetryHeader">
+        <EntryList><Entry name="Payload" type="ImagePose_Payload" /></EntryList>
+      </ContainerDataType>
+
+    </DataTypeSet>
+
+    <ComponentSet>
+      <Component name="Application">
+        <RequiredInterfaceSet>
+          <Interface name="ConfigTable" shortDescription="Configuration table" type="CFE_TBL/Table">
+            <GenericTypeMapSet>
+              <GenericTypeMap name="TableDataType" type="ConfigTable" />
+            </GenericTypeMapSet>
+          </Interface>
+          <Interface name="CMD" shortDescription="Ground commands" type="CFE_SB/Telecommand">
+            <GenericTypeMapSet>
+              <GenericTypeMap name="TelecommandDataType" type="CommandBase" />
+            </GenericTypeMapSet>
+          </Interface>
+          <Interface name="SEND_HK" shortDescription="Housekeeping request" type="CFE_SB/Telecommand">
+            <GenericTypeMapSet>
+              <GenericTypeMap name="TelecommandDataType" type="SendHkCmd" />
+            </GenericTypeMapSet>
+          </Interface>
+          <Interface name="HK_TLM" shortDescription="Housekeeping" type="CFE_SB/Telemetry">
+            <GenericTypeMapSet>
+              <GenericTypeMap name="TelemetryDataType" type="HkTlm" />
+            </GenericTypeMapSet>
+          </Interface>
+          <Interface name="IMAGE_POSE_TLM" shortDescription="Image with its pose" type="CFE_SB/Telemetry">
+            <GenericTypeMapSet>
+              <GenericTypeMap name="TelemetryDataType" type="ImagePoseTlm" />
+            </GenericTypeMapSet>
+          </Interface>
+        </RequiredInterfaceSet>
+        <Implementation>
+          <VariableSet>
+            <Variable type="BASE_TYPES/uint16" readOnly="true" name="CmdTopicId" initialValue="${CFE_MISSION/ALIGN_APP_CMD_TOPICID}" />
+            <Variable type="BASE_TYPES/uint16" readOnly="true" name="SendHkTopicId" initialValue="${CFE_MISSION/ALIGN_APP_SEND_HK_TOPICID}" />
+            <Variable type="BASE_TYPES/uint16" readOnly="true" name="HkTlmTopicId" initialValue="${CFE_MISSION/ALIGN_APP_HK_TLM_TOPICID}" />
+            <Variable type="BASE_TYPES/uint16" readOnly="true" name="ImagePoseTopicId" initialValue="${CFE_MISSION/ALIGN_APP_IMAGE_POSE_TLM_TOPICID}" />
+          </VariableSet>
+          <ParameterMapSet>
+            <ParameterMap interface="CMD" parameter="TopicId" variableRef="CmdTopicId" />
+            <ParameterMap interface="SEND_HK" parameter="TopicId" variableRef="SendHkTopicId" />
+            <ParameterMap interface="HK_TLM" parameter="TopicId" variableRef="HkTlmTopicId" />
+            <ParameterMap interface="IMAGE_POSE_TLM" parameter="TopicId" variableRef="ImagePoseTopicId" />
+          </ParameterMapSet>
+        </Implementation>
+      </Component>
+    </ComponentSet>
+
+  </Package>
+</PackageFile>

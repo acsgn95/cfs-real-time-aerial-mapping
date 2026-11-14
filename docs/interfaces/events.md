@@ -65,5 +65,31 @@ and Meaning; the fault events list the application's faults in order.
 | 63 | fault `DATASTORE_QUOTA` | | an image could not be stored |
 | 64 | fault `TABLE_REJECTED` | | the configuration table was not loaded |
 
+### `ALIGN_APP`
+
+| Id | Name | Type | Meaning |
+| --- | --- | --- | --- |
+| 1 | `ALIGN_APP_INIT_INF_EID` | INFORMATION | initialised, with the alignment limits |
+| 2 | `ALIGN_APP_NOOP_INF_EID` | INFORMATION | no-op command |
+| 3 | `ALIGN_APP_RESET_INF_EID` | INFORMATION | counters reset |
+| 4 | `ALIGN_APP_MID_ERR_EID` | ERROR | message with an unknown message identifier |
+| 5 | `ALIGN_APP_CMD_LEN_ERR_EID` | ERROR | command of wrong length |
+| 6 | `ALIGN_APP_CC_ERR_EID` | ERROR | unknown command code |
+| 7 | `ALIGN_APP_PIPE_ERR_EID` | ERROR | Software Bus pipe read error; the application stops |
+| 8 | `ALIGN_APP_TBL_ERR_EID` | ERROR | configuration table rejected or not loaded |
+| 9 | `ALIGN_APP_CLEAR_INF_EID` | INFORMATION | latched faults cleared |
+| 10 | `ALIGN_APP_INIT_ERR_EID` | ERROR | initialisation failed |
+| 20 | `ALIGN_APP_SESSION_INF_EID` | INFORMATION | a new session: telemetry buffer and mounting dropped |
+| 21 | `ALIGN_APP_CALIBRATION_INF_EID` | INFORMATION | camera mounting of the session set |
+| 22 | `ALIGN_APP_CALIBRATION_ERR_EID` | ERROR | camera mounting of the session rejected |
+| 23 | `ALIGN_APP_IMAGE_REJECTED_EID` | ERROR | image without a valid pose, with the reason (filtered) |
+| 24 | `ALIGN_APP_MSG_LEN_ERR_EID` | ERROR | input message of wrong length (filtered) |
+| 25 | `ALIGN_APP_DATASTORE_ERR_EID` | ERROR | JPEG reference not released (filtered) |
+| 26 | `ALIGN_APP_LIB_ERR_EID` | ERROR | a call of `libs/time_align` failed (filtered) |
+| 60 | fault `POSE_NO_TELEMETRY` | | an image was rejected for missing telemetry: before the buffer, in a gap, or no sample after it |
+| 61 | fault `POSE_ACCURACY_LOW` | | the last valid pose was beyond `MaxPositionStdM` or `MaxAttitudeStdDeg` |
+| 62 | fault `TABLE_REJECTED` | | the configuration table was not loaded |
+| 63 | fault `LIBRARY_ERROR` | | a call of `libs/time_align` failed |
+
 Filtered events are sent for the first 8 occurrences; the counts are in
 the housekeeping.

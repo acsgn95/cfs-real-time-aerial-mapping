@@ -44,6 +44,7 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../interfaces ${CMAKE_CURRENT_BINAR
 add_subdirectory(datastore)
 add_subdirectory(link)
 add_subdirectory(geo)
+add_subdirectory(time_align)
 add_subdirectory(imaging)
 add_subdirectory(selection)
 add_subdirectory(dense)
