@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  RECORDER_APP: measurement records of a run (ADR-012, ADR-017).
+  Subscribes to the status, timing and health messages of the table and
+  writes them, encoded as on the ground link (EDS packed, as TO_LAB sends
+  them), to one recording file per run with the receive time.
+  tools/ground/recorder_export.py turns a recording into one CSV file per
+  message, the event log and a JSON-lines file for the report tools.
+  No bulk data (images, depth, points) is recorded (ADR-001).
+  Definitions follow ADR-020.
+-->
+<PackageFile xmlns="http://www.ccsds.org/schema/sois/seds">
+  <Package name="RECORDER_APP" shortDescription="Measurement recorder">
+    <DataTypeSet>
+      <StringDataType name="PathName" length="128" />
+      <StringDataType name="RunId" length="${RECORDER_APP/RUN_ID_LEN}" />
+      <ContainerDataType name="Subscription" shortDescription="One recorded message">
+        <EntryList>
+          <Entry name="MsgId" type="BASE_TYPES/uint32" shortDescription="Software Bus message identifier value; 0 ends the list" />
+          <Entry name="MsgLimit" type="BASE_TYPES/uint16" shortDescription="Messages of this identifier that may wait in the pipe" />
+          <Entry name="Spare" type="BASE_TYPES/uint16" />
+        </EntryList>
+      </ContainerDataType>
+      <ArrayDataType name="SubscriptionArray" dataTypeRef="Subscription">
+        <DimensionList>
+          <Dimension size="${RECORDER_APP/MAX_SUBSCRIPTIONS}" />
+        </DimensionList>
+      </ArrayDataType>
+      <!-- Configuration table (ADR-016 section 5) -->
+      <ContainerDataType name="ConfigTable" shortDescription="Configuration of RECORDER_APP">
+        <EntryList>
+          <Entry name="OutputDir" type="PathName" shortDescription="Runs go to OutputDir/RUN_ID/; /cf/ paths are translated" />
+          <Entry name="AutoStart" type="BASE_TYPES/uint8" shortDescription="1: start recording at application start, with a run identifier from the UTC time" />
+          <Entry name="Spare1" type="BASE_TYPES/uint8" />
+          <Entry name="Spare2" type="BASE_TYPES/uint16" />
+          <Entry name="MinFreeMb" type="BASE_TYPES/uint32" shortDescription="Recording stops below this free space of the output volume" />
+          <Entry name="WarnFreeMb" type="BASE_TYPES/uint32" shortDescription="DISK_SPACE_LOW below this free space" />
+          <Entry name="MaxRecordingMb" type="BASE_TYPES/uint32" shortDescription="Recording stops at this file size; 0: no limit" />
+          <Entry name="Subscriptions" type="SubscriptionArray" />
+        </EntryList>
+      </ContainerDataType>
+      <ContainerDataType name="HkTlm_Payload" shortDescription="RECORDER_APP housekeeping">
+        <EntryList>
+          <Entry name="Common" type="OST/HkCommon" />
+          <Entry name="Recording" type="BASE_TYPES/uint8" shortDescription="1: a run is being recorded" />
+          <Entry name="Spare1" type="BASE_TYPES/uint8" />
+          <Entry name="Subscriptions" type="BASE_TYPES/uint16" shortDescription="Messages subscribed to" />
+          <Entry name="Runs" type="BASE_TYPES/uint32" shortDescription="Recordings started since the application started" />
+          <Entry name="Records" type="BASE_TYPES/uint32" shortDescription="Messages written in the current or last run" />
+          <Entry name="EncodeErrors" type="BASE_TYPES/uint32" shortDescription="Messages without an EDS encoding, not written" />
+          <Entry name="WriteErrors" type="BASE_TYPES/uint32" />
+          <Entry name="Dropped" type="BASE_TYPES/uint32" shortDescription="Messages not recorded: the buffer to the writer task was full" />
+          <Entry name="BufferMaxKb" type="BASE_TYPES/uint32" shortDescription="Largest fill of the buffer in the current or last run" />
+          <Entry name="MaxWriteMs" type="BASE_TYPES/float" shortDescription="Longest write to the recording file" />
+          <Entry name="RecordingMb" type="BASE_TYPES/float" shortDescription="Size of the current or last recording" />
+          <Entry name="FreeMb" type="BASE_TYPES/float" shortDescription="Free space of the output volume" />
+          <Entry name="StartUtc" type="OST/UtcTimeNs" />
+          <Entry name="RunId" type="RunId" />
+        </EntryList>
+      </ContainerDataType>
+      <ContainerDataType name="StartRecording_Payload">
+        <EntryList>
+          <Entry name="RunId" type="RunId" shortDescription="Run identifier: letters, digits, '-', '_', '.'; empty: from the UTC time" />
+        </EntryList>
+      </ContainerDataType>
+      <!-- Commands -->
+      <ContainerDataType name="CommandBase" baseType="CFE_HDR/CommandHeader" />
+      <ContainerDataType name="SendHkCmd" baseType="CFE_HDR/CommandHeader" />
+      <ContainerDataType name="WakeupCmd" baseType="CFE_HDR/CommandHeader" />
+      <ContainerDataType name="NoopCmd" baseType="CommandBase">
+        <ConstraintSet><ValueConstraint entry="Sec.FunctionCode" value="0" /></ConstraintSet>
+      </ContainerDataType>
+      <ContainerDataType name="ResetCountersCmd" baseType="CommandBase">
+        <ConstraintSet><ValueConstraint entry="Sec.FunctionCode" value="1" /></ConstraintSet>
+      </ContainerDataType>
+      <ContainerDataType name="ClearLatchedFaultsCmd" baseType="CommandBase">
+        <ConstraintSet><ValueConstraint entry="Sec.FunctionCode" value="2" /></ConstraintSet>
+      </ContainerDataType>
+      <ContainerDataType name="StartRecordingCmd" baseType="CommandBase" shortDescription="Ends a running recording and starts a new run">
+        <ConstraintSet><ValueConstraint entry="Sec.FunctionCode" value="3" /></ConstraintSet>
+        <EntryList><Entry name="Payload" type="StartRecording_Payload" /></EntryList>
+      </ContainerDataType>
+      <ContainerDataType name="StopRecordingCmd" baseType="CommandBase">
+        <ConstraintSet><ValueConstraint entry="Sec.FunctionCode" value="4" /></ConstraintSet>
+      </ContainerDataType>
+      <!-- Telemetry -->
+      <ContainerDataType name="HkTlm" baseType="CFE_HDR/TelemetryHeader">
+        <EntryList><Entry name="Payload" type="HkTlm_Payload" /></EntryList>
+      </ContainerDataType>
+    </DataTypeSet>
+    <ComponentSet>
+      <Component name="Application">
+        <RequiredInterfaceSet>
+          <Interface name="ConfigTable" shortDescription="Configuration table" type="CFE_TBL/Table">
+            <GenericTypeMapSet>
+              <GenericTypeMap name="TableDataType" type="ConfigTable" />
+            </GenericTypeMapSet>
+          </Interface>
+          <Interface name="CMD" shortDescription="Ground commands" type="CFE_SB/Telecommand">
+            <GenericTypeMapSet>
+              <GenericTypeMap name="TelecommandDataType" type="CommandBase" />
+            </GenericTypeMapSet>
+          </Interface>
+          <Interface name="SEND_HK" shortDescription="Housekeeping request" type="CFE_SB/Telecommand">
+            <GenericTypeMapSet>
+              <GenericTypeMap name="TelecommandDataType" type="SendHkCmd" />
+            </GenericTypeMapSet>
+          </Interface>
+          <Interface name="WAKEUP" shortDescription="1 Hz wake-up: free space check (ADR-015 section 1)" type="CFE_SB/Telecommand">
+            <GenericTypeMapSet>
+              <GenericTypeMap name="TelecommandDataType" type="WakeupCmd" />
+            </GenericTypeMapSet>
+          </Interface>
+          <Interface name="HK_TLM" shortDescription="Housekeeping" type="CFE_SB/Telemetry">
+            <GenericTypeMapSet>
+              <GenericTypeMap name="TelemetryDataType" type="HkTlm" />
+            </GenericTypeMapSet>
+          </Interface>
+        </RequiredInterfaceSet>
+        <Implementation>
+          <VariableSet>
+            <Variable type="BASE_TYPES/uint16" readOnly="true" name="CmdTopicId" initialValue="${CFE_MISSION/RECORDER_APP_CMD_TOPICID}" />
+            <Variable type="BASE_TYPES/uint16" readOnly="true" name="SendHkTopicId" initialValue="${CFE_MISSION/RECORDER_APP_SEND_HK_TOPICID}" />
+            <Variable type="BASE_TYPES/uint16" readOnly="true" name="WakeupTopicId" initialValue="${CFE_MISSION/RECORDER_APP_WAKEUP_TOPICID}" />
+            <Variable type="BASE_TYPES/uint16" readOnly="true" name="HkTlmTopicId" initialValue="${CFE_MISSION/RECORDER_APP_HK_TLM_TOPICID}" />
+          </VariableSet>
+          <ParameterMapSet>
+            <ParameterMap interface="CMD" parameter="TopicId" variableRef="CmdTopicId" />
+            <ParameterMap interface="SEND_HK" parameter="TopicId" variableRef="SendHkTopicId" />
+            <ParameterMap interface="WAKEUP" parameter="TopicId" variableRef="WakeupTopicId" />
+            <ParameterMap interface="HK_TLM" parameter="TopicId" variableRef="HkTlmTopicId" />
+          </ParameterMapSet>
+        </Implementation>
+      </Component>
+    </ComponentSet>
+  </Package>
+</PackageFile>

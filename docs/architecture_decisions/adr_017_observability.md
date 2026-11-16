@@ -110,6 +110,35 @@ records leave "reported" and "recorded" to this record.
 * **`.gitignore`:** `runs/` is excluded.
 * **D17:** the evaluation tools read the run directories.
 
+## Implementation Notes (2026-11-16)
+
+* **Recording format.** `RECORDER_APP` does not format CSV in the flight
+  software. It writes each subscribed message EDS-packed, the bytes
+  `TO_LAB` sends to the ground, with its receive time, to one file per run
+  (`recording.ostrec`), and a `manifest.json` with the counts of the run.
+  `tools/ground/recorder_export.py` produces the CSV files per message type
+  and the event log of section 4 from it, decoding with the generated
+  COSMOS definitions, plus a JSON-lines file that the report tools read as
+  they read a `TO_LAB` capture. One decoder serves the link and the
+  recordings, and the flight software does the least work per message.
+* **Manifest.** The flight software writes what it knows (run identifier,
+  times, counts, subscriptions); git commit, injector parameters and the
+  sampler output are added by the ground tools.
+* **Run directory:** `<OutputDir>/<run id>/`, by default `/cf/runs` of the
+  cFS installation, outside the repository. Run identifiers name
+  measurements: an existing run directory is not overwritten.
+* **Writing off the pipe.** A writer task writes a 4 MB buffer to the
+  file, so a slow write cannot stop the pipes from being emptied; a full
+  buffer is counted. The longest write in the first runs was 0.1 ms.
+* **Pipe depth.** OSAL truncates every Software Bus pipe on Linux to
+  `/proc/sys/fs/mqueue/msg_max` (10 without privileges). All housekeeping
+  is requested in the same tick, so about 15 messages arrive at once; one
+  recorder pipe overflowed. The recorder spreads its subscriptions over
+  three pipes, and `REFINE_APP` spaces its batch bursts (ADR-015).
+  `TO_LAB` still loses an occasional housekeeping packet (display only).
+  Raising `fs.mqueue.msg_max` for the measurement machine removes the limit
+  for every application.
+
 ## Open Questions
 
 None.

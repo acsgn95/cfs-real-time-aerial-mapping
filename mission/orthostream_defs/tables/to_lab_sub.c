@@ -62,6 +62,9 @@ TO_LAB_Subs_t Subscriptions = {.Subs = {
     OST_TO_TLM(MAPPROD_APP_TILE_UPDATED_TLM_TOPICID, 8),
     OST_TO_TLM(MAPPROD_APP_TILE_PUBLISHED_TLM_TOPICID, 8),
 
+    /* RECORDER_APP */
+    OST_TO_TLM(RECORDER_APP_HK_TLM_TOPICID, 4),
+
     /* End of the list */
     {CFE_SB_MSGID_RESERVED, {0, 0}, 0}}};
 

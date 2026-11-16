@@ -46,6 +46,7 @@ LATCHED --command "clear latched faults"--> CLEARED
 | 32 | `DEPTH_FAILED` | `ERROR` | latch | `DENSE_APP` | depth estimation failed for a keyframe |
 | 33 | `POINTS_FAILED` | `ERROR` | latch | `GEOREF_APP` | a depth set was dropped: georeferencing failed, no point set within the quota wait (ADR-015 section 3), or POINTS_READY not sent |
 | 34 | `MAP_UPDATE_FAILED` | `ERROR` | latch | `MAPPROD_APP` | a point set was dropped: fusion failed, unreadable point set, tile grid or CRS different from `GEOREF_APP`, or a full queue |
+| 35 | `RECORDING_FAILED` | `ERROR` | latch | `RECORDER_APP` | a run could not be recorded: run directory or recording file not created, or a write failed (recording stops) |
 | 40 | `REFINE_REJECTED` | `WARNING` | latch | `REFINE_APP` | refinement result rejected (ADR-019 section 5) |
 | 41 | `REFINE_LATENCY` | `DEGRADED` | latch | `REFINE_APP` | refinement over its latency limit |
 | 50 | `TILE_WRITE` | `ERROR` | latch | `MAPPROD_APP` | tile write failure |

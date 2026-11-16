@@ -23,4 +23,4 @@ SET(cpu1_PROCESSORID 1)
 # cFS lab applications for development: SCH_LAB (scheduler), CI_LAB (UDP
 # command ingest) and TO_LAB (UDP telemetry output). They come from
 # vendor/cfs/apps, which mission/build.sh adds to CFS_APP_PATH.
-SET(cpu1_APPLIST ost_common ost_datastore ingest_app align_app select_app refine_app dense_app georef_app mapprod_app sch_lab ci_lab to_lab)
+SET(cpu1_APPLIST ost_common ost_datastore ingest_app align_app select_app refine_app dense_app georef_app mapprod_app recorder_app sch_lab ci_lab to_lab)

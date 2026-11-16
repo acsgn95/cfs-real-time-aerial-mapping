@@ -129,6 +129,20 @@
     </Define>
   </Package>
 
+  <Package name="RECORDER_APP" shortDescription="Sizes of RECORDER_APP">
+    <Define name="MAX_SUBSCRIPTIONS" value="40">
+      <LongDescription>
+        Capacity of the subscription list of the RECORDER_APP table: the
+        messages recorded for the evaluation (ADR-017).
+      </LongDescription>
+    </Define>
+    <Define name="RUN_ID_LEN" value="32">
+      <LongDescription>
+        Length of a run identifier, a multiple of 4.
+      </LongDescription>
+    </Define>
+  </Package>
+
   <Package name="CFE_ES" shortDescription="Executive Services">
     <!-- Placeholder, currently no options yet -->
   </Package>

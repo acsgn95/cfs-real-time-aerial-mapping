@@ -173,6 +173,21 @@ recorded with every measurement.
   update by up to 20 s; ADR-007 section 8 has the details. The period
   comes from the 1 Hz wake-up of `SCH_LAB`; while the publisher still
   writes, changes wait for the next period.
+* **Pipe depth (2026-11-16).** The same limit applies to Software Bus
+  pipes: OSAL truncates every pipe to `/proc/sys/fs/mqueue/msg_max`
+  (10 without privileges), whatever depth `CFE_SB_CreatePipe` asks for.
+  `SCH_LAB` sends all housekeeping requests in the same tick, so a pipe
+  that subscribes to many housekeeping messages (the recorder, `TO_LAB`)
+  receives about 15 at once. `RECORDER_APP` spreads its subscriptions over
+  three pipes; `TO_LAB` occasionally drops a housekeeping packet (display
+  only). `REFINE_APP` published one window's batches within 0.2 ms, up to
+  12 in one recorder run: more than a pipe holds, so the recorder lost 5,
+  and `DENSE_APP` would lose a batch with its data store counts.
+  `REFINE_APP` therefore spaces its `BATCH_READY` messages by at least
+  `REFINE_APP_PUBLISH_GAP_MS` (5 ms; a burst of 12 takes 60 ms, against
+  the 100 s that refinement waits). For measurement runs
+  `fs.mqueue.msg_max` should still be raised (system setting, needs
+  privileges).
 * Stopping: cFE deletes the child tasks of an application when it exits.
   `MAPPROD_APP`'s main task therefore waits for its worker (which waits for
   the publisher) before `CFE_ES_ExitApp`. A process ended by a signal runs

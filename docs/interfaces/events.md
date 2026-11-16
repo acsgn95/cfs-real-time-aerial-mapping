@@ -254,3 +254,29 @@ the housekeeping.
 
 Filtered events are sent for the first 8 occurrences; the counts are in
 the housekeeping.
+
+### `RECORDER_APP`
+
+| Id | Name | Type | Meaning |
+| --- | --- | --- | --- |
+| 1 | `RECORDER_APP_INIT_INF_EID` | INFORMATION | initialised: messages subscribed, output directory, free space, auto start |
+| 2 | `RECORDER_APP_NOOP_INF_EID` | INFORMATION | no-op command |
+| 3 | `RECORDER_APP_RESET_INF_EID` | INFORMATION | command counters reset |
+| 4 | `RECORDER_APP_MID_ERR_EID` | ERROR | message with an unknown message identifier |
+| 5 | `RECORDER_APP_CMD_LEN_ERR_EID` | ERROR | command of wrong length |
+| 6 | `RECORDER_APP_CC_ERR_EID` | ERROR | unknown command code |
+| 7 | `RECORDER_APP_PIPE_ERR_EID` | ERROR | Software Bus pipe read error; the application stops |
+| 8 | `RECORDER_APP_TBL_ERR_EID` | ERROR | configuration table rejected or not loaded |
+| 9 | `RECORDER_APP_CLEAR_INF_EID` | INFORMATION | latched faults cleared |
+| 10 | `RECORDER_APP_INIT_ERR_EID` | ERROR | initialisation failed |
+| 11 | `RECORDER_APP_START_INF_EID` | INFORMATION | recording started: run identifier and directory |
+| 12 | `RECORDER_APP_STOP_INF_EID` | INFORMATION | recording stopped: reason, records, size, errors; or "not recording" |
+| 13 | `RECORDER_APP_RUN_ID_ERR_EID` | ERROR | start recording rejected: invalid run identifier or no table |
+| 20 | `RECORDER_APP_WRITE_ERR_EID` | ERROR | write to the recording failed; recording stops (filtered) |
+| 21 | `RECORDER_APP_ENCODE_ERR_EID` | ERROR | a subscribed message has no EDS encoding and is not recorded (filtered) |
+| 22 | `RECORDER_APP_DISK_EID` | ERROR | free space below `MinFreeMb`, or the recording reached `MaxRecordingMb`; recording stops |
+| 23 | `RECORDER_APP_SUB_ERR_EID` | ERROR | a message of the table could not be subscribed (filtered) |
+| 24 | `RECORDER_APP_FILE_ERR_EID` | ERROR | run directory, recording file or manifest not created or written |
+| 60 | fault `RECORDING_FAILED` | | a run could not be recorded |
+| 61 | fault `DISK_SPACE_LOW` | | free space of the output volume below `WarnFreeMb` |
+| 62 | fault `TABLE_REJECTED` | | the configuration table was not loaded |

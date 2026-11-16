@@ -25,6 +25,15 @@
  * use, every waiting batch is solved at once. */
 #define REFINE_APP_MAX_HELD 64
 
+/* Least time between two BATCH_READY messages. One window solution
+ * publishes all batches it covers (12 at once on Dorfberg), and OSAL limits
+ * every Software Bus pipe on Linux to /proc/sys/fs/mqueue/msg_max messages
+ * (10 without privileges): a burst would overflow the pipes of DENSE_APP,
+ * which would lose a batch with its data store counts, and of the
+ * recorder. Spaced by a few milliseconds, every subscriber takes each batch
+ * off its pipe in time. 0: no spacing. */
+#define REFINE_APP_PUBLISH_GAP_MS 5
+
 /* Grey copy of one working image for feature extraction. */
 #define REFINE_APP_MAX_GREY_BYTES (16u * 1024u * 1024u)
 

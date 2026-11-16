@@ -103,13 +103,21 @@ static void REFINE_APP_ReleaseBatch(const OST_KeyframeBatch_Payload_t *B)
 
 bool REFINE_APP_PublishBatch(const OST_KeyframeBatch_Payload_t *Batch, int64 EntryMono)
 {
-    static uint32          Sequence = 0;
+    static uint32          Sequence    = 0;
+    static int64           LastPublish = 0; /* under PublishMutex */
+    int64                  Since;
     REFINE_APP_Counters_t *C        = &REFINE_APP_Data.Counters;
     OST_KeyframeBatch_Payload_t *P  = &REFINE_APP_OutMsg.Payload;
     float                  Latency;
     bool                   Sent;
 
     OS_MutSemTake(REFINE_APP_Data.PublishMutex);
+    /* Bursts are spaced (REFINE_APP_PUBLISH_GAP_MS). */
+    Since = OST_TimeMonoNs() - LastPublish;
+    if (REFINE_APP_PUBLISH_GAP_MS > 0 && Since >= 0 && Since < (int64)REFINE_APP_PUBLISH_GAP_MS * 1000000)
+    {
+        OS_TaskDelay((uint32)(REFINE_APP_PUBLISH_GAP_MS - Since / 1000000));
+    }
     CFE_MSG_Init(CFE_MSG_PTR(REFINE_APP_OutMsg.TelemetryHeader), OST_BatchReadyMsgId(), sizeof(REFINE_APP_OutMsg));
     *P                   = *Batch;
     P->Header.Sequence   = ++Sequence;
@@ -118,7 +126,8 @@ bool REFINE_APP_PublishBatch(const OST_KeyframeBatch_Payload_t *Batch, int64 Ent
     P->Trace.PublishUtc  = OST_TimeUtcNs();
     Latency              = (float)((double)(P->Trace.PublishUtc - P->Keyframe.CaptureUtc) * 1e-9);
     CFE_SB_TimeStampMsg(CFE_MSG_PTR(REFINE_APP_OutMsg.TelemetryHeader));
-    Sent = CFE_SB_TransmitMsg(CFE_MSG_PTR(REFINE_APP_OutMsg.TelemetryHeader), true) == CFE_SUCCESS;
+    Sent        = CFE_SB_TransmitMsg(CFE_MSG_PTR(REFINE_APP_OutMsg.TelemetryHeader), true) == CFE_SUCCESS;
+    LastPublish = OST_TimeMonoNs();
     if (!Sent)
     {
         REFINE_APP_ReleaseBatch(Batch); /* nobody owns the counts */
