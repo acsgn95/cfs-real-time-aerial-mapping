@@ -1,0 +1,20 @@
+# E4, pose set level "non-optimized" (ADR-018 section 2, ADR-019): the
+# recorded geotag poses with the height chain of the reference
+# (poses_nonoptimized.txt), refined in the mission by REFINE_APP.
+
+[run]
+name = "e4_nonopt"
+id_prefix = "e4n"      # run identifier: <id_prefix>_<MMDDhhmmss>_<repetition>, at most 19 characters
+repetitions = 3
+output = "/home/ahmet/MasterProgramm/test_outputs/runs"
+settle_s = 20
+max_wait_s = 400
+keep_products = ["dsm"]        # the orthomosaic of every repetition is not needed here
+reference_dsm = "/home/ahmet/navigation-project-stack/Dorsberck2/DSM_Dorfberg_20201109_10cm.tif"
+
+[injector]
+poses = "data/processed/dorfberg_f01/poses_nonoptimized.txt"
+captures = "data/processed/dorfberg_f01/captures.txt"
+images = "/home/ahmet/navigation-project-stack/Dorsberck2"
+time_factor = 1.0
+telemetry_rate = 10

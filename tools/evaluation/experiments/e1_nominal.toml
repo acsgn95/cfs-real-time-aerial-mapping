@@ -1,0 +1,19 @@
+# E1 Nominal (ADR-018 section 2): optimized poses, time factor 1, all
+# images, ideal link. The mission runs with the tables of the build.
+
+[run]
+name = "e1_nominal"
+id_prefix = "e1n"      # run identifier: <id_prefix>_<MMDDhhmmss>_<repetition>, at most 19 characters
+repetitions = 3
+output = "/home/ahmet/MasterProgramm/test_outputs/runs"
+settle_s = 20          # no data path message for this long: the run is over
+max_wait_s = 400       # after the injector, at most (pose refinement waits up to 100 s)
+keep_products = ["dsm", "ortho"]   # "points" keeps the point cloud as well (about 5 MB per keyframe)
+reference_dsm = "/home/ahmet/navigation-project-stack/Dorsberck2/DSM_Dorfberg_20201109_10cm.tif"
+
+[injector]
+poses = "data/processed/dorfberg_f01/poses_optimized.txt"
+captures = "data/processed/dorfberg_f01/captures.txt"
+images = "/home/ahmet/navigation-project-stack/Dorsberck2"
+time_factor = 1.0
+telemetry_rate = 10

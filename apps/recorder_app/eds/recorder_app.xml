@@ -60,7 +60,7 @@
       </ContainerDataType>
       <ContainerDataType name="StartRecording_Payload">
         <EntryList>
-          <Entry name="RunId" type="RunId" shortDescription="Run identifier: letters, digits, '-', '_', '.'; empty: from the UTC time" />
+          <Entry name="RunId" type="RunId" shortDescription="Run identifier: letters, digits, '-', '_', '.', at most OS_MAX_FILE_NAME - 1 (19) characters; empty: from the UTC time" />
         </EntryList>
       </ContainerDataType>
       <!-- Commands -->

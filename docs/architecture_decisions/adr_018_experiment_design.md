@@ -101,6 +101,25 @@ queue lengths, skipped keyframes, CPU, GPU, RAM and GPU memory use.
 * **Data:** the orthophoto (ADR-008) is downloaded before the orthomosaic
   evaluation.
 
+## Implementation Notes (2026-11-16)
+
+* `tools/evaluation/run_experiment.py` runs an experiment file end to end:
+  cFS, the recording of `RECORDER_APP`, the resource sampler
+  (`tools/evaluation/sampler.py`), the injector, waiting until the data
+  path is empty, the final tiles, the export of the recording, the reports,
+  the DSM evaluation and a manifest per run (ADR-017 section 4).
+* Experiment files are TOML instead of YAML (ADR-016 section 5): the
+  standard library of Python reads TOML (`tomllib`), and the tools keep to
+  the standard library. The structure is the same.
+* Run identifiers are at most 19 characters (`<prefix>_<MMDDhhmmss>_<n>`):
+  the run directory is one OSAL path component (`OS_MAX_FILE_NAME`).
+* Each run records the machine state (load, processes using the CPU or the
+  GPU) and the real-time privileges of cFS, so that results of a busy
+  machine are recognisable.
+* Not yet: table values per experiment (E6, refinement on and off), pose
+  noise in the injector (E4) and link profiles (E7); the aggregation of
+  repetitions into tables and figures (section 5).
+
 ## Open Questions
 
 None.

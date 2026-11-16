@@ -35,7 +35,7 @@ exists is never overwritten.
 | Code | Command |
 | --- | --- |
 | 0, 1, 2 | no-op, reset command counters, clear latched faults |
-| 3 | start recording, `RunId` (letters, digits, `-`, `_`, `.`; empty: from the UTC time); ends a running recording first |
+| 3 | start recording, `RunId` (letters, digits, `-`, `_`, `.`; at most 19 characters, since the run directory is one path component and OSAL limits those to `OS_MAX_FILE_NAME` - 1; empty: from the UTC time); ends a running recording first |
 | 4 | stop recording |
 
 `tools/ground/send_command.py RECORDER_APP_CMD_START_RECORDING --param RUN_ID=flight_01`

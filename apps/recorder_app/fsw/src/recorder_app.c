@@ -328,9 +328,10 @@ CFE_Status_t RECORDER_APP_StartRecordingCmd(const RECORDER_APP_StartRecordingCmd
     {
         ++RECORDER_APP_Data.CommandErrorCounter;
         CFE_EVS_SendEvent(RECORDER_APP_RUN_ID_ERR_EID, CFE_EVS_EventType_ERROR,
-                          "start recording: %s", RECORDER_APP_Data.ConfigValid
-                                                     ? "run identifier with letters, digits, '-', '_', '.' only"
-                                                     : "no configuration table");
+                          "start recording: %s (at most %u characters)",
+                          RECORDER_APP_Data.ConfigValid ? "run identifier with letters, digits, '-', '_', '.' only"
+                                                        : "no configuration table",
+                          (unsigned)(OS_MAX_FILE_NAME - 1));
         return CFE_SUCCESS;
     }
     if (RECORDER_APP_Start(RunId) == CFE_SUCCESS)

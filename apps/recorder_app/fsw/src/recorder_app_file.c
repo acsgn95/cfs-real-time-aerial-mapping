@@ -42,7 +42,9 @@ bool RECORDER_APP_ValidRunId(const char *RunId)
             return false;
         }
     }
-    return i <= RECORDER_APP_RUN_ID_MAX;
+    /* The run directory is one path component: OSAL limits it to
+     * OS_MAX_FILE_NAME - 1 characters. */
+    return i <= RECORDER_APP_RUN_ID_MAX && i < OS_MAX_FILE_NAME;
 }
 
 static OST_Status_t RECORDER_APP_WriteAll(osal_id_t File, const void *Data, size_t Size)
