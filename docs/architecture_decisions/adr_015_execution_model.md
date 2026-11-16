@@ -185,9 +185,11 @@ recorded with every measurement.
   and `DENSE_APP` would lose a batch with its data store counts.
   `REFINE_APP` therefore spaces its `BATCH_READY` messages by at least
   `REFINE_APP_PUBLISH_GAP_MS` (5 ms; a burst of 12 takes 60 ms, against
-  the 100 s that refinement waits). For measurement runs
-  `fs.mqueue.msg_max` should still be raised (system setting, needs
-  privileges).
+  the 100 s that refinement waits). The measurement machine raises
+  `fs.mqueue.msg_max` to 64 (2026-11-16, `/etc/sysctl.d`, README); in
+  70 s of operation no pipe overflowed afterwards, against several per
+  second before. The spacing and the recorder's pipes stay, so that the
+  mission also runs on a machine with the default limit.
 * Stopping: cFE deletes the child tasks of an application when it exits.
   `MAPPROD_APP`'s main task therefore waits for its worker (which waits for
   the publisher) before `CFE_ES_ExitApp`. A process ended by a signal runs

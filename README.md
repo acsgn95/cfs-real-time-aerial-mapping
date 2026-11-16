@@ -167,6 +167,15 @@ ORTHOSTREAM_BUILD_TYPE=release mission/build.sh   # release build, used for all 
 cd build/exe/cpu1 && ./core-cpu1
 ```
 
+On Linux, OSAL builds every Software Bus pipe on a POSIX message queue and limits its depth to `/proc/sys/fs/mqueue/msg_max`, 10 by default. Housekeeping requests and keyframe batches arrive in bursts of more than ten messages, so the measurement machine raises the limit once (see ADR-015):
+
+```bash
+echo "fs.mqueue.msg_max = 64" | sudo tee /etc/sysctl.d/90-orthostream-mqueue.conf
+sudo sysctl -p /etc/sysctl.d/90-orthostream-mqueue.conf
+```
+
+At start-up OSAL reports the depth it uses (`Maximum user msg queue depth = 64`).
+
 Mission data are prepared once per survey area, outside the build:
 
 ```bash
@@ -174,7 +183,7 @@ tools/dataset/extract_metashape_poses.py chunk.zip data/processed/dorfberg_f01/p
 tools/dataset/fetch_dem.py --poses data/processed/dorfberg_f01/poses_optimized.txt --name dorfberg     # terrain prior, Copernicus DEM GLO-30 (ADR-006)
 ```
 
-At this stage the mission runs the cFS lab applications only (SCH_LAB, CI_LAB, TO_LAB). The OrthoStream applications are added as the architecture decisions are implemented.
+The reference mission runs the seven OrthoStream applications with the cFS lab applications (SCH_LAB, CI_LAB, TO_LAB). `RECORDER_APP` records every run under `build/exe/cpu1/cf/runs/`; `tools/ground/recorder_export.py` turns a run into CSV files.
 
 The OrthoStream applications and libraries are reusable cFS components. Another cFS mission can include them by adding `apps/` to its `CFS_APP_PATH`, listing the applications in its `targets.cmake`, and overriding their default configuration headers where needed. The mission under `mission/` is the reference configuration used for the thesis.
 

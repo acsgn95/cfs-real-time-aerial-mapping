@@ -136,8 +136,8 @@ records leave "reported" and "recorded" to this record.
   recorder pipe overflowed. The recorder spreads its subscriptions over
   three pipes, and `REFINE_APP` spaces its batch bursts (ADR-015).
   `TO_LAB` still loses an occasional housekeeping packet (display only).
-  Raising `fs.mqueue.msg_max` for the measurement machine removes the limit
-  for every application.
+  The measurement machine raises `fs.mqueue.msg_max` to 64 (README,
+  ADR-015), which removes the limit for every application.
 
 ## Open Questions
 
